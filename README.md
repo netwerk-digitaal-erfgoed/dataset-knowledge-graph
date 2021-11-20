@@ -1,5 +1,7 @@
 # Commands for generating statics about data dumps
 
+## These examples expect the Jena commandline tools and Graphdb commandline tools are installed and added to the $PATH
+
 ## Analyse properties
 
 ```bash
