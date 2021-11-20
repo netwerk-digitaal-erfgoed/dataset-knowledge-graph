@@ -1,0 +1,14 @@
+PREFIX dcat: <http://www.w3.org/ns/dcat#>
+PREFIX dct: <http://purl.org/dc/terms/>
+PREFIX schema: <http://schema.org/>
+
+# select LOD datasets with dumps (group formats and url together for better readability)
+SELECT (STR(?dataset_uri) as ?dataset)  (STR(SAMPLE(?url_uri)) as ?url) {
+    ?dataset_uri dcat:distribution ?dist .
+        
+    # select only LOD download formats (exlcuding SPARQL endpoints)
+    ?dist dct:format ?format ;
+          dcat:accessURL ?url_uri .
+    VALUES ?format {"text/turtle" "application/rdf+xml" "application/n-triples"} 
+} 
+GROUP BY ?dataset_uri ORDER BY ?dataset_uri
