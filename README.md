@@ -19,3 +19,9 @@ sparql --query analyse-classes.rq --data <path to data>
 ```bash
 sparql --query analyse-outgoinglinks.rq --data <path to data> 
 ```
+
+
+# GraphDB queries
+
+- [List of (selected) linked data distributions in Dataset Register](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=Linked%20data%20distributies&owner=admin)
+
