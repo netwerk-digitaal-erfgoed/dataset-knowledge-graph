@@ -27,7 +27,7 @@ sparql --query analyse-outgoinglinks.rq --data <path to data>
 
 - [List of (selected) linked data distributions](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=Linked%20data%20distributies&owner=admin)
 
-## Generic KG
+## Generic knowledge about dataset
 
 - [exhaustive list of classes used in the dataset](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20exhaustive%20list%20of%20classes%20used%20in%20the%20dataset&owner=kg)
 - [exhaustive list of properties used in the dataset](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20exhaustive%20list%20of%20properties%20used%20in%20the%20dataset&owner=kg)
@@ -35,6 +35,7 @@ sparql --query analyse-outgoinglinks.rq --data <path to data>
 - [table: property vs. total number of distinct objects in triples using the property](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20table%3A%20property%20vs.%20total%20number%20of%20distinct%20objects%20in%20triples%20using%20the%20property&owner=kg)
 - [table: property vs. total number of distinct subjects in triples using the property](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20table%3A%20property%20vs.%20total%20number%20of%20distinct%20subjects%20in%20triples%20using%20the%20property&owner=kg)
 - [table: property vs. total number of triples using the property](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20table%3A%20property%20vs.%20total%20number%20of%20triples%20using%20the%20property&owner=kg)
+- [table: used prefixes in URIs and count](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20table%3A%20used%20prefixes%20in%20URIs%20and%20count&owner=kg)
 - [total number of distinct classes](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20total%20number%20of%20distinct%20classes&owner=kg)
 - [total number of distinct object nodes](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20total%20number%20of%20distinct%20object%20nodes&owner=kg)
 - [total number of distinct predicates](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20total%20number%20of%20distinct%20predicates&owner=kg)
