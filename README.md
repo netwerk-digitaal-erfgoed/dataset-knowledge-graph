@@ -62,35 +62,29 @@ code (TypeScript) functions for extracting even more detailed information, such 
 Write the results of the analysis queries to local files. The results may also be inserted into a triple store that can
 then be consulted by clients as a Knowledge Graph.
 
-# Commands for generating statics about data dumps
+## Commands for generating statics about data dumps
 
-## These examples expect the Jena commandline tools and Graphdb commandline tools are installed and added to the $PATH
+## These examples use the Jena commandline tools
 
-## Analyse properties
+## Analyse properties / classes / outgoing links
 
 ```bash
 sparql --query analyse-properties.rq --data <path to data>
-```
-
-## Analyse classes
-
-```bash
 sparql --query analyse-classes.rq --data <path to data>
-```
-
-## Analyse outgoing links
-
-```bash
 sparql --query analyse-outgoinglinks.rq --data <path to data> 
 ```
 
-# GraphDB queries
+## GraphDB queries
 
 ## Dataset Register
+
+Run on the 'Registry' repository:
 
 - [List of (selected) linked data distributions](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=Linked%20data%20distributies&owner=admin)
 
 ## Generic knowledge about dataset
+
+Run on the 'Registry-kg' repository:
 
 - [exhaustive list of classes used in the dataset](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20exhaustive%20list%20of%20classes%20used%20in%20the%20dataset&owner=kg)
 - [exhaustive list of properties used in the dataset](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20exhaustive%20list%20of%20properties%20used%20in%20the%20dataset&owner=kg)
