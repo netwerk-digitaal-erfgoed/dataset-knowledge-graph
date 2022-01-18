@@ -4,13 +4,14 @@ PREFIX schema: <http://schema.org/>
 PREFIX void: <http://rdfs.org/ns/void#> 
 
 # top 20 prefixes of outgoing links
-CONSTRUCT {
-    <http://data.bibliotheken.nl/id/dataset/dbnla> a schema:Dataset ;
+INSERT {
+    GRAPH <dataset> {
           void:vocabulary ?prefix .
+    }
 }
 WHERE {
     SELECT distinct ?prefix (count(?prefix) as ?count ) {
-      GRAPH <http://netwerkdigitaalerfgoed.nl/dbnla> {
+      GRAPH <distribution> {
          ?s ?p ?o
          FILTER(ISURI(?o))
          BIND(REPLACE(STR(?o),"([^/]+$)","") as ?prefix)

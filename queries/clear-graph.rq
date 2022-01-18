@@ -1,0 +1,11 @@
+PREFIX schema: <http://schema.org/>
+PREFIX prov: <https://www.w3.org/TR/prov-o/#>
+PREFIX nde_action: <https://data.netwerkdigitaalerfgoed.nl/action#>
+DROP SILENT GRAPH <dataset>;
+INSERT DATA { 
+    GRAPH <dataset> { 
+      <dataset> prov:wasDerivedFrom <distribution> .
+      nde_action:import prov:wasGeneratedBy 'GraphDB Import API' .
+      nde_action:import schema:actionStatus 'importStatus' . 
+    }
+};

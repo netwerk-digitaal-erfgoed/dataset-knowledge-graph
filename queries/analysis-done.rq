@@ -1,0 +1,8 @@
+PREFIX prov: <https://www.w3.org/TR/prov-o/#>
+
+SELECT ?endTime {
+    GRAPH <dataset> {
+      ?query prov:wasGeneratedBy 'filename' ;
+             prov:endedAtTime ?endTime .
+    }
+}

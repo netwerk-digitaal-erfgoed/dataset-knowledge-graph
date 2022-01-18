@@ -1,0 +1,181 @@
+Total number of distribution files to process: 141
+Starting with 1 https://druid.datalegend.net/nlgis/gemeentegeschiedenis/download.nt.gz
+Starting with 2 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/collectie_museon/data/export.nt
+Starting with 3 https://lod.uba.uva.nl/UB-UVA/Archaeological-Objects/download.nt.gz
+Starting with 4 https://studiezaal.nijmegen.nl/AtlantisPubliek/data/set/LOD+Beelddocumenten.nt
+Starting with 5 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_denhaag/data/export.nt
+Starting with 6 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_rijckheyt/data/export.nt
+Starting with 7 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_nijmegen/data/export.nt
+Starting with 8 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_heusden/data/export.nt
+Starting with 9 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/gvn_evdo02/data/export.nt
+Starting with 10 http://data.bibliotheken.nl/id/dataset/rise-alba.nt
+Starting with 11 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_utrecht/data/export.nt
+
+Starting with 12 https://data.labs.kadaster.nl/kadaster/wbk/download.nt.gz
+Error importing https://data.labs.kadaster.nl/kadaster/wbk/download.nt.gz(import error)
+GraphDB error: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+Riot validatie: 
+WARN  riot            :: [line: 7966085, col: 170] Lexical form '1.4' not valid for datatype XSD nonNegativeInteger
+49828 regels
+
+Starting with 13 https://druid.datalegend.net/AdamNet/Heritage/download.nt.gz
+Error importing https://druid.datalegend.net/AdamNet/Heritage/download.nt.gz(time out)
+Import tijd was 320 seconden 
+=> timeout vergroten
+
+Starting with 14 https://data.netwerkdigitaalerfgoed.nl/HackaLOD/GVN/download.nt.gz
+Error importing https://data.netwerkdigitaalerfgoed.nl/HackaLOD/GVN/download.nt.gz(import error)
+GraphDB error: org.eclipse.rdf4j.sail.SailException: Invalid IRI value
+Riot validatie: WARN  riot            :: [line: 9424, col: 1 ] Bad IRI: <https://data.n
+etwerkdigitaalerfgoed.nl/hackalod/gvn/EVDO03UBL01_DEJONG_594_[2e_dr]> Code: 0/IL
+LEGAL_CHARACTER in PATH: The character violates the grammar rules for URIs/IRIs.
+
+Starting with 15 https://lit.hosting.deventit.net/AtlantisPubliek/data/set/LOD+Stambestanden.nt
+Starting with 16 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_schiedam/data/export.nt
+
+
+Starting with 17 https://data.netwerkdigitaalerfgoed.nl/HackaLOD/GVN/download.nt.gz
+Error importing https://data.netwerkdigitaalerfgoed.nl/HackaLOD/GVN/download.nt.gz(import error)
+Zie 14: dubbele???
+
+Starting with 18 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_gemert/data/export.nt
+Starting with 19 https://data.spinque.com/ld/data/vangoghworldwide/van_gogh_museum/data/export.nt
+Starting with 20 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/dans_oh_gv/data/export.nt
+
+Starting with 21 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_niod/data/export.nt
+Error importing https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_niod/data/export.nt(import error)
+GraphDB error:  RDF Parse Error: Empty uri is not allowed [line 20, column 1]
+Riot validatie: ERROR riot            :: [line: 276278, col: 1 ] Relative IRI: #MF15593 94
+
+
+Starting with 22 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_denbosch/data/export.nt
+Starting with 23 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/boeken_groningerarchief/data/export.nt
+Starting with 24 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_coda/data/export.nt
+Starting with 25 https://data.spinque.com/ld/data/vangoghworldwide/rkd_collections/data/export.nt
+
+Starting with 26 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_iish/data/export.nt
+Error importing https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_iish/data/export.nt(import error)
+GraphDB error: RDF Parse Error: Empty uri is not allowed [line 20, column 1]
+Riot validatie: 16:44:48 ERROR riot            :: [line: 20, col: 1 ] Relative IRI:
+
+
+Starting with 27 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_bhic/data/export.nt
+Starting with 28 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/gvn_niod02/data/export.nt
+Starting with 29 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_tholen/data/export.nt
+Starting with 30 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/muziek_som/data/export.nt
+Starting with 31 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_hco/data/export.nt
+
+Starting with 32 https://data.netwerkdigitaalerfgoed.nl/HackaLOD/GVN/download.nt.gz
+Error importing https://data.netwerkdigitaalerfgoed.nl/HackaLOD/GVN/download.nt.gz(import error)
+Zie 14: dubbele??
+
+Starting with 33 https://data.labs.kadaster.nl/kadaster/bag2/download.nt.gz
+Error importing https://data.labs.kadaster.nl/kadaster/bag2/download.nt.gz(import error)
+GraphDB: PKIX path building failed: sun.security.provider.certpath.SunCertPathBuilderException: unable to find valid certification path to requested target
+NB: totale download 7G (>150Gb ongezipped!) 
+Import via serverfile lukt wel (maar waarschijnlijk afgekapt?)
+
+Starting with 34 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/collectie_onderduikmuseum/data/export.nt
+Starting with 35 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_nha/data/export.nt
+Starting with 36 https://data.netwerkdigitaalerfgoed.nl/NMVW/thesaurus/download.nt.gz
+Starting with 37 https://lit.hosting.deventit.net/AtlantisPubliek/data/set/LOD+Persoon+en+Organisatie.nt
+Starting with 38 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_geldersarchief/data/export.nt
+Starting with 39 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_zeeuwsarchief/data/export.nt
+Starting with 40 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_zaanstad/data/export.nt
+Starting with 41 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/museum_rotterdam/data/export.nt
+Starting with 42 https://lit.hosting.deventit.net/AtlantisPubliek/data/set/LOD+Archieven.nt
+Starting with 43 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_zutphen/data/export.nt
+Starting with 44 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_gooienvecht/data/export.nt
+Starting with 45 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_tilburg/data/export.nt
+Starting with 46 https://lod.uba.uva.nl/UB-UVA/Beeldbank/download.nt.gz
+
+Starting with 47 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_eemland/data/export.nt
+Error importing https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_eemland/data/export.nt(import error)
+
+Starting with 48 https://data.labs.kadaster.nl/kadaster/bgt/download.nt.gz
+Error importing https://data.labs.kadaster.nl/kadaster/bgt/download.nt.gz(import error)
+
+Starting with 49 https://data.netwerkdigitaalerfgoed.nl/HackaLOD/GVN/download.nt.gz
+Error importing https://data.netwerkdigitaalerfgoed.nl/HackaLOD/GVN/download.nt.gz(import error)
+
+Starting with 50 https://data.labs.kadaster.nl/kadaster/brt-2/download.nt.gz
+Error importing https://data.labs.kadaster.nl/kadaster/brt-2/download.nt.gz(import error)
+
+Starting with 51 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_nimh/data/export.nt
+Starting with 52 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_ede/data/export.nt
+Starting with 53 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_leiden/data/export.nt
+Starting with 54 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_eemland/data/export.nt
+Starting with 55 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/boeken_bhic/data/export.nt
+Starting with 56 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archievenwo2/data/export.nt
+Starting with 57 https://data.spinque.com/ld/data/vangoghworldwide/centraal_museum/data/export.nt
+Starting with 58 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_tilburg/data/export.nt
+Starting with 59 https://data.spinque.com/ld/data/vangoghworldwide/noord_brabants_museum/data/export.nt
+Starting with 60 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_rijckheyt/data/export.nt
+Starting with 61 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_waterland/data/export.nt
+Starting with 62 https://data.spinque.com/ld/data/vangoghworldwide/van_gogh_letters/data/export.nt
+Starting with 63 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/ggc_niod/data/export.nt
+Starting with 64 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/collectie_gelderland/data/export.nt
+
+Starting with 65 https://druid.datalegend.net/IISG/iisg-kg/download.nt.gz
+Error importing https://druid.datalegend.net/IISG/iisg-kg/download.nt.gz(time out)
+GraphDB: import in 31m 43s (via upload 7 m 4s)
+
+Starting with 66 https://data.spinque.com/ld/data/vangoghworldwide/works_after_1970/data/export.nt
+Error importing https://data.spinque.com/ld/data/vangoghworldwide/works_after_1970/data/export.nt(time out)
+Starting with 67 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_zeeuwsarchief/data/export.nt
+Starting with 68 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_gooienvecht/data/export.nt
+Starting with 69 https://data.spinque.com/ld/data/vangoghworldwide/groninger_museum/data/export.nt
+Starting with 70 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/muziek_leosmitstichting/data/export.nt
+Starting with 71 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_bhic/data/export.nt
+Starting with 72 https://lod.uba.uva.nl/UB-UVA/Audio/download.nt.gz
+Starting with 73 https://data.spinque.com/ld/data/vangoghworldwide/de_la_faille_1970/data/export.nt
+Starting with 74 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_denbosch/data/export.nt
+Starting with 75 https://lod.uba.uva.nl/UB-UVA/Catalogue/download.nt.gz
+Starting with 76 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_nijmegen/data/export.nt
+Starting with 77 https://data.spinque.com/ld/data/vangoghworldwide/rijksmuseum/data/export.nt
+Starting with 78 https://lit.hosting.deventit.net/AtlantisPubliek/data/set/LOD+Museale+Objecten.nt
+Starting with 79 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_alkmaar/data/export.nt
+Starting with 80 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/overlijdensaktes_openarchives/data/export.nt
+Starting with 81 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/gvn_niod01/data/export.nt
+Starting with 82 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/atlasvanstolk/data/export.nt
+Starting with 83 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/boeken_onderduikmuseum/data/export.nt
+Starting with 84 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/gvn_evdo01/data/export.nt
+Starting with 85 https://lod.uba.uva.nl/UB-UVA/Images/download.nt.gz
+Starting with 86 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_hclimburg/data/export.nt
+Starting with 87 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/rijksmuseum/data/export.nt
+Starting with 88 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/gvn_geldmuseum01/data/export.nt
+Starting with 89 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/video_friesfilmarchief/data/export.nt
+Error: distribution url unreachable https://lod.uba.uva.nl/UB-UVA/Letters/download.nt.gz
+Starting with 90 https://lod.uba.uva.nl/UB-UVA/Maps/download.nt.gz
+Starting with 91 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_nimh/data/export.nt
+Starting with 92 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/links_concept/data/export.nt
+Starting with 93 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/wo2_biografieen/data/export.nt
+Starting with 94 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/gvn_nfa03/data/export.nt
+Starting with 95 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_waterland/data/export.nt
+Starting with 96 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_rce/data/export.nt
+Starting with 97 https://data.spinque.com/ld/data/vangoghworldwide/rce/data/export.nt
+Starting with 98 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/gvn_nfa02/data/export.nt
+Starting with 99 https://cdn.klek.si/graph/thorn.nt.gz
+Starting with 100 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_hcl/data/export.nt
+Starting with 101 https://lod.uba.uva.nl/UB-UVA/Incunabula/download.nt.gz
+Starting with 102 https://data.netwerkdigitaalerfgoed.nl/Rijksmuseum/collection/download.nt.gz
+Error importing https://data.netwerkdigitaalerfgoed.nl/Rijksmuseum/collection/download.nt.gz(import error)
+Starting with 103 https://data.spinque.com/ld/data/vangoghworldwide/stedelijk_museum/data/export.nt
+Starting with 104 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_weert/data/export.nt
+Starting with 105 https://www.genealogieonline.nl/wo2slachtoffers/all/genealogieonline-wo2slachtoffers.nt.gz
+Starting with 106 https://data.netwerkdigitaalerfgoed.nl/hetutrechtsarchief/Dataset/download.nt.gz
+Error importing https://data.netwerkdigitaalerfgoed.nl/hetutrechtsarchief/Dataset/download.nt.gz(time out)
+Starting with 107 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/dans_oh_ni/data/export.nt
+Error importing https://data.spinque.com/ld/data/netwerkoorlogsbronnen/dans_oh_ni/data/export.nt(time out)
+Starting with 108 https://lod.uba.uva.nl/UB-UVA/Video/download.nt.gz
+Error importing https://lod.uba.uva.nl/UB-UVA/Video/download.nt.gz(time out)
+Starting with 109 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/aktes_nimh/data/export.nt
+Error importing https://data.spinque.com/ld/data/netwerkoorlogsbronnen/aktes_nimh/data/export.nt(time out)
+Starting with 110 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_zeeuwsebibliotheek/data/export.nt
+Error importing https://data.spinque.com/ld/data/netwerkoorlogsbronnen/beeldbank_zeeuwsebibliotheek/data/export.nt(time out)
+Starting with 111 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/onderduikkaarten_tresoar/data/export.nt
+Error importing https://data.spinque.com/ld/data/netwerkoorlogsbronnen/onderduikkaarten_tresoar/data/export.nt(time out)
+Starting with 112 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_westfries/data/export.nt
+Error importing https://data.spinque.com/ld/data/netwerkoorlogsbronnen/archieven_westfries/data/export.nt(time out)
+Starting with 113 https://data.spinque.com/ld/data/netwerkoorlogsbronnen/collectie_jck/data/export.nt
+Error importing https://data.spinque.com/ld/data/netwerkoorlogsbronnen/collectie_jck/data/export.nt(time out)

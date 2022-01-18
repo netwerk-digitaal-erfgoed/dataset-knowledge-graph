@@ -1,0 +1,41 @@
+POST http://localhost:7200/repositories/kg-temp/statements HTTP/1.1
+Content-Type: application/sparql-update
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema: <http://schema.org/>
+PREFIX void: <http://rdfs.org/ns/void#>
+PREFIX prov: <https://www.w3.org/TR/prov-o/#>
+
+INSERT {
+    GRAPH <https://druid.datalegend.net/nlgis/gemeentegeschiedenis> {
+        [] prov:startedAtTime ?startTime
+    }
+}
+WHERE {
+  SELECT ?startTime { BIND(now() as ?startTime) }
+};
+
+INSERT {
+    GRAPH <https://druid.datalegend.net/nlgis/gemeentegeschiedenis> {
+    ?type void:triples ?aantal .
+    ?type a rdfs:Class .
+    }
+}
+WHERE {
+    SELECT DISTINCT ?type (COUNT(?type) as ?aantal) {
+        GRAPH <https://druid.datalegend.net/nlgis/gemeentegeschiedenis/download.nt.gz> {
+          ?s a ?type
+        } 
+    } GROUP BY ?type ORDER BY DESC(?aantal)
+};
+
+INSERT {
+    GRAPH <https://druid.datalegend.net/nlgis/gemeentegeschiedenis> {
+       [] prov:wasGeneratedBy 'analyse-classes.rq' .
+       [] prov:endedAtTime ?endTime 
+    }
+}
+WHERE {
+  SELECT ?endTime { BIND(now() as ?endTime) }
+};

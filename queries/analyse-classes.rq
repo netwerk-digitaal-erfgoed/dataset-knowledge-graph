@@ -1,0 +1,42 @@
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema: <http://schema.org/>
+PREFIX void: <http://rdfs.org/ns/void#>
+PREFIX prov: <https://www.w3.org/TR/prov-o/#>
+PREFIX nde: <https://data.netwerkdigitaalerfgoed.nl/action#>
+
+# register start time
+INSERT {
+    GRAPH <dataset> {
+        nde:analyseClasses prov:startedAtTime ?startTime
+    }
+}
+WHERE {
+  SELECT ?startTime { BIND(now() as ?startTime) }
+};
+
+# actual analysis
+INSERT {
+    GRAPH <dataset> {
+    ?type void:triples ?aantal .
+    ?type a rdfs:Class .
+    }
+}
+WHERE {
+    SELECT DISTINCT ?type (COUNT(?type) as ?aantal) {
+        GRAPH <distribution> {
+          ?s a ?type
+        } 
+    } GROUP BY ?type ORDER BY DESC(?aantal)
+};
+
+# record end time, used for status control
+INSERT {
+    GRAPH <dataset> {
+       nde:analyseClasses prov:wasGeneratedBy 'analyse-classes.rq' ;
+                          prov:endedAtTime ?endTime .
+    }
+}
+WHERE {
+  SELECT ?endTime { BIND(now() as ?endTime) }
+};
