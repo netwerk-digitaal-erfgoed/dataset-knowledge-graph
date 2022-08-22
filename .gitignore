@@ -1,2 +1,5 @@
+build/
+coverage/
 data/
+node_modules/
 output/
