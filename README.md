@@ -28,6 +28,113 @@ The summaries can be consulted by users such as data platform builders to help t
 
 - This pipeline is RDF-based so will be limited to datasets that provide at least one valid RDF distribution.
 
+## Dataset Summaries
+
+The [pipeline](#pipeline-steps) produces a set of Dataset Summaries. [VoID](https://www.w3.org/TR/void/#statistics) is
+used as the data model for these Summaries.
+
+### Size
+
+```ttl
+<http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
+    void:distinctSubjects 53434; 
+    void:distinctObjects 32323;
+    void:properties 943;
+    void:entities 8493. # To be an entity in a dataset, a resource must have a URI, and the URI must match the dataset's void:uriRegexPattern, if any. 
+```
+
+### Classes
+
+```ttl
+<http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
+    void:classPartition [
+        void:class schema:VisualArtWork;
+        void:entities 312000;
+    ],
+    [
+        void:class schema:Person;
+        void:entities 980;
+    ].
+```
+
+### Properties
+
+```ttl
+<http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
+    void:propertyPartition [
+        void:property schema:name;
+        void:triples 203000;
+    ],
+    [
+        void:property schema:birthDate;
+        void:triples 19312;
+    ].
+```
+
+### Property density per subject class
+
+Nest a `void:propertyPartition` in `void:classPartition`:
+
+```ttl
+
+<http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
+    void:classPartition [
+        void:class schema:Person;
+        void:propertyPartition [
+            void:property schema:name;
+            void:triples 155;
+        ],
+        [
+            void:property schema:birthDate;
+            void:triples 76;
+        ]
+    ],
+    [
+        void:class schema:VisualArtWork;
+        void:propertyPartition [
+            void:property schema:name;
+            void:triples 1200;
+        ],
+        [
+            void:property schema:image;
+            void:triples 52;
+        ]
+    ].
+```
+
+### Outgoing links
+
+Modelled as `void:Linkset`s:
+
+```ttl
+[] a void:Linkset;
+    void:subjectsTarget <http://data.bibliotheken.nl/id/dataset/rise-alba>;
+    void:objectsTarget <http://data.bibliotheken.nl/id/dataset/persons>;
+    void:subset <http://data.bibliotheken.nl/id/dataset/rise-alba>; # The dataset that contains the links.
+    void:triples 434 .
+[] a void:Linkset;
+    void:subjectsTarget <http://data.bibliotheken.nl/id/dataset/rise-alba>;
+    void:objectsTarget <https://data.cultureelerfgoed.nl/term/id/cht>;
+    void:triples 9402.
+```
+
+Use a list of fixed URI prefixes to match against, from the Network of Terms and in addition a custom list in the pipeline itself.
+
+### Vocabularies
+
+```ttl
+<http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
+    void:vocabulary <https://schema.org/>, <http://www.w3.org/2000/01/rdf-schema#>, <http://xmlns.com/foaf/0.1/>.
+```
+
+### Example resources
+
+```ttl
+<http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
+    void:exampleResource <http://data.bibliotheken.nl/doc/alba/p418213178>, 
+        <http://data.bibliotheken.nl/doc/alba/p416673600>.
+```
+
 ## Pipeline Steps
 
 The pipeline will consist of the following steps.
