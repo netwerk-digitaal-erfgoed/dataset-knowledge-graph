@@ -1,6 +1,9 @@
-export class ClassPartition implements Analyzer {
-  execute(dataset: string): string {
-    return '';
+import {QueryEngine} from '@comunica/query-sparql';
+import {SparqlQueryAnalyzer} from '../analyzer';
+
+export class ClassPartition extends SparqlQueryAnalyzer {
+  constructor(queryEngine: QueryEngine) {
+    super(queryEngine, query);
   }
 }
 
