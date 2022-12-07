@@ -7,6 +7,7 @@ import {FileWriter} from '../src/writer';
 
 describe('Pipeline', () => {
   it('runs', async () => {
+    const queryEngine = new QueryEngine();
     const pipeline = new Pipeline({
       selector: new SparqlQuerySelector(
         {
@@ -16,7 +17,7 @@ describe('Pipeline', () => {
           endpoint:
             'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry',
         },
-        new QueryEngine()
+        queryEngine
       ),
       analyzers: [],
       writer: new FileWriter(),
