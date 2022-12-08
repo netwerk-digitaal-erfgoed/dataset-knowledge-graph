@@ -4,8 +4,10 @@ import {QueryEngine} from '@comunica/query-sparql';
 import {FileWriter} from './writer';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
+import {SparqlQueryAnalyzer} from './analyzer';
 
-await new Pipeline({
+const queryEngine = new QueryEngine();
+new Pipeline({
   selector: new SparqlQuerySelector(
     {
       query: (
@@ -14,8 +16,10 @@ await new Pipeline({
       endpoint:
         'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry',
     },
-    new QueryEngine()
+    queryEngine
   ),
-  analyzers: [],
+  analyzers: [
+    await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-partition.rq'),
+  ],
   writer: new FileWriter(),
 }).run();
