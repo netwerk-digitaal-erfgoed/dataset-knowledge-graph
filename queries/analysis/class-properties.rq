@@ -1,0 +1,18 @@
+PREFIX void: <http://rdfs.org/ns/void#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+CONSTRUCT {
+    <{{dataset}}> a void:Dataset ;
+        void:classPartition [
+            void:class ?t ;
+            void:propertyPartition [
+                void:property ?p ;
+                void:entities ?subjects
+            ]
+        ] .
+} WHERE {
+    SELECT ?p ?t (COUNT(DISTINCT ?s) as ?subjects) {
+        ?s a ?t ;
+            ?p ?o .
+    } GROUP BY ?p ?t
+}
