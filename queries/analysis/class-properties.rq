@@ -7,12 +7,13 @@ CONSTRUCT {
             void:class ?t ;
             void:propertyPartition [
                 void:property ?p ;
-                void:entities ?subjects
+                void:entities ?subjects ;
             ]
         ] .
 } WHERE {
-    SELECT ?p ?t (COUNT(DISTINCT ?s) as ?subjects) {
+    SELECT ?p ?t (COUNT(DISTINCT ?s) AS ?subjects) {
         ?s a ?t ;
             ?p ?o .
-    } GROUP BY ?p ?t
+    }
+    GROUP BY ?p ?t
 }
