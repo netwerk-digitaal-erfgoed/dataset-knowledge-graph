@@ -21,6 +21,7 @@ new Pipeline({
   analyzers: [
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-partition.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-properties.rq'),
+    await SparqlQueryAnalyzer.fromFile(queryEngine, 'entity-properties.rq'),
   ],
   writer: new FileWriter(),
 }).run();

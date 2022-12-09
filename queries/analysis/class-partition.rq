@@ -2,13 +2,13 @@ PREFIX void: <http://rdfs.org/ns/void#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
 CONSTRUCT {
-    <{{dataset}}> a void:Dataset;
+    <{{dataset}}> a void:Dataset ;
         void:classPartition [
             void:class ?type ;
-            void:entities ?total .
+            void:entities ?entities ;
         ] .
 } WHERE {
-    SELECT (COUNT(?type) as ?total) ?type {
+    SELECT (COUNT(?type) AS ?entities) ?type {
         ?s a ?type .
     }
     GROUP BY ?type
