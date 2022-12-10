@@ -1,10 +1,12 @@
 import {QueryEngine} from '@comunica/query-sparql';
-import {DatasetCore, Quad, ResultStream} from 'rdf-js';
+import {Bindings, DatasetCore, Quad, ResultStream} from 'rdf-js';
 import {Store} from 'n3';
 import {Dataset} from './dataset';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {AsyncIterator} from 'asynciterator';
+import {BindingsFactory} from '@comunica/bindings-factory';
+import {DataFactory} from 'rdf-data-factory';
 
 export interface Analyzer {
   execute(
@@ -20,7 +22,10 @@ export class AnalyzerError {
 export class SparqlQueryAnalyzer implements Analyzer {
   constructor(
     private readonly queryEngine: QueryEngine,
-    private readonly query: string
+    private readonly query: string,
+
+    private readonly dataFactory = new DataFactory(),
+    private readonly bindingsFactory = new BindingsFactory(dataFactory)
   ) {}
 
   public static async fromFile(queryEngine: QueryEngine, filename: string) {
@@ -38,9 +43,12 @@ export class SparqlQueryAnalyzer implements Analyzer {
         distribution.mimeType === 'application/sparql-query' &&
         distribution.accessUrl !== null
     );
+
     if (sparqlDistributions.length === 0) {
       return new NotSupported();
     }
+
+    console.info(`Analyzing ${sparqlDistributions[0].accessUrl}`);
 
     const store = new Store();
     try {
@@ -65,18 +73,18 @@ export class SparqlQueryAnalyzer implements Analyzer {
     type?: string
   ): Promise<AsyncIterator<Quad> & ResultStream<Quad>> {
     try {
-      return await this.queryEngine.queryQuads(
-        this.query.replace('{{dataset}}', dataset.iri),
-        {
-          sources: [
-            {
-              type,
-              value: endpoint,
-            },
-          ],
-          httpTimeout: 10_000,
-        }
-      );
+      return await this.queryEngine.queryQuads(this.query, {
+        initialBindings: this.bindingsFactory.fromRecord({
+          dataset: this.dataFactory.namedNode(dataset.iri),
+        }) as unknown as Bindings,
+        sources: [
+          {
+            type,
+            value: endpoint,
+          },
+        ],
+        httpTimeout: 10_000,
+      });
     } catch (e) {
       if (type === null) {
         // Retry with explicit SPARQL type, which endpoints need that offer no SPARQL Service Description.

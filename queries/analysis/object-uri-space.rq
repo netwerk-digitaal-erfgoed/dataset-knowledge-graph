@@ -1,0 +1,15 @@
+PREFIX void: <http://rdfs.org/ns/void#>
+
+CONSTRUCT {
+    [] a void:Linkset ;
+        void:subjectsTarget ?dataset ;
+        void:objectsTarget ?prefix ;
+        void:triples ?count .
+} WHERE {
+    SELECT DIStinct ?prefix (COUNT(?prefix) AS ?count) {
+        ?s ?p ?o .
+        FILTER(ISIRI(?o))
+        BIND(REPLACE(STR(?o), "([^/]+$)", "") AS ?prefix)
+    }
+    GROUP BY ?prefix ORDER BY DESC(?count) LIMIT 1000
+}
