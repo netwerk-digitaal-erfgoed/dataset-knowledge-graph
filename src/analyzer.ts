@@ -48,7 +48,9 @@ export class SparqlQueryAnalyzer implements Analyzer {
       return new NotSupported();
     }
 
-    console.info(`Analyzing ${sparqlDistributions[0].accessUrl}`);
+    console.info(
+      `  Analyzing distribution ${sparqlDistributions[0].accessUrl}`
+    );
 
     const store = new Store();
     try {
@@ -73,24 +75,23 @@ export class SparqlQueryAnalyzer implements Analyzer {
     type?: string
   ): Promise<AsyncIterator<Quad> & ResultStream<Quad>> {
     try {
-      return await this.queryEngine.queryQuads(this.query, {
+      return await new QueryEngine().queryQuads(this.query, {
         initialBindings: this.bindingsFactory.fromRecord({
           dataset: this.dataFactory.namedNode(dataset.iri),
         }) as unknown as Bindings,
         sources: [
           {
-            type,
+            type: 'sparql',
             value: endpoint,
           },
         ],
         httpTimeout: 10_000,
       });
     } catch (e) {
-      if (type === null) {
-        // Retry with explicit SPARQL type, which endpoints need that offer no SPARQL Service Description.
-        return await this.tryQuery(endpoint, dataset, 'sparql');
+      if (type !== undefined) {
+        // Retry without explicit SPARQL type, which is needed for endpoints that offer a SPARQL Service Description.
+        return await this.tryQuery(endpoint, dataset);
       }
-
       throw e;
     }
   }

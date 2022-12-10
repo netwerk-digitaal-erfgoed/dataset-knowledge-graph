@@ -30,6 +30,7 @@
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^6.16.1",
     "@netwerk-digitaal-erfgoed/network-of-terms-query": "^2.2.1",
     "asynciterator": "^3.8.0",
+    "filenamify-url": "^3.0.0",
     "n3": "^1.16.3",
     "pino": "^8.7.0",
     "rdf-data-factory": "^1.1.1",

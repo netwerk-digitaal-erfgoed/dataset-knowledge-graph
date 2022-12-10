@@ -8,8 +8,8 @@ CONSTRUCT {
             void:entities ?entities ;
         ] .
 } WHERE {
-    SELECT (COUNT(?property) AS ?entities) ?p {
+    SELECT (COUNT(?p) AS ?entities) ?p {
         ?s ?p ?o .
     }
-    GROUP BY ?property ?label
+    GROUP BY ?p
 }
