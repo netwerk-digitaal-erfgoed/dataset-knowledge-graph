@@ -11,15 +11,17 @@ the [Dataset Register](https://github.com/netwerk-digitaal-erfgoed/dataset-regis
 descriptions as supplied by their owners. Part of these descriptions are distributions, i.e. URLs where the data can be
 retrieved.
 
-The Knowledge Graph loads RDF data from the distributions and applies SPARQL queries to it to build **dataset
+The Knowledge Graph loads RDF data from those distributions and applies SPARQL queries to it to build **dataset
 summaries**. Summaries answer questions such as:
 
-- which RDF types are used in the dataset?
-- for each of those types, how many resources does the dataset contain?
-- which predicates are used in the dataset?
-- which URI prefixes to the data link to?
+- which [RDF types](#classes) are used in the dataset?
+- for each of those types, [how many resources](#classes) does the dataset contain?
+- which [predicates](#properties) are used in the dataset?
+- for each of those predicates, [how many subjects](#properties) have it? 
+- similarly, [how many subjects of each type](#property-density-per-subject-class) have the predicate?
+- which [URI prefixes](#outgoing-links) does the dataset link to?
 - for each of those prefixes, which match known [terminology sources](https://termennetwerk.netwerkdigitaalerfgoed.nl)?
-- for each of those sources, how many outgoing links to them does the dataset have?
+- for each of those sources, [how many outgoing links](#outgoing-links) to them does the dataset have?
 - (and more)
 
 The summaries can be consulted by users such as data platform builders to help them find relevant datasets.
@@ -63,11 +65,11 @@ used as the data model for these Summaries.
 <http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
     void:propertyPartition [
         void:property schema:name;
-        void:triples 203000;
+        void:entities 203000;
     ],
     [
         void:property schema:birthDate;
-        void:triples 19312;
+        void:entities 19312;
     ].
 ```
 
@@ -76,28 +78,27 @@ used as the data model for these Summaries.
 Nest a `void:propertyPartition` in `void:classPartition`:
 
 ```ttl
-
 <http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
     void:classPartition [
         void:class schema:Person;
         void:propertyPartition [
             void:property schema:name;
-            void:triples 155;
+            void:entities 155;
         ],
         [
             void:property schema:birthDate;
-            void:triples 76;
+            void:entities 76;
         ]
     ],
     [
         void:class schema:VisualArtWork;
         void:propertyPartition [
             void:property schema:name;
-            void:triples 1200;
+            void:entities 1200;
         ],
         [
             void:property schema:image;
-            void:triples 52;
+            void:entities 52;
         ]
     ].
 ```
@@ -168,41 +169,3 @@ code (TypeScript) functions for extracting even more detailed information, such 
 
 Write the results of the analysis queries to local files. The results may also be inserted into a triple store that can
 then be consulted by clients as a Knowledge Graph.
-
-## Commands for generating statics about data dumps
-
-## These examples use the Jena commandline tools
-
-## Analyse properties / classes / outgoing links
-
-```bash
-sparql --query analyse-properties.rq --data <path to data>
-sparql --query analyse-classes.rq --data <path to data>
-sparql --query analyse-outgoinglinks.rq --data <path to data> 
-```
-
-## GraphDB queries
-
-## Dataset Register
-
-Run on the 'Registry' repository:
-
-- [List of (selected) linked data distributions](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=Linked%20data%20distributies&owner=admin)
-
-## Generic knowledge about dataset
-
-Run on the 'Registry-kg' repository:
-
-- [exhaustive list of classes used in the dataset](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20exhaustive%20list%20of%20classes%20used%20in%20the%20dataset&owner=kg)
-- [exhaustive list of properties used in the dataset](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20exhaustive%20list%20of%20properties%20used%20in%20the%20dataset&owner=kg)
-- [table: class vs. total number of instances of the class](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20table%3A%20class%20vs.%20total%20number%20of%20instances%20of%20the%20class&owner=kg)
-- [table: property vs. total number of distinct objects in triples using the property](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20table%3A%20property%20vs.%20total%20number%20of%20distinct%20objects%20in%20triples%20using%20the%20property&owner=kg)
-- [table: property vs. total number of distinct subjects in triples using the property](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20table%3A%20property%20vs.%20total%20number%20of%20distinct%20subjects%20in%20triples%20using%20the%20property&owner=kg)
-- [table: property vs. total number of triples using the property](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20table%3A%20property%20vs.%20total%20number%20of%20triples%20using%20the%20property&owner=kg)
-- [table: used prefixes in URIs and count](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20table%3A%20used%20prefixes%20in%20URIs%20and%20count&owner=kg)
-- [total number of distinct classes](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20total%20number%20of%20distinct%20classes&owner=kg)
-- [total number of distinct object nodes](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20total%20number%20of%20distinct%20object%20nodes&owner=kg)
-- [total number of distinct predicates](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20total%20number%20of%20distinct%20predicates&owner=kg)
-- [total number of distinct resource URIs](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20total%20number%20of%20distinct%20resource%20URIs&owner=kg)
-- [total number of distinct subject nodes](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20total%20number%20of%20distinct%20subject%20nodes&owner=kg)
-- [total number of entities](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=KG%20-%20total%20number%20of%20entities&owner=kg)
