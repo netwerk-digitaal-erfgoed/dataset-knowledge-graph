@@ -1,0 +1,10 @@
+PREFIX void: <http://rdfs.org/ns/void#>
+
+CONSTRUCT {
+    ?dataset a void:Dataset ;
+        void:triples ?count .
+} WHERE {
+    SELECT (COUNT(*) as ?count) {
+        ?s ?p ?o
+    }
+}

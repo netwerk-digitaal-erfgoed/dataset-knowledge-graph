@@ -1,0 +1,12 @@
+PREFIX void: <http://rdfs.org/ns/void#>
+PREFIX nde: <https://www.netwerkdigitaalerfgoed.nl/def#>
+
+CONSTRUCT {
+    ?dataset a void:Dataset ;
+        nde:distinctObjectsURI ?total .
+} WHERE {
+    SELECT (COUNT(?o) as ?total) {
+        ?s ?p ?o .
+        FILTER(ISIRI(?o))
+    }
+}

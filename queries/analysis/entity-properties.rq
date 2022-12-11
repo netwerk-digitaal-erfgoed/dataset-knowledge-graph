@@ -1,8 +1,7 @@
 PREFIX void: <http://rdfs.org/ns/void#>
-PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 
 CONSTRUCT {
-    ?dataset a void:Dataset;
+    ?dataset a void:Dataset ;
         void:propertyPartition [
             void:property ?p ;
             void:entities ?entities ;
