@@ -9,8 +9,6 @@ CONSTRUCT {
         dct:format ?distribution_format .
 } WHERE {
     ?dataset a dcat:Dataset .
-    ?dataset dct:title ?title .
-    FILTER(LANG(?title) = "" || LANGMATCHES(LANG(?title), "nl"))
     ?dataset dcat:distribution ?distribution .
     ?distribution dcat:accessURL ?distribution_url ;
         dct:format ?distribution_format .
