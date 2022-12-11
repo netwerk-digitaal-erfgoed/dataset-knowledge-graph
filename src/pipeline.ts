@@ -2,6 +2,7 @@ import {Analyzer, AnalyzerError, NotSupported} from './analyzer';
 import {SummaryWriter} from './writer';
 import {Selector} from './selector';
 import {Store} from 'n3';
+import {withProvenance} from './provenance';
 
 export class Pipeline {
   constructor(
@@ -19,7 +20,9 @@ export class Pipeline {
       console.info(`Analyzing dataset ${dataset.iri}`);
       const store = new Store();
       for (const analyzer of this.config.analyzers) {
+        const start = new Date();
         const result = await analyzer.execute(dataset);
+        const end = new Date();
         if (result instanceof NotSupported) {
           console.warn(
             `  ${dataset.iri} not supported by ${analyzer.constructor.name}`
@@ -29,8 +32,7 @@ export class Pipeline {
             `  ${dataset.iri} failed with message ${result.message}`
           );
         } else {
-          // TODO: add provenance.
-          store.addQuads([...result]);
+          store.addQuads([...withProvenance(result, dataset.iri, start, end)]);
         }
       }
       if (store.size > 0) {
