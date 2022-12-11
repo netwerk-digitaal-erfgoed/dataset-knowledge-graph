@@ -23,6 +23,11 @@ new Pipeline({
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-partition.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-properties.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'entity-properties.rq'),
+    await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-literals.rq'),
+    await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-uris.rq'),
+    await SparqlQueryAnalyzer.fromFile(queryEngine, 'properties.rq'),
+    await SparqlQueryAnalyzer.fromFile(queryEngine, 'subjects.rq'),
+    await SparqlQueryAnalyzer.fromFile(queryEngine, 'triples.rq'),
     new UriSpaceAnalyzer(
       await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-uri-space.rq')
     ),

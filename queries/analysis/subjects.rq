@@ -1,0 +1,11 @@
+PREFIX void: <http://rdfs.org/ns/void#>
+
+CONSTRUCT {
+    ?dataset a void:Dataset ;
+        void:distinctSubjects ?count .
+} WHERE {
+    SELECT (COUNT(DISTINCT ?s) as ?count) {
+        ?s ?p ?o .
+        FILTER(!ISBLANK(?s))
+    }
+}
