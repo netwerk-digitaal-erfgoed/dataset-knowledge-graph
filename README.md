@@ -17,7 +17,7 @@ summaries**. Summaries answer questions such as:
 - which [RDF types](#classes) are used in the dataset?
 - for each of those types, [how many resources](#classes) does the dataset contain?
 - which [predicates](#properties) are used in the dataset?
-- for each of those predicates, [how many subjects](#properties) have it? 
+- for each of those predicates, [how many subjects](#properties) have it?
 - similarly, [how many subjects of each type](#property-density-per-subject-class) have the predicate?
 - which [URI prefixes](#outgoing-links) does the dataset link to?
 - for each of those prefixes, which match known [terminology sources](https://termennetwerk.netwerkdigitaalerfgoed.nl)?
@@ -135,6 +135,15 @@ Use a list of fixed URI prefixes to match against, from the Network of Terms and
     void:exampleResource <http://data.bibliotheken.nl/doc/alba/p418213178>, 
         <http://data.bibliotheken.nl/doc/alba/p416673600>.
 ```
+
+## Run the pipeline
+
+To run the pipeline yourself, start by cloning this repository. Then execute:
+
+    npm install
+    npm run dev
+
+The [Dataset Summaries](#dataset-summaries) output will be written to the `output/` directory.
 
 ## Pipeline Steps
 
