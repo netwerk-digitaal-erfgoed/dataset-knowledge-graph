@@ -40,7 +40,8 @@ export class SparqlQueryAnalyzer implements Analyzer {
   ): Promise<DatasetCore | NotSupported | AnalyzerError> {
     const sparqlDistributions = dataset.distributions.filter(
       distribution =>
-        distribution.mimeType === 'application/sparql-query' &&
+        (distribution.mimeType === 'application/sparql-query' ||
+          distribution.mimeType === 'application/sparql-results+json') &&
         distribution.accessUrl !== null
     );
 
