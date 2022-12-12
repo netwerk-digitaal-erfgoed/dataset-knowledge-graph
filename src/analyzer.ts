@@ -86,7 +86,7 @@ export class SparqlQueryAnalyzer implements Analyzer {
             value: endpoint,
           },
         ],
-        httpTimeout: 10_000,
+        httpTimeout: 300_000, // Some SPARQL queries really take this long.
       });
     } catch (e) {
       if (type !== undefined) {
