@@ -10,7 +10,12 @@ export interface SummaryWriter {
 
 export class FileWriter implements SummaryWriter {
   write(dataset: Dataset, summary: DatasetCore): void {
-    const writer = new Writer();
+    const writer = new Writer({
+      prefixes: {
+        void: 'http://rdfs.org/ns/void#',
+        prov: 'http://www.w3.org/ns/prov#',
+      },
+    });
     for (const quad of summary) {
       writer.addQuad(quad);
     }
