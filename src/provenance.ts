@@ -15,7 +15,7 @@ export function withProvenance(
   dataset.add(
     quad(
       namedNode(iri),
-      namedNode('a'),
+      namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
       namedNode('http://www.w3.org/ns/prov#Entity')
     )
   );
@@ -29,7 +29,7 @@ export function withProvenance(
   dataset.add(
     quad(
       activity,
-      namedNode('a'),
+      namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
       namedNode('http://www.w3.org/ns/prov#Activity')
     )
   );

@@ -50,7 +50,7 @@ export class UriSpaceAnalyzer implements Analyzer {
       store.add(
         quad(
           linkset,
-          namedNode('a'),
+          namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
           namedNode('http://rdfs.org/ns/void#Linkset')
         )
       );
