@@ -1,7 +1,7 @@
 # Knowledge Graph Pipeline
 
 The NDE Knowledge Graph helps researchers, software developer and others to **find relevant datasets** for their
-projects.
+projects
 It contains [**Dataset Summaries**](#dataset-summaries) that provide information about datasets
 
 This repository is the [data pipeline](#pipeline-steps) that generates the Knowledge Graph.
@@ -14,7 +14,7 @@ To query the Knowledge Graph, use the SPARQL endpoint at
 Some example queries (make sure to select repository `knowledge-graph` on the top right):
 
 * [links from datasets to terminology sources](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?name=Datasets%20met%20een%20linked%20data%20distributie&infer=true&sameAs=true&query=%23%20Outgoing%20links%20from%20datasets%20to%20terminology%20sources%0APREFIX%20void%3A%20%3Chttp%3A%2F%2Frdfs.org%2Fns%2Fvoid%23%3E%0A%0Aselect%20*%20%7B%0A%20%20%20%20%3Fs%20a%20void%3ALinkset%20%3B%0A%20%20%20%20%20%20%20void%3AsubjectsTarget%20%3Fdataset%20%3B%0A%20%20%20%20%20%20%20void%3AobjectsTarget%20%3FterminologySource%20%3B%0A%20%20%20%20%20%20%20void%3Atriples%20%3FnumberOfTriples%20%3B%0A%7D)
-* [property partitions per class](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?name=&infer=true&sameAs=true&query=PREFIX%20void%3A%20%3Chttp%3A%2F%2Frdfs.org%2Fns%2Fvoid%23%3E%0ASELECT%20%3Fclass%20%3FnumberOfEntities%20%3Fproperty%20%3FnumberOfEntitiesWithProperty%20%7B%0A%20%20%20%20%3Fs%20a%20void%3ADataset%20%3B%0A%20%20%20%20%20%20%20void%3AclassPartition%20%5B%0A%20%20%20%20%20%20%20%20void%3Aclass%20%3Fclass%20%3B%0A%20%20%20%20%20%20%20%20void%3Aentities%20%3FnumberOfEntities%20%3B%0A%20%20%20%20%5D%2C%20%0A%20%20%20%20%5B%0A%20%20%20%20%20%20%20%20void%3Aclass%20%3Fclass%20%3B%0A%20%20%20%20%20%20%20%20void%3ApropertyPartition%20%5B%0A%20%20%20%20%20%20%20%20%09void%3Aproperty%20%3Fproperty%20%3B%0A%20%20%20%20%20%20%20%20%20%09void%3Aentities%20%3FnumberOfEntitiesWithProperty%20%3B%0A%09%20%20%20%20%5D%20%20%09%20%20%0A%20%20%20%20%5D%0A%7D)
+* [property partitions per class](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=Knowledge%20Graph%3A%20property%20partition%20per%20class&owner=admin)
 * [percentage of URI objects vs literals](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?name=&infer=true&sameAs=true&query=PREFIX%20void%3A%20%3Chttp%3A%2F%2Frdfs.org%2Fns%2Fvoid%23%3E%0APREFIX%20nde%3A%20%3Chttps%3A%2F%2Fwww.netwerkdigitaalerfgoed.nl%2Fdef%23%3E%0ASELECT%20%3Fdataset%20%3FnumberOfLiteralObjects%20%3FnumberOfURIObjects%20(ROUND(%3FnumberOfURIObjects%20%2F%20(%3FnumberOfLiteralObjects%20%2B%20%3FnumberOfURIObjects)%20*%20100)%20as%20%3FpercentageURIObjects)%20%7B%0A%20%20%20%20%3Fdataset%20a%20void%3ADataset%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20nde%3AdistinctObjectsLiteral%20%3FnumberOfLiteralObjects%20%3B%0A%20%20%20%20%20%20%20%20%20%20%20%20%20nde%3AdistinctObjectsURI%20%3FnumberOfURIObjects%20%3B%0A%7D%0A)
 
 ## Approach
