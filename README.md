@@ -1,7 +1,7 @@
 # Knowledge Graph Pipeline
 
-The NDE Knowledge Graph helps researchers, software developer and others to **find relevant datasets** for their
-projects
+The NDE Knowledge Graph helps researchers, software developers and others to **find relevant datasets** for their
+projects.
 It contains [**Dataset Summaries**](#dataset-summaries) that provide information about datasets
 
 This repository is the [data pipeline](#pipeline-steps) that generates the Knowledge Graph.
