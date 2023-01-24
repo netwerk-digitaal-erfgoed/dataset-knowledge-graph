@@ -1,15 +1,18 @@
 import {Pipeline} from './pipeline';
-import {SparqlQuerySelector} from './selector';
+import {DatasetSelector} from './selector';
 import {QueryEngine} from '@comunica/query-sparql';
 import {FileWriter} from './writer';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
-import {SparqlQueryAnalyzer} from './analyzer';
+import {SparqlQueryAnalyzer} from './analyzer/sparqlqueryanalyzer';
 import {UriSpaceAnalyzer} from './analyzer/uriSpace';
+import { DistributionLinksAnalyzer } from './analyzer/distributionlinksanalyzer';
 
 const queryEngine = new QueryEngine();
+
+/*
 new Pipeline({
-  selector: new SparqlQuerySelector(
+  selector: new DatasetSelector(
     {
       query: (
         await readFile(resolve('queries/selection/sparql-endpoints.rq'))
@@ -21,6 +24,32 @@ new Pipeline({
   ),
   analyzers: [
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-partition.rq'),
+  ],
+  writer: new FileWriter(),
+}).run();
+
+*/
+
+new Pipeline({
+  selector: new DatasetSelector(
+    {
+      query: (
+        await readFile(resolve('queries/selection/all-distributions.rq'))
+      ).toString(),
+      endpoint:
+        'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry',
+    },
+    queryEngine
+  ),
+  analyzers: [
+    await DistributionLinksAnalyzer.init(),
+  ],
+  writer: new FileWriter(),
+}).run();
+
+
+/* 
+Parked for now:
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'entity-properties.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-literals.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-uris.rq'),
@@ -31,6 +60,4 @@ new Pipeline({
     new UriSpaceAnalyzer(
       await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-uri-space.rq')
     ),
-  ],
-  writer: new FileWriter(),
-}).run();
+*/

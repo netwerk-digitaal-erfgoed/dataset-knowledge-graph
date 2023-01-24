@@ -12,6 +12,4 @@ CONSTRUCT {
     ?dataset dcat:distribution ?distribution .
     ?distribution dcat:accessURL ?distribution_url ;
         dct:format ?distribution_format .
-    FILTER(?distribution_format = "application/sparql-query" || ?distribution_format = "application/sparql-results+json")
 }
-limit 3

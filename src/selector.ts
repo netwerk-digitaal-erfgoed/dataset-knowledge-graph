@@ -6,7 +6,7 @@ export interface Selector {
   select(): Promise<Set<Dataset>>;
 }
 
-export class SparqlQuerySelector implements Selector {
+export class DatasetSelector implements Selector {
   constructor(
     private readonly config: {
       query: string;
