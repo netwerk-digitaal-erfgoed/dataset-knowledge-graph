@@ -1,4 +1,4 @@
-import {Dataset, Distribution} from './dataset';
+import {Dataset, Distribution} from './dataset.js';
 import {QueryEngine} from '@comunica/query-sparql';
 import {Quad} from 'n3';
 

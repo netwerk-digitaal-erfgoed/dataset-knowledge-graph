@@ -1,15 +1,15 @@
 import {DatasetCore} from 'rdf-js';
-import {Analyzer, AnalyzerError, NotSupported} from '../analyzer';
-import {defaultCatalog} from '@netwerk-digitaal-erfgoed/network-of-terms-catalog';
+import {Analyzer, AnalyzerError, NotSupported} from '../analyzer.js';
+import {getCatalog} from '@netwerk-digitaal-erfgoed/network-of-terms-catalog';
 import {IRI} from '@netwerk-digitaal-erfgoed/network-of-terms-query';
-import {Dataset} from '../dataset';
+import {Dataset} from '../dataset.js';
 import {DataFactory, Store} from 'n3';
 import quad = DataFactory.quad;
 import namedNode = DataFactory.namedNode;
 import blankNode = DataFactory.blankNode;
 import literal = DataFactory.literal;
 
-const catalog = await defaultCatalog();
+const catalog = await getCatalog();
 
 export class UriSpaceAnalyzer implements Analyzer {
   constructor(private readonly decorated: Analyzer) {}

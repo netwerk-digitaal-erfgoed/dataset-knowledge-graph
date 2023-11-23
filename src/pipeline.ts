@@ -1,8 +1,8 @@
-import {Analyzer, AnalyzerError, NotSupported} from './analyzer';
-import {SummaryWriter} from './writer';
-import {Selector} from './selector';
+import {Analyzer, AnalyzerError, NotSupported} from './analyzer.js';
+import {SummaryWriter} from './writer.js';
+import {Selector} from './selector.js';
 import {Store} from 'n3';
-import {withProvenance} from './provenance';
+import {withProvenance} from './provenance.js';
 
 export class Pipeline {
   constructor(

@@ -1,10 +1,5 @@
 export default {
   preset: 'ts-jest/presets/default-esm',
-  globals: {
-    'ts-jest': {
-      useESM: true,
-    },
-  },
   extensionsToTreatAsEsm: ['.ts'],
   testTimeout: 10000,
   collectCoverage: true,
@@ -15,11 +10,18 @@ export default {
   coverageReporters: ['json-summary', 'text'],
   coverageThreshold: {
     global: {
-      lines: 30.76,
-      statements: 30.47,
+      lines: 31.37,
+      statements: 31.06,
       branches: 21.62,
-      functions: 36.36,
+      functions: 38.09,
     },
   },
-  transform: {},
+  transform: {
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        useESM: true,
+      },
+    ],
+  },
 };

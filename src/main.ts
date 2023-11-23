@@ -1,11 +1,11 @@
-import {Pipeline} from './pipeline';
-import {SparqlQuerySelector} from './selector';
+import {Pipeline} from './pipeline.js';
+import {SparqlQuerySelector} from './selector.js';
 import {QueryEngine} from '@comunica/query-sparql';
-import {FileWriter} from './writer';
+import {FileWriter} from './writer.js';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
-import {SparqlQueryAnalyzer} from './analyzer';
-import {UriSpaceAnalyzer} from './analyzer/uriSpace';
+import {SparqlQueryAnalyzer} from './analyzer.js';
+import {UriSpaceAnalyzer} from './analyzer/uriSpace.js';
 
 const queryEngine = new QueryEngine();
 new Pipeline({
