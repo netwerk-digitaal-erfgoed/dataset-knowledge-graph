@@ -6,13 +6,16 @@ import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {SparqlQueryAnalyzer} from './analyzer.js';
 import {UriSpaceAnalyzer} from './analyzer/uriSpace.js';
+import {DistributionAnalyzer} from './analyzer/distribution.js';
 
 const queryEngine = new QueryEngine();
 new Pipeline({
   selector: new SparqlQuerySelector(
     {
       query: (
-        await readFile(resolve('queries/selection/sparql-endpoints.rq'))
+        await readFile(
+          resolve('queries/selection/dataset-with-rdf-distribution.rq')
+        )
       ).toString(),
       endpoint:
         'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry',
@@ -20,6 +23,7 @@ new Pipeline({
     queryEngine
   ),
   analyzers: [
+    new DistributionAnalyzer(),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-partition.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'entity-properties.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-literals.rq'),
