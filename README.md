@@ -142,6 +142,36 @@ pipeline itself.
     void:vocabulary <https://schema.org/>, <http://www.w3.org/2000/01/rdf-schema#>, <http://xmlns.com/foaf/0.1/>.
 ```
 
+### Distributions
+
+All declared distributions are validated:
+
+* SPARQL endpoints are tested with a simple `SELECT * { ?s ?p ?o } LIMIT 1` query;
+* data downloads are tested with an HTTP HEAD request.
+
+Lacking equivalent properties in VoID, Schema.org is used as the data model here.
+
+If the distributions are valid:
+ 
+```ttl
+[] a <https://schema.org/Action>;
+    <https://schema.org/target> <http://data.bibliotheken.nl/sparql>;
+    <https://schema.org/result> <http://data.bibliotheken.nl/sparql>.
+[] a <https://schema.org/Action>;
+    <https://schema.org/target> <http://data.bibliotheken.nl/files/stcn_20220429.ttl.gz>;
+    <https://schema.org/result> <http://data.bibliotheken.nl/files/stcn_20220429.ttl.gz>.
+<http://data.bibliotheken.nl/files/stcn_20220429.ttl.gz> <https://schema.org/dateModified> "2022-04-29T08:51:13.000Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+    <https://schema.org/contentSize> "72868201".
+```
+
+If a distribution is invalid, a `schema:error` triple will indicate the HTTP status code:
+
+```ttl
+_:n3-1459 a <https://schema.org/Action>;
+    <https://schema.org/target> <https://www.openarchieven.nl/foundlinks/linkset/33ff3fa4744db564807b99dbc4a3d012.nt.gz>;
+    <https://schema.org/error> 404.
+```
+
 ### Example resources
 
 ```ttl

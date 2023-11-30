@@ -12,7 +12,9 @@ describe('Pipeline', () => {
       selector: new SparqlQuerySelector(
         {
           query: (
-            await readFile(resolve('queries/selection/sparql-endpoints.rq'))
+            await readFile(
+              resolve('queries/selection/dataset-with-rdf-distribution.rq')
+            )
           ).toString(),
           endpoint:
             'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry',

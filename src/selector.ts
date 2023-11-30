@@ -54,6 +54,14 @@ export class SparqlQuerySelector implements Selector {
         if ('http://purl.org/dc/terms/format' === quad.predicate.value) {
           distribution.mimeType = quad.object.value;
         }
+
+        if ('http://purl.org/dc/terms/modified' === quad.predicate.value) {
+          distribution.lastModified = new Date(quad.object.value);
+        }
+
+        if ('http://www.w3.org/ns/dcat#byteSize' === quad.predicate.value) {
+          distribution.byteSize = parseInt(quad.object.value);
+        }
       });
       quadStream.on('end', () => {
         resolve(datasets);

@@ -1,12 +1,12 @@
 import {QueryEngine} from '@comunica/query-sparql';
 import {Bindings, DatasetCore, Quad, ResultStream} from 'rdf-js';
 import {Store} from 'n3';
-import {Dataset} from './dataset';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {AsyncIterator} from 'asynciterator';
 import {BindingsFactory} from '@comunica/bindings-factory';
 import {DataFactory} from 'rdf-data-factory';
+import {Dataset} from './dataset.js';
 
 export interface Analyzer {
   execute(
@@ -41,31 +41,23 @@ export class SparqlQueryAnalyzer implements Analyzer {
   public async execute(
     dataset: Dataset
   ): Promise<DatasetCore | NotSupported | AnalyzerError> {
-    const sparqlDistributions = dataset.distributions.filter(
-      distribution =>
-        (distribution.mimeType === 'application/sparql-query' ||
-          distribution.mimeType === 'application/sparql-results+json') &&
-        distribution.accessUrl !== null
-    );
-
-    if (sparqlDistributions.length === 0) {
+    const sparqlDistribution = dataset.getSparqlDistribution();
+    if (null === sparqlDistribution) {
       return new NotSupported();
     }
 
-    console.info(
-      `  Analyzing distribution ${sparqlDistributions[0].accessUrl}`
-    );
+    console.info(`  Analyzing distribution ${sparqlDistribution.accessUrl}`);
 
     const store = new Store();
     try {
       const stream = await this.tryQuery(
-        sparqlDistributions[0].accessUrl!,
+        sparqlDistribution.accessUrl!,
         dataset
       );
       store.addQuads(await stream.toArray());
     } catch (e) {
       return new AnalyzerError(
-        sparqlDistributions[0].accessUrl!,
+        sparqlDistribution.accessUrl!,
         e instanceof Error ? e.message : undefined
       );
     }
