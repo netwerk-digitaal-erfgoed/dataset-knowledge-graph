@@ -7,6 +7,8 @@ import {resolve} from 'node:path';
 import {SparqlQueryAnalyzer} from './analyzer.js';
 import {UriSpaceAnalyzer} from './analyzer/uriSpace.js';
 import {DistributionAnalyzer} from './analyzer/distribution.js';
+import {GraphDBClient, SparqlWriter} from './writer/sparql.js';
+import {config} from './config.js';
 
 const queryEngine = new QueryEngine();
 new Pipeline({
@@ -36,5 +38,15 @@ new Pipeline({
       await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-uri-space.rq')
     ),
   ],
-  writer: new FileWriter(),
+  writers: [
+    new FileWriter(),
+    new SparqlWriter(
+      new GraphDBClient({
+        url: config.GRAPHDB_URL as string,
+        username: config.GRAPHDB_USERNAME as string,
+        password: config.GRAPHDB_PASSWORD as string,
+        repository: config.GRAPHDB_REPOSITORY as string,
+      })
+    ),
+  ],
 }).run();

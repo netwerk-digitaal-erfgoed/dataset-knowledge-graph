@@ -22,7 +22,7 @@ describe('Pipeline', () => {
         queryEngine
       ),
       analyzers: [],
-      writer: new FileWriter(),
+      writers: [new FileWriter()],
     });
     await pipeline.run();
   });
