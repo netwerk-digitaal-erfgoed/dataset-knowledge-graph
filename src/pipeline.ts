@@ -9,7 +9,7 @@ export class Pipeline {
     private readonly config: {
       selector: Selector;
       analyzers: Analyzer[];
-      writer: SummaryWriter;
+      writers: SummaryWriter[];
     }
   ) {}
 
@@ -36,7 +36,9 @@ export class Pipeline {
         }
       }
       if (store.size > 0) {
-        await this.config.writer.write(dataset, store);
+        for (const writer of this.config.writers) {
+          writer.write(dataset, store);
+        }
       }
     }
   }
