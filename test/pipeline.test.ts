@@ -1,9 +1,9 @@
-import {Pipeline} from '../src/pipeline';
+import {Pipeline} from '../src/pipeline.js';
 import {QueryEngine} from '@comunica/query-sparql';
-import {SparqlQuerySelector} from '../src/selector';
+import {SparqlQuerySelector} from '../src/selector.js';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
-import {FileWriter} from '../src/writer';
+import {FileWriter} from '../src/writer.js';
 
 describe('Pipeline', () => {
   it('runs', async () => {
