@@ -16,7 +16,10 @@ export interface Analyzer {
 
 export class NotSupported {}
 export class AnalyzerError {
-  constructor(readonly distributionUrl: string, readonly message?: string) {}
+  constructor(
+    readonly distributionUrl: string,
+    readonly message?: string
+  ) {}
 }
 
 export class SparqlQueryAnalyzer implements Analyzer {
