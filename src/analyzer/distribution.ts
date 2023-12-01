@@ -17,18 +17,19 @@ class NetworkError {
 async function probe(
   distribution: Distribution
 ): Promise<Response | NetworkError> {
-  if (distribution.isSparql()) {
-    return fetch(distribution.accessUrl!, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        Accept: 'application/sparql-results+json',
-      },
-      body: `query=${encodeURIComponent('select * { ?s ?p ?o } limit 1')}`,
-    });
-  }
-
   try {
+    if (distribution.isSparql()) {
+      return fetch(distribution.accessUrl!, {
+        signal: AbortSignal.timeout(5000),
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          Accept: 'application/sparql-results+json',
+        },
+        body: `query=${encodeURIComponent('select * { ?s ?p ?o } limit 1')}`,
+      });
+    }
+
     return await fetch(distribution.accessUrl!, {
       signal: AbortSignal.timeout(5000),
       method: 'HEAD',
