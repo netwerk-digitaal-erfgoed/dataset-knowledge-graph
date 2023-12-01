@@ -7,7 +7,16 @@ import namedNode = DataFactory.namedNode;
 import blankNode = DataFactory.blankNode;
 import literal = DataFactory.literal;
 
-async function probe(distribution: Distribution) {
+class NetworkError {
+  constructor(
+    public readonly url: string,
+    public readonly message: string
+  ) {}
+}
+
+async function probe(
+  distribution: Distribution
+): Promise<Response | NetworkError> {
   if (distribution.isSparql()) {
     return fetch(distribution.accessUrl!, {
       method: 'POST',
@@ -19,10 +28,15 @@ async function probe(distribution: Distribution) {
     });
   }
 
-  return fetch(distribution.accessUrl!, {
-    method: 'HEAD',
-    headers: {Accept: distribution.mimeType!},
-  });
+  try {
+    return await fetch(distribution.accessUrl!, {
+      signal: AbortSignal.timeout(5000),
+      method: 'HEAD',
+      headers: {Accept: distribution.mimeType!},
+    });
+  } catch (e) {
+    return new NetworkError(distribution.accessUrl!, (e as Error).name);
+  }
 }
 
 export class DistributionAnalyzer implements Analyzer {
@@ -49,7 +63,15 @@ export class DistributionAnalyzer implements Analyzer {
         ),
       ]);
 
-      if (result.status >= 200 && result.status < 400) {
+      if (result instanceof NetworkError) {
+        store.addQuad(
+          quad(
+            action,
+            namedNode('https://schema.org/error'),
+            literal(result.message) // TODO: find a URI for this, for example TimeoutError.
+          )
+        );
+      } else if (result.status >= 200 && result.status < 400) {
         const dataDownload = namedNode(result.url);
         store.addQuad(
           quad(action, namedNode('https://schema.org/result'), dataDownload)
