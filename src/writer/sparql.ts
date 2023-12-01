@@ -3,11 +3,12 @@ import {DatasetCore} from 'rdf-js';
 import {Dataset} from '../dataset.js';
 import graphdb from 'graphdb';
 import RDFRepositoryClient from 'graphdb/lib/repository/rdf-repository-client.js';
+import {AxiosError} from 'axios';
 
 export class SparqlWriter implements SummaryWriter {
   constructor(private sparqlClient: SparqlClient) {}
 
-  write(dataset: Dataset, summary: DatasetCore): void {
+  async write(dataset: Dataset, summary: DatasetCore): Promise<void> {
     this.sparqlClient.store(dataset, summary);
   }
 }
@@ -37,7 +38,11 @@ export class GraphDBClient implements SparqlClient {
     try {
       await this.repository.putQuads([...summary], dataset.iri);
     } catch (e) {
-      console.error('write failed', (e as Error).message);
+      console.error(
+        'Write to GraphDB failed for dataset ' + dataset.iri,
+        (e as AxiosError).message,
+        (e as AxiosError).response?.data
+      );
     }
   }
 }

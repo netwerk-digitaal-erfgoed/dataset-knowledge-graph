@@ -37,7 +37,7 @@ export class Pipeline {
       }
       if (store.size > 0) {
         for (const writer of this.config.writers) {
-          writer.write(dataset, store);
+          await writer.write(dataset, store);
         }
       }
     }

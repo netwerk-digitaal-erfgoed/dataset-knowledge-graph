@@ -5,11 +5,11 @@ import {Dataset} from './dataset.js';
 import filenamifyUrl from 'filenamify-url';
 
 export interface SummaryWriter {
-  write(dataset: Dataset, summary: DatasetCore): void;
+  write(dataset: Dataset, summary: DatasetCore): Promise<void>;
 }
 
 export class FileWriter implements SummaryWriter {
-  write(dataset: Dataset, summary: DatasetCore): void {
+  async write(dataset: Dataset, summary: DatasetCore): Promise<void> {
     const writer = new Writer({
       prefixes: {
         void: 'http://rdfs.org/ns/void#',
