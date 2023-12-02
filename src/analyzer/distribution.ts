@@ -14,12 +14,47 @@ class NetworkError {
   ) {}
 }
 
+abstract class RdfResult {
+  public readonly url: string;
+  public readonly statusCode: number;
+  public readonly statusText: string;
+  public readonly lastModified: Date | null = null;
+
+  constructor(response: Response) {
+    this.url = response.url;
+    this.statusCode = response.status;
+    this.statusText = response.statusText;
+    const lastModifiedHeader = response.headers.get('Last-Modified');
+    if (lastModifiedHeader) {
+      this.lastModified = new Date(lastModifiedHeader);
+    }
+  }
+
+  public isSuccess() {
+    return this.statusCode >= 200 && this.statusCode < 400;
+  }
+}
+
+class SparqlProbeResult extends RdfResult {}
+
+class DataDumpProbeResult extends RdfResult {
+  public readonly contentSize: number | null = null;
+
+  constructor(response: Response) {
+    super(response);
+    const contentLengthHeader = response.headers.get('Content-Length');
+    if (contentLengthHeader) {
+      this.contentSize = parseInt(contentLengthHeader);
+    }
+  }
+}
+
 async function probe(
   distribution: Distribution
-): Promise<Response | NetworkError> {
+): Promise<SparqlProbeResult | DataDumpProbeResult | NetworkError> {
   try {
     if (distribution.isSparql()) {
-      return fetch(distribution.accessUrl!, {
+      const response = await fetch(distribution.accessUrl!, {
         signal: AbortSignal.timeout(5000),
         method: 'POST',
         headers: {
@@ -28,13 +63,20 @@ async function probe(
         },
         body: `query=${encodeURIComponent('select * { ?s ?p ?o } limit 1')}`,
       });
+
+      const result = new SparqlProbeResult(response);
+      distribution.isValid = result.isSuccess();
+      return result;
     }
 
-    return await fetch(distribution.accessUrl!, {
+    const response = await fetch(distribution.accessUrl!, {
       signal: AbortSignal.timeout(5000),
       method: 'HEAD',
       headers: {Accept: distribution.mimeType!},
     });
+    const result = new DataDumpProbeResult(response);
+    distribution.isValid = result.isSuccess();
+    return result;
   } catch (e) {
     return new NetworkError(distribution.accessUrl!, (e as Error).name);
   }
@@ -72,35 +114,51 @@ export class DistributionAnalyzer implements Analyzer {
             literal(result.message) // TODO: find a URI for this, for example TimeoutError.
           )
         );
-      } else if (result.status >= 200 && result.status < 400) {
-        const dataDownload = namedNode(result.url);
-        store.addQuad(
-          quad(action, namedNode('https://schema.org/result'), dataDownload)
-        );
+      } else if (result.isSuccess()) {
+        const distributionUrl = namedNode(result.url);
+        store.addQuads([
+          quad(action, namedNode('https://schema.org/result'), distributionUrl),
+        ]);
 
-        const lastModified = result.headers.get('Last-Modified');
-        if (lastModified) {
+        if (result.lastModified) {
           store.addQuad(
             quad(
-              dataDownload,
+              distributionUrl,
               namedNode('https://schema.org/dateModified'),
               literal(
-                new Date(lastModified).toISOString(),
+                result.lastModified.toISOString(),
                 namedNode('http://www.w3.org/2001/XMLSchema#dateTime')
               )
             )
           );
         }
 
-        const contentSize = result.headers.get('Content-Length');
-        if (contentSize) {
-          store.addQuad(
+        if (result instanceof SparqlProbeResult) {
+          store.addQuads([
             quad(
-              dataDownload,
-              namedNode('https://schema.org/contentSize'),
-              literal(contentSize)
-            )
-          );
+              namedNode(dataset.iri.toString()),
+              namedNode('http://rdfs.org/ns/void#sparqlEndpoint'),
+              distributionUrl
+            ),
+          ]);
+        } else {
+          store.addQuads([
+            quad(
+              namedNode(dataset.iri.toString()),
+              namedNode('http://rdfs.org/ns/void#dataDump'),
+              distributionUrl
+            ),
+          ]);
+
+          if (result.contentSize) {
+            store.addQuad(
+              quad(
+                distributionUrl,
+                namedNode('https://schema.org/contentSize'),
+                literal(result.contentSize)
+              )
+            );
+          }
         }
       } else {
         store.addQuads([

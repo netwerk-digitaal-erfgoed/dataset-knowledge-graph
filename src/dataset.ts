@@ -6,8 +6,9 @@ export class Dataset {
 
   public getSparqlDistribution(): Distribution | null {
     return (
-      this.distributions.filter(distribution => distribution.isSparql())[0] ??
-      null
+      this.distributions.filter(
+        distribution => distribution.isSparql() && distribution.isValid
+      )[0] ?? null
     );
   }
 
@@ -36,6 +37,7 @@ export class Distribution {
   public accessUrl?: string;
   public byteSize?: number;
   public lastModified?: Date;
+  public isValid?: boolean;
 
   public isSparql() {
     return (
