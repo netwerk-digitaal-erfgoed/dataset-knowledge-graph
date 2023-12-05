@@ -5,6 +5,7 @@ CONSTRUCT {
         void:triples ?count .
 } WHERE {
     SELECT (COUNT(*) as ?count) {
+        #subjectFilter#
         ?s ?p ?o
     }
 }

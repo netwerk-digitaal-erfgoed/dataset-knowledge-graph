@@ -6,6 +6,7 @@ CONSTRUCT {
         nde:distinctObjectsLiteral ?total .
 } WHERE {
     SELECT (COUNT(?o) as ?total) {
+        #subjectFilter#
         ?s ?p ?o .
         FILTER(ISLITERAL(?o))
     }

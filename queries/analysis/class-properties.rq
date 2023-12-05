@@ -11,6 +11,7 @@ CONSTRUCT {
         ] .
 } WHERE {
     SELECT ?p ?t (COUNT(DISTINCT ?s) AS ?subjects) {
+        #subjectFilter#
         ?s a ?t ;
             ?p ?o .
     }

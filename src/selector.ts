@@ -1,6 +1,10 @@
 import {Dataset, Distribution} from './dataset.js';
 import {QueryEngine} from '@comunica/query-sparql';
-import {Quad} from 'n3';
+import {DataFactory, Quad} from 'n3';
+import {resolve} from 'node:path';
+import rdfDereferencer from 'rdf-dereference';
+import namedNode = DataFactory.namedNode;
+import factory from 'rdf-ext';
 
 export interface Selector {
   select(): Promise<Set<Dataset>>;
@@ -15,6 +19,14 @@ export class SparqlQuerySelector implements Selector {
     private readonly queryEngine: QueryEngine
   ) {}
   async select(): Promise<Set<Dataset>> {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const {data} = await rdfDereferencer.default.dereference(
+      resolve('queries/selection/supplemental.ttl'),
+      {localFiles: true}
+    );
+    const supplementalStore = await factory.dataset().import(data);
+
     const quadStream = await this.queryEngine.queryQuads(this.config.query, {
       sources: [
         {
@@ -34,7 +46,19 @@ export class SparqlQuerySelector implements Selector {
             quad.predicate.value &&
           'http://www.w3.org/ns/dcat#Dataset' === quad.object.value
         ) {
-          dataset = new Dataset(quad.subject.value, []);
+          const subjectFilter = [
+            ...supplementalStore.match(
+              quad.subject,
+              namedNode(
+                'https://data.netwerkdigitaalerfgoed.nl/def/subjectFilter'
+              )
+            ),
+          ][0]?.object.value;
+          dataset = new Dataset(
+            quad.subject.value,
+            [],
+            subjectFilter ? subjectFilter + '.' : undefined
+          );
           datasets.add(dataset);
         }
 

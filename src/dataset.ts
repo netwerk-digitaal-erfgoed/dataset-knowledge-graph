@@ -1,7 +1,11 @@
 export class Dataset {
   constructor(
     public readonly iri: string,
-    public distributions: Distribution[]
+    public distributions: Distribution[],
+
+    // On the level of the dataset instead of the distribution because distribution may not have a URI, so cannot be
+    // referenced from supplemental.ttl.
+    public subjectFilter?: string
   ) {}
 
   public getSparqlDistribution(): Distribution | null {
