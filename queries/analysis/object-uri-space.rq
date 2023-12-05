@@ -7,6 +7,7 @@ CONSTRUCT {
         void:triples ?count .
 } WHERE {
     SELECT DISTINCT ?prefix (COUNT(?prefix) AS ?count) {
+        #subjectFilter#
         ?s ?p ?o .
         FILTER(ISIRI(?o))
         BIND(REPLACE(STR(?o), "([^/]+$)", "") AS ?prefix)

@@ -71,18 +71,21 @@ export class SparqlQueryAnalyzer implements Analyzer {
     type?: string
   ): Promise<AsyncIterator<Quad> & ResultStream<Quad>> {
     try {
-      return await new QueryEngine().queryQuads(this.query, {
-        initialBindings: this.bindingsFactory.fromRecord({
-          dataset: this.dataFactory.namedNode(dataset.iri),
-        }) as unknown as Bindings,
-        sources: [
-          {
-            type: 'sparql',
-            value: endpoint,
-          },
-        ],
-        httpTimeout: 300_000, // Some SPARQL queries really take this long.
-      });
+      return await new QueryEngine().queryQuads(
+        this.query.replace('#subjectFilter#', dataset.subjectFilter ?? ''),
+        {
+          initialBindings: this.bindingsFactory.fromRecord({
+            dataset: this.dataFactory.namedNode(dataset.iri),
+          }) as unknown as Bindings,
+          sources: [
+            {
+              type: 'sparql',
+              value: endpoint,
+            },
+          ],
+          httpTimeout: 300_000, // Some SPARQL queries really take this long.
+        }
+      );
     } catch (e) {
       if (type !== undefined) {
         // Retry without explicit SPARQL type, which is needed for endpoints that offer a SPARQL Service Description.

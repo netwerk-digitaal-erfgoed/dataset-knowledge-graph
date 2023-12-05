@@ -6,6 +6,7 @@ CONSTRUCT {
         nde:distinctObjectsURI ?total .
 } WHERE {
     SELECT (COUNT(?o) as ?total) {
+        #subjectFilter#
         ?s ?p ?o .
         FILTER(ISIRI(?o))
     }

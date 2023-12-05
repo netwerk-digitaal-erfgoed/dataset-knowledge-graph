@@ -5,6 +5,7 @@ CONSTRUCT {
         void:properties ?count .
 } WHERE {
     SELECT (COUNT(DISTINCT ?p) as ?count) {
+        #subjectFilter#
         ?s ?p ?o
     }
 }

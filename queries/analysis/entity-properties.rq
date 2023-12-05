@@ -8,6 +8,7 @@ CONSTRUCT {
         ] .
 } WHERE {
     SELECT (COUNT(?p) AS ?entities) ?p {
+        #subjectFilter#
         ?s ?p ?o .
     }
     GROUP BY ?p
