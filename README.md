@@ -144,32 +144,42 @@ pipeline itself.
 
 ### Distributions
 
-All declared distributions are validated:
+All declared RDF distributions are validated:
 
 * SPARQL endpoints are tested with a simple `SELECT * { ?s ?p ?o } LIMIT 1` query;
-* data downloads are tested with an HTTP HEAD request.
+* RDF data downloads are tested with an HTTP HEAD request.
 
-Lacking equivalent properties in VoID, Schema.org is used as the data model here.
-
-If the distributions are valid:
+If the distributions are valid, they are stored in `void:sparqlEndpoint` and/or `void:dataDump` triples:
  
 ```ttl
+<https://lod.uba.uva.nl/UB-UVA/Books>
+    void:sparqlEndpoint <https://lod.uba.uva.nl/UB-UVA/Catalogue/sparql/> ;
+    void:dataDump <https://lod.uba.uva.nl/_api/datasets/UB-UVA/Books/download.nt.gz?> .
+```
+
+The Schema.org ontology is used to supplement VoID in providing additional details about the distributions, retrieved
+from the HTTP HEAD response, if available:
+
+```ttl
+<https://lod.uba.uva.nl/_api/datasets/UB-UVA/Books/download.nt.gz?> 
+    <https://schema.org/dateModified> "2023-11-03T23:55:38.000Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
+    <https://schema.org/contentSize> 819617127.
+
 [] a <https://schema.org/Action>;
-    <https://schema.org/target> <http://data.bibliotheken.nl/sparql>;
-    <https://schema.org/result> <http://data.bibliotheken.nl/sparql>.
+    <https://schema.org/target> <https://lod.uba.uva.nl/UB-UVA/Catalogue/sparql/>;
+    <https://schema.org/result> <https://lod.uba.uva.nl/UB-UVA/Catalogue/sparql/>.
+    
 [] a <https://schema.org/Action>;
-    <https://schema.org/target> <http://data.bibliotheken.nl/files/stcn_20220429.ttl.gz>;
-    <https://schema.org/result> <http://data.bibliotheken.nl/files/stcn_20220429.ttl.gz>.
-<http://data.bibliotheken.nl/files/stcn_20220429.ttl.gz> <https://schema.org/dateModified> "2022-04-29T08:51:13.000Z"^^<http://www.w3.org/2001/XMLSchema#dateTime>;
-    <https://schema.org/contentSize> "72868201".
+    <https://schema.org/target> <https://lod.uba.uva.nl/_api/datasets/UB-UVA/Books/download.nt.gz?>;
+    <https://schema.org/result> <https://lod.uba.uva.nl/_api/datasets/UB-UVA/Books/download.nt.gz?>.   
 ```
 
 If a distribution is invalid, a `schema:error` triple will indicate the HTTP status code:
 
 ```ttl
-_:n3-1459 a <https://schema.org/Action>;
+[] a <https://schema.org/Action>;
     <https://schema.org/target> <https://www.openarchieven.nl/foundlinks/linkset/33ff3fa4744db564807b99dbc4a3d012.nt.gz>;
-    <https://schema.org/error> 404.
+    <https://schema.org/error> <https://www.w3.org/2011/http-statusCodes#NotFound>.
 ```
 
 ### Example resources
