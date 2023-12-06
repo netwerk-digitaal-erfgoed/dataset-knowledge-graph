@@ -54,4 +54,13 @@ export class Distribution {
       this.accessUrl !== null
     );
   }
+
+  public static sparql(url: string) {
+    const distribution = new this();
+    distribution.mimeType = 'application/sparql-query';
+    distribution.isValid = true;
+    distribution.accessUrl = url;
+
+    return distribution;
+  }
 }

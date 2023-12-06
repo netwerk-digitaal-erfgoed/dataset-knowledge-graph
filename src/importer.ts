@@ -14,17 +14,13 @@ export class RdfDumpImporter implements Importer {
       return;
     }
 
-    console.log('downloading');
     const download = dataset.getDownloadDistribution();
     if (null === download || null === download.accessUrl) {
-      return new NotSupported('No dump distribution available');
+      return new NotSupported('No data dump available');
     }
 
     await this.sparqlClient.import(dataset, download.accessUrl!);
-    const distribution = new Distribution();
-    distribution.mimeType = 'application/sparql-query';
-    distribution.isValid = true;
-    distribution.accessUrl = this.sparqlClient.getEndpoint();
+    const distribution = Distribution.sparql(this.sparqlClient.getEndpoint());
 
     dataset.distributions.push(distribution);
   }
