@@ -2,7 +2,7 @@
 
 The NDE Dataset Knowledge Graph helps researchers, software developers and others to **find relevant datasets** for their
 projects.
-It contains [**Dataset Summaries**](#dataset-summaries) that provide information about datasets
+It consists of [**Dataset Summaries**](#dataset-summaries) that provide statistical information about datasets.
 
 This repository is the [data pipeline](#pipeline-steps) that generates the Knowledge Graph.
 
