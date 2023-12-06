@@ -1,14 +1,31 @@
-import {Analyzer, AnalyzerError, NotSupported} from './analyzer.js';
 import {SummaryWriter} from './writer.js';
 import {Selector} from './selector.js';
 import {Store} from 'n3';
 import {withProvenance} from './provenance.js';
+import {Importer} from './importer.js';
+import {DatasetCore} from 'rdf-js';
+import {Analyzer} from './analyzer.js';
+
+export class Success {
+  constructor(public readonly data: DatasetCore) {}
+}
+
+export class Failure {
+  constructor(
+    public readonly url: string,
+    public readonly message?: string
+  ) {}
+}
+
+export class NotSupported {
+  constructor(public readonly message: string) {}
+}
 
 export class Pipeline {
   constructor(
     private readonly config: {
       selector: Selector;
-      analyzers: Analyzer[];
+      steps: (Analyzer | Importer)[];
       writers: SummaryWriter[];
     }
   ) {}
@@ -19,20 +36,22 @@ export class Pipeline {
     for (const dataset of datasets) {
       console.info(`Analyzing dataset ${dataset.iri}`);
       const store = new Store();
-      for (const analyzer of this.config.analyzers) {
+      for (const step of this.config.steps) {
         const start = new Date();
-        const result = await analyzer.execute(dataset);
+        const result = await step.execute(dataset);
         const end = new Date();
         if (result instanceof NotSupported) {
           console.warn(
-            `  ${dataset.iri} not supported by ${analyzer.constructor.name}`
+            `  ${dataset.iri} not supported by ${step.constructor.name}`
           );
-        } else if (result instanceof AnalyzerError) {
+        } else if (result instanceof Failure) {
           console.warn(
             `  ${dataset.iri} failed with message ${result.message}`
           );
-        } else {
-          store.addQuads([...withProvenance(result, dataset.iri, start, end)]);
+        } else if (result instanceof Success && result.data) {
+          store.addQuads([
+            ...withProvenance(result.data, dataset.iri, start, end),
+          ]);
         }
       }
       if (store.size > 0) {

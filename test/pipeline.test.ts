@@ -21,7 +21,7 @@ describe('Pipeline', () => {
         },
         queryEngine
       ),
-      analyzers: [],
+      steps: [],
       writers: [new FileWriter()],
     });
     await pipeline.run();
