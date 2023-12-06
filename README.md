@@ -41,7 +41,10 @@ The Summaries can be consulted by users such as data platform builders to help t
 
 ## Scope
 
-- This pipeline is RDF-based so will be limited to datasets that provide at least one valid RDF distribution.
+This pipeline:
+
+- is RDF-based so will be limited to datasets that provide at least one valid RDF distribution;
+- will skip RDF distributions that contain invalid data.
 
 ## Dataset Summaries
 
