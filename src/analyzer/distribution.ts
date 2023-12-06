@@ -1,7 +1,7 @@
-import {DatasetCore} from 'rdf-js';
 import {Dataset, Distribution} from '../dataset.js';
-import {Analyzer, AnalyzerError, NotSupported} from '../analyzer.js';
+import {Analyzer} from '../analyzer.js';
 import {DataFactory, Store} from 'n3';
+import {Failure, NotSupported, Success} from '../pipeline.js';
 import quad = DataFactory.quad;
 import namedNode = DataFactory.namedNode;
 import blankNode = DataFactory.blankNode;
@@ -83,9 +83,7 @@ async function probe(
 }
 
 export class DistributionAnalyzer implements Analyzer {
-  async execute(
-    dataset: Dataset
-  ): Promise<DatasetCore | NotSupported | AnalyzerError> {
+  async execute(dataset: Dataset): Promise<Success | NotSupported | Failure> {
     const results = await Promise.all(
       dataset.distributions.map(async distribution => await probe(distribution))
     );
@@ -176,6 +174,6 @@ export class DistributionAnalyzer implements Analyzer {
       }
     }
 
-    return store;
+    return new Success(store);
   }
 }

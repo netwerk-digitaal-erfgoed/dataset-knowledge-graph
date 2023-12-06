@@ -17,14 +17,18 @@ export class Dataset {
   }
 
   public getDownloadDistribution(): Distribution | null {
+    const validDistributions = this.distributions.filter(
+      distribution => distribution.isValid
+    );
+
     return (
-      this.distributions.filter(
+      validDistributions.filter(
         distribution => distribution.mimeType?.endsWith('+gzip')
       )[0] ??
-      this.distributions.filter(
+      validDistributions.filter(
         distribution => distribution.accessUrl?.endsWith('.nt.gz')
       )[0] ??
-      this.distributions.filter(
+      validDistributions.filter(
         distribution =>
           undefined !== distribution.mimeType &&
           ['application/n-triples', 'text/turtle'].includes(
