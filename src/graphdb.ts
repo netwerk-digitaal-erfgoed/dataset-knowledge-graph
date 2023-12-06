@@ -39,9 +39,10 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
 
   async import(dataset: Dataset, distributionUrl: string): Promise<void> {
     console.info(`  Importing ${distributionUrl}`);
-    const payload = new graphdb.query.UpdateQueryPayload().setQuery(
-      `LOAD <${distributionUrl}> INTO GRAPH <${dataset.iri}>`
-    );
+    const payload = new graphdb.query.UpdateQueryPayload()
+      .setQuery(`LOAD <${distributionUrl}> INTO GRAPH <${dataset.iri}>`)
+      .setInference(false)
+      .setTimeout(60);
 
     try {
       await this.repository.update(payload);
