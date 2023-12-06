@@ -9,9 +9,9 @@ This repository is the [data pipeline](#pipeline-steps) that generates the Knowl
 ## Finding datasets
 
 To query the Knowledge Graph, use the SPARQL endpoint at 
-`https://triplestore.netwerkdigitaalerfgoed.nl/repositories/knowledge-graph`.
+`https://triplestore.netwerkdigitaalerfgoed.nl/repositories/dataset-knowledge-graph`.
 
-Some example queries (make sure to select repository `knowledge-graph` on the top right):
+Some example queries (make sure to select repository `dataset-knowledge-graph` on the top right):
 
 * [links from datasets to terminology sources](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?name=Datasets%20met%20een%20linked%20data%20distributie&infer=true&sameAs=true&query=%23%20Outgoing%20links%20from%20datasets%20to%20terminology%20sources%0APREFIX%20void%3A%20%3Chttp%3A%2F%2Frdfs.org%2Fns%2Fvoid%23%3E%0A%0Aselect%20*%20%7B%0A%20%20%20%20%3Fs%20a%20void%3ALinkset%20%3B%0A%20%20%20%20%20%20%20void%3AsubjectsTarget%20%3Fdataset%20%3B%0A%20%20%20%20%20%20%20void%3AobjectsTarget%20%3FterminologySource%20%3B%0A%20%20%20%20%20%20%20void%3Atriples%20%3FnumberOfTriples%20%3B%0A%7D)
 * [property partitions per class](https://triplestore.netwerkdigitaalerfgoed.nl/sparql?savedQueryName=Knowledge%20Graph%3A%20property%20partition%20per%20class&owner=admin)
