@@ -140,9 +140,11 @@ pipeline itself.
 
 ### Vocabularies
 
+The vocabularies that the dataset’s predicates refer to:
+
 ```ttl
 <http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
-    void:vocabulary <https://schema.org/>, <http://www.w3.org/2000/01/rdf-schema#>, <http://xmlns.com/foaf/0.1/>.
+    void:vocabulary <http://schema.org>, <http://xmlns.com/foaf/0.1/>.
 ```
 
 ### Distributions

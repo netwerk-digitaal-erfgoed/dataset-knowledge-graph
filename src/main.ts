@@ -11,6 +11,7 @@ import {SparqlWriter} from './writer/sparql.js';
 import {config} from './config.js';
 import {RdfDumpImporter} from './importer.js';
 import {GraphDBClient} from './graphdb.js';
+import {VocabularyAnalyzer} from './analyzer/vocabulary.js';
 
 const queryEngine = new QueryEngine();
 new Pipeline({
@@ -37,7 +38,6 @@ new Pipeline({
       })
     ),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-partition.rq'),
-    await SparqlQueryAnalyzer.fromFile(queryEngine, 'entity-properties.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-literals.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-uris.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'properties.rq'),
@@ -46,6 +46,9 @@ new Pipeline({
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-properties.rq'),
     new UriSpaceAnalyzer(
       await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-uri-space.rq')
+    ),
+    new VocabularyAnalyzer(
+      await SparqlQueryAnalyzer.fromFile(queryEngine, 'entity-properties.rq')
     ),
   ],
   writers: [
