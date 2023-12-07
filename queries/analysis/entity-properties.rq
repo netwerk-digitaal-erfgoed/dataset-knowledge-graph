@@ -6,7 +6,9 @@ CONSTRUCT {
             void:property ?p ;
             void:entities ?entities ;
         ] .
-} WHERE {
+}
+#namedGraph#
+WHERE {
     SELECT (COUNT(?p) AS ?entities) ?p {
         #subjectFilter#
         ?s ?p ?o .

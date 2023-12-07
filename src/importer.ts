@@ -19,14 +19,24 @@ export class RdfDumpImporter implements Importer {
       return new NotSupported('No data dump available');
     }
 
-    await this.sparqlClient.import(dataset, download.accessUrl!);
-    const distribution = Distribution.sparql(this.sparqlClient.getEndpoint());
-
-    dataset.distributions.push(distribution);
+    const namedGraph = await this.sparqlClient.import(
+      dataset,
+      download.accessUrl!
+    );
+    if (namedGraph) {
+      const distribution = Distribution.sparql(
+        this.sparqlClient.getEndpoint(),
+        namedGraph
+      );
+      dataset.distributions.push(distribution);
+    }
   }
 }
 
 export interface SparqlClient {
-  import(dataset: Dataset, distributionUrl: string): Promise<void>;
+  import(
+    dataset: Dataset,
+    distributionUrl: string
+  ): Promise<string | undefined>;
   getEndpoint(): string;
 }

@@ -3,7 +3,9 @@ PREFIX void: <http://rdfs.org/ns/void#>
 CONSTRUCT {
     ?dataset a void:Dataset ;
         void:triples ?count .
-} WHERE {
+}
+#namedGraph#
+WHERE {
     SELECT (COUNT(*) as ?count) {
         #subjectFilter#
         ?s ?p ?o

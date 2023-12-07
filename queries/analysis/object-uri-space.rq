@@ -5,7 +5,9 @@ CONSTRUCT {
         void:subjectsTarget ?dataset ;
         void:objectsTarget ?prefix ;
         void:triples ?count .
-} WHERE {
+}
+#namedGraph#
+WHERE {
     SELECT DISTINCT ?prefix (COUNT(?prefix) AS ?count) {
         #subjectFilter#
         ?s ?p ?o .

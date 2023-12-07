@@ -4,7 +4,9 @@ PREFIX nde: <https://www.netwerkdigitaalerfgoed.nl/def#>
 CONSTRUCT {
     ?dataset a void:Dataset ;
         nde:distinctObjectsLiteral ?total .
-} WHERE {
+}
+#namedGraph#
+WHERE {
     SELECT (COUNT(?o) as ?total) {
         #subjectFilter#
         ?s ?p ?o .

@@ -6,7 +6,7 @@ import {resolve} from 'node:path';
 import {AsyncIterator} from 'asynciterator';
 import {BindingsFactory} from '@comunica/bindings-factory';
 import {DataFactory} from 'rdf-data-factory';
-import {Dataset} from './dataset.js';
+import {Dataset, Distribution} from './dataset.js';
 import {Failure, NotSupported, Success} from './pipeline.js';
 
 export interface Analyzer {
@@ -17,7 +17,6 @@ export class SparqlQueryAnalyzer implements Analyzer {
   constructor(
     private readonly queryEngine: QueryEngine,
     private readonly query: string,
-
     private readonly dataFactory = new DataFactory(),
     private readonly bindingsFactory = new BindingsFactory(dataFactory)
   ) {}
@@ -41,10 +40,7 @@ export class SparqlQueryAnalyzer implements Analyzer {
 
     const store = new Store();
     try {
-      const stream = await this.tryQuery(
-        sparqlDistribution.accessUrl!,
-        dataset
-      );
+      const stream = await this.tryQuery(sparqlDistribution, dataset);
       store.addQuads(await stream.toArray());
     } catch (e) {
       return new Failure(
@@ -57,13 +53,18 @@ export class SparqlQueryAnalyzer implements Analyzer {
   }
 
   private async tryQuery(
-    endpoint: string,
+    distribution: Distribution,
     dataset: Dataset,
     type?: string
   ): Promise<AsyncIterator<Quad> & ResultStream<Quad>> {
     try {
       return await new QueryEngine().queryQuads(
-        this.query.replace('#subjectFilter#', dataset.subjectFilter ?? ''),
+        this.query
+          .replace('#subjectFilter#', dataset.subjectFilter ?? '')
+          .replace(
+            '#namedGraph#',
+            distribution.namedGraph ? `FROM <${distribution.namedGraph}>` : ''
+          ),
         {
           initialBindings: this.bindingsFactory.fromRecord({
             dataset: this.dataFactory.namedNode(dataset.iri),
@@ -71,7 +72,7 @@ export class SparqlQueryAnalyzer implements Analyzer {
           sources: [
             {
               type: 'sparql',
-              value: endpoint,
+              value: distribution.accessUrl!,
             },
           ],
           httpTimeout: 300_000, // Some SPARQL queries really take this long.
@@ -80,7 +81,7 @@ export class SparqlQueryAnalyzer implements Analyzer {
     } catch (e) {
       if (type !== undefined) {
         // Retry without explicit SPARQL type, which is needed for endpoints that offer a SPARQL Service Description.
-        return await this.tryQuery(endpoint, dataset);
+        return await this.tryQuery(distribution, dataset);
       }
       throw e;
     }

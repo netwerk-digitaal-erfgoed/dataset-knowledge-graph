@@ -37,14 +37,18 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
     }
   }
 
-  async import(dataset: Dataset, distributionUrl: string): Promise<void> {
+  async import(
+    dataset: Dataset,
+    distributionUrl: string
+  ): Promise<string | undefined> {
     console.info(`  Importing ${distributionUrl}`);
 
+    const namedGraph = dataset.iri;
     try {
       await this.repository.update(
         new graphdb.query.UpdateQueryPayload()
           .setQuery(
-            `CLEAR GRAPH <${dataset.iri}>; LOAD <${distributionUrl}> INTO GRAPH <${dataset.iri}>`
+            `CLEAR GRAPH <${dataset.iri}>; LOAD <${distributionUrl}> INTO GRAPH <${namedGraph}>`
           )
           .setInference(false)
           .setTimeout(60)
@@ -55,7 +59,9 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
         (e as AxiosError).message,
         (e as AxiosError).response?.data
       );
+      return undefined;
     }
+    return namedGraph;
   }
 
   getEndpoint(): string {

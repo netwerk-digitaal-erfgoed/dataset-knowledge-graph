@@ -46,6 +46,7 @@ export class Distribution {
   public byteSize?: number;
   public lastModified?: Date;
   public isValid?: boolean;
+  public namedGraph?: string;
 
   public isSparql() {
     return (
@@ -55,11 +56,12 @@ export class Distribution {
     );
   }
 
-  public static sparql(url: string) {
+  public static sparql(endpoint: string, namedGraph: string) {
     const distribution = new this();
     distribution.mimeType = 'application/sparql-query';
     distribution.isValid = true;
-    distribution.accessUrl = url;
+    distribution.accessUrl = endpoint;
+    distribution.namedGraph = namedGraph;
 
     return distribution;
   }
