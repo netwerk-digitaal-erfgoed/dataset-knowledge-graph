@@ -21,7 +21,8 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
       config.url
     )
       .useGdbTokenAuthentication(config.username, config.password)
-      .setEndpoints([this.endpoint]);
+      .setEndpoints([this.endpoint])
+      .setWriteTimeout(60000); // Larger timeout for data dump imports.
     this.repository = new graphdb.repository.RDFRepositoryClient(graphdbConfig);
   }
 
@@ -51,7 +52,6 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
             `CLEAR GRAPH <${dataset.iri}>; LOAD <${distributionUrl}> INTO GRAPH <${namedGraph}>`
           )
           .setInference(false)
-          .setTimeout(60)
       );
     } catch (e) {
       console.error(
