@@ -22,7 +22,7 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
     )
       .useGdbTokenAuthentication(config.username, config.password)
       .setEndpoints([this.endpoint])
-      .setWriteTimeout(60000); // Larger timeout for data dump imports.
+      .setWriteTimeout(180000); // Larger timeout for data dump imports.
     this.repository = new graphdb.repository.RDFRepositoryClient(graphdbConfig);
   }
 
