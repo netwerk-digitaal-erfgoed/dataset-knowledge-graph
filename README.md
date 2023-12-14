@@ -39,6 +39,13 @@ Summaries**. Summaries answer questions such as:
 
 The Summaries can be consulted by users such as data platform builders to help them find relevant datasets.
 
+It is built on top of the [Dataset Register](https://github.com/netwerk-digitaal-erfgoed/dataset-register), which contains dataset descriptions as supplied by
+their owners. Part of these descriptions are distributions, i.e. URLs where the data can be retrieved.
+
+To build the Summaries, the Knowledge Graph Pipeline applies [SPARQL queries](queries/analysis) against RDF 
+distributions, either directly in case of SPARQL endpoints or by loading the data first in case of RDF data dumps.
+Where needed, the SPARQL results are post-processed in code.
+
 ## Scope
 
 This pipeline:
@@ -206,34 +213,22 @@ The [Dataset Summaries](#dataset-summaries) output will be written to the `outpu
 
 ## Pipeline Steps
 
-The pipeline will consist of the following steps.
+The pipeline consists of the following steps.
 
-### 1. Retrieve datasets with RDF distributions from the Dataset Register.
+### 1. Select
 
-The Knowledge Graph is limited in scope to RDF distributions.
+Select dataset descriptions with RDF distributions from the Dataset Register.
 
-### 2. Load RDF data from the distribution.
+### 2. Load
 
-This can be either in-memory or in a triple store. The latter may perform better because we need to apply SPARQL queries
-to the RDF.
+If the dataset has no SPARQL endpoint distribution, load the data from an RDF dump distribution, if available.
 
-### 3. Apply analysis queries to the loaded data.
+### 3. Analyze
 
-There are two sets of queries:
-
-- generic queries that apply to all datasets (for example all types);
-- dataset-specific queries for extracting detailed information.
-
-The SPARQL queries will be stored in this Git repository, in a predetermined directory structure. This way, no
-configuration will be necessary.
-
-All queries are SPARQL `CONSTRUCT` queries that output analysis results as triples (for example
-in [VoID](https://www.w3.org/TR/void/)).
-
-For now the queries will be self-contained, complete units. In the future, we may want to combine queries with extra
-code (TypeScript) functions for extracting even more detailed information, such as image resolution.
+Apply Analyzers, either to the dataset provider’s SPARQL endpoint, or our own where we loaded the data. Analyzers are [SPARQL CONSTRUCT queries](queries/analysis/), wrapped in code where needed to extract
+more detailed information. 
+Analyzers output results as triples in the VoID vocabulary.
 
 ### 4. Write analysis results
 
-Write the results of the analysis queries to local files. The results may also be inserted into a triple store that can
-then be consulted by clients as a Knowledge Graph.
+Write the analysis results to local files and a triple store.
