@@ -20,11 +20,13 @@ abstract class RdfResult {
   public readonly statusCode: number;
   public readonly statusText: string;
   public readonly lastModified: Date | null = null;
+  public readonly contentType: string | null;
 
   constructor(response: Response) {
     this.url = response.url;
     this.statusCode = response.status;
     this.statusText = response.statusText;
+    this.contentType = response.headers.get('Content-Type');
     const lastModifiedHeader = response.headers.get('Last-Modified');
     if (lastModifiedHeader) {
       this.lastModified = new Date(lastModifiedHeader);
@@ -36,7 +38,13 @@ abstract class RdfResult {
   }
 }
 
-class SparqlProbeResult extends RdfResult {}
+class SparqlProbeResult extends RdfResult {
+  public readonly acceptedContentType = 'application/sparql-results+json';
+
+  isSuccess(): boolean {
+    return super.isSuccess() && this.contentType === this.acceptedContentType;
+  }
+}
 
 class DataDumpProbeResult extends RdfResult {
   public readonly contentSize: number | null = null;
