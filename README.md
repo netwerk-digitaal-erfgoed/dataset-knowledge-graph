@@ -19,13 +19,7 @@ Some example queries (make sure to select repository `dataset-knowledge-graph` o
 
 ## Approach
 
-The Knowledge Graph is built on top of
-the [Dataset Register](https://github.com/netwerk-digitaal-erfgoed/dataset-register), which contains dataset
-descriptions as supplied by their owners. Part of these descriptions are distributions, i.e. URLs where the data can be
-retrieved.
-
-The Knowledge Graph loads RDF data from those distributions and applies SPARQL queries to it to build **Dataset
-Summaries**. Summaries answer questions such as:
+The Knowledge Graph contains **Dataset Summaries** that answer questions such as:
 
 - which [RDF types](#classes) are used in the dataset?
 - for each of those types, [how many resources](#classes) does the dataset contain?
@@ -60,15 +54,20 @@ used as the data model for these Summaries.
 
 ### Size
 
+The overall size of the dataset: the number of unique subjects, predicates and literal as well as URI objects.
+
 ```ttl
 <http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
+    void:triples 6119677;
     void:distinctSubjects 53434; 
-    void:distinctObjects 32323;
     void:properties 943;
-    void:entities 8493. # To be an entity in a dataset, a resource must have a URI, and the URI must match the dataset's void:uriRegexPattern, if any. 
+    nde:distinctObjectsLiteral 2125;
+    nde:distinctObjectsURI 32323.
 ```
 
 ### Classes
+
+The RDF subject classes that occur in the dataset, and for each class, the number of instances.
 
 ```ttl
 <http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
@@ -84,6 +83,8 @@ used as the data model for these Summaries.
 
 ### Properties
 
+The predicates that occur in the dataset, and for each predicate, the number of entities that have that predicate.
+
 ```ttl
 <http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
     void:propertyPartition [
@@ -97,6 +98,8 @@ used as the data model for these Summaries.
 ```
 
 ### Property density per subject class
+
+The predicates per subject class, and for each predicate, the number of entities that have that predicate. 
 
 Nest a `void:propertyPartition` in `void:classPartition`:
 
@@ -126,15 +129,15 @@ Nest a `void:propertyPartition` in `void:classPartition`:
     ].
 ```
 
-### Outgoing links
+### Outgoing links to terminology sources
 
-Modelled as `void:Linkset`s:
+Outgoing links to terminology sources in the [Network of Terms](https://termennetwerk.netwerkdigitaalerfgoed.nl),
+modelled as `void:Linkset`s:
 
 ```ttl
 [] a void:Linkset;
     void:subjectsTarget <http://data.bibliotheken.nl/id/dataset/rise-alba>;
     void:objectsTarget <http://data.bibliotheken.nl/id/dataset/persons>;
-    void:subset <http://data.bibliotheken.nl/id/dataset/rise-alba>; # The dataset that contains the links.
     void:triples 434 .
 [] a void:Linkset;
     void:subjectsTarget <http://data.bibliotheken.nl/id/dataset/rise-alba>;
@@ -142,7 +145,7 @@ Modelled as `void:Linkset`s:
     void:triples 9402.
 ```
 
-Use a list of fixed URI prefixes to match against, from the Network of Terms and in addition a custom list in the
+Uses a list of fixed URI prefixes to match against, from the Network of Terms and in addition a custom list in the
 pipeline itself.
 
 ### Vocabularies
