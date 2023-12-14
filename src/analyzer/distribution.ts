@@ -6,6 +6,7 @@ import quad = DataFactory.quad;
 import namedNode = DataFactory.namedNode;
 import blankNode = DataFactory.blankNode;
 import literal = DataFactory.literal;
+import {Importer, ImportFailed, ImportSuccessful} from '../importer.js';
 
 class NetworkError {
   constructor(
@@ -83,6 +84,8 @@ async function probe(
 }
 
 export class DistributionAnalyzer implements Analyzer {
+  constructor(private readonly importer: Importer) {}
+
   async execute(dataset: Dataset): Promise<Success | NotSupported | Failure> {
     const results = await Promise.all(
       dataset.distributions.map(async distribution => await probe(distribution))
@@ -171,6 +174,34 @@ export class DistributionAnalyzer implements Analyzer {
             )
           ),
         ]);
+      }
+
+      if (null === dataset.getSparqlDistribution()) {
+        // Import a dump if dataset does not have a SPARQL endpoint distribution.
+        const importResult = await this.importer.import(dataset);
+        if (importResult instanceof ImportSuccessful) {
+          // Add imported SPARQL distribution to dataset so next analyzers can use it.
+          const distribution = Distribution.sparql(
+            importResult.endpoint,
+            dataset.iri
+          );
+          dataset.distributions.push(distribution);
+        } else if (importResult instanceof ImportFailed) {
+          const actionBlankNode = [
+            ...store.match(
+              null,
+              namedNode('https://schema.org/target'),
+              namedNode(importResult.downloadUrl)
+            ),
+          ][0];
+          store.addQuads([
+            quad(
+              actionBlankNode.subject,
+              namedNode('https://schema.org/error'),
+              literal(importResult.error)
+            ),
+          ]);
+        }
       }
     }
 

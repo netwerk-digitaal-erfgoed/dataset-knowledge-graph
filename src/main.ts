@@ -27,15 +27,16 @@ new Pipeline({
     },
     queryEngine
   ),
-  steps: [
-    new DistributionAnalyzer(),
-    new RdfDumpImporter(
-      new GraphDBClient({
-        url: config.GRAPHDB_URL as string,
-        username: config.GRAPHDB_USERNAME as string,
-        password: config.GRAPHDB_PASSWORD as string,
-        repository: `${config.GRAPHDB_REPOSITORY}-imports` as string,
-      })
+  analyzers: [
+    new DistributionAnalyzer(
+      new RdfDumpImporter(
+        new GraphDBClient({
+          url: config.GRAPHDB_URL as string,
+          username: config.GRAPHDB_USERNAME as string,
+          password: config.GRAPHDB_PASSWORD as string,
+          repository: `${config.GRAPHDB_REPOSITORY}-imports` as string,
+        })
+      )
     ),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-partition.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-literals.rq'),

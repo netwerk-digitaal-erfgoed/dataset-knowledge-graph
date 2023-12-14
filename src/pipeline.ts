@@ -2,7 +2,6 @@ import {SummaryWriter} from './writer.js';
 import {Selector} from './selector.js';
 import {Store} from 'n3';
 import {withProvenance} from './provenance.js';
-import {Importer} from './importer.js';
 import {DatasetCore} from 'rdf-js';
 import {Analyzer} from './analyzer.js';
 
@@ -25,7 +24,7 @@ export class Pipeline {
   constructor(
     private readonly config: {
       selector: Selector;
-      steps: (Analyzer | Importer)[];
+      analyzers: Analyzer[];
       writers: SummaryWriter[];
     }
   ) {}
@@ -36,7 +35,7 @@ export class Pipeline {
     for (const dataset of datasets) {
       console.info(`Analyzing dataset ${dataset.iri}`);
       const store = new Store();
-      for (const step of this.config.steps) {
+      for (const step of this.config.analyzers) {
         const start = new Date();
         const result = await step.execute(dataset);
         const end = new Date();

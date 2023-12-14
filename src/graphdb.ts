@@ -3,7 +3,11 @@ import graphdb from 'graphdb';
 import {Dataset} from './dataset.js';
 import {DatasetCore} from 'rdf-js';
 import {SparqlClient as WriterSparqlClient} from './writer/sparql.js';
-import {SparqlClient as ImporterSparqlClient} from './importer.js';
+import {
+  ImportFailed,
+  ImportSuccessful,
+  SparqlClient as ImporterSparqlClient,
+} from './importer.js';
 import {AxiosError} from 'axios';
 
 export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
@@ -41,7 +45,7 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
   async import(
     dataset: Dataset,
     distributionUrl: string
-  ): Promise<string | undefined> {
+  ): Promise<ImportSuccessful | ImportFailed> {
     console.info(`  Importing ${distributionUrl}`);
 
     const namedGraph = dataset.iri;
@@ -54,17 +58,17 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
           .setInference(false)
       );
     } catch (e) {
+      const error = e as AxiosError;
       console.error(
         `Import to GraphDB failed for dataset ${dataset.iri} with distribution URL ${distributionUrl}`,
-        (e as AxiosError).message,
-        (e as AxiosError).response?.data
+        error.message,
+        error.response?.data
       );
-      return undefined;
+      return new ImportFailed(
+        distributionUrl,
+        (error.response?.data as string) ?? error.message
+      );
     }
-    return namedGraph;
-  }
-
-  getEndpoint(): string {
-    return this.endpoint;
+    return new ImportSuccessful(this.endpoint, namedGraph);
   }
 }
