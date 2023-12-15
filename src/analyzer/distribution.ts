@@ -42,7 +42,10 @@ class SparqlProbeResult extends RdfResult {
   public readonly acceptedContentType = 'application/sparql-results+json';
 
   isSuccess(): boolean {
-    return super.isSuccess() && this.contentType === this.acceptedContentType;
+    return (
+      super.isSuccess() &&
+      (this.contentType?.startsWith(this.acceptedContentType) ?? false)
+    );
   }
 }
 
