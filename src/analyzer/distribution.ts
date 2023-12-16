@@ -16,14 +16,15 @@ class NetworkError {
 }
 
 abstract class RdfResult {
-  public readonly url: string;
   public readonly statusCode: number;
   public readonly statusText: string;
   public readonly lastModified: Date | null = null;
   public readonly contentType: string | null;
 
-  constructor(response: Response) {
-    this.url = response.url;
+  constructor(
+    public readonly url: string,
+    response: Response
+  ) {
     this.statusCode = response.status;
     this.statusText = response.statusText;
     this.contentType = response.headers.get('Content-Type');
@@ -52,8 +53,8 @@ class SparqlProbeResult extends RdfResult {
 class DataDumpProbeResult extends RdfResult {
   public readonly contentSize: number | null = null;
 
-  constructor(response: Response) {
-    super(response);
+  constructor(url: string, response: Response) {
+    super(url, response);
     const contentLengthHeader = response.headers.get('Content-Length');
     if (contentLengthHeader) {
       this.contentSize = parseInt(contentLengthHeader);
@@ -76,7 +77,7 @@ async function probe(
         body: `query=${encodeURIComponent('select * { ?s ?p ?o } limit 1')}`,
       });
 
-      const result = new SparqlProbeResult(response);
+      const result = new SparqlProbeResult(distribution.accessUrl!, response);
       distribution.isValid = result.isSuccess();
       return result;
     }
@@ -86,7 +87,7 @@ async function probe(
       method: 'HEAD',
       headers: {Accept: distribution.mimeType!},
     });
-    const result = new DataDumpProbeResult(response);
+    const result = new DataDumpProbeResult(distribution.accessUrl!, response);
     distribution.isValid = result.isSuccess();
     return result;
   } catch (e) {
@@ -186,33 +187,33 @@ export class DistributionAnalyzer implements Analyzer {
           ),
         ]);
       }
+    }
 
-      if (null === dataset.getSparqlDistribution()) {
-        // Import a dump if dataset does not have a SPARQL endpoint distribution.
-        const importResult = await this.importer.import(dataset);
-        if (importResult instanceof ImportSuccessful) {
-          // Add imported SPARQL distribution to dataset so next analyzers can use it.
-          const distribution = Distribution.sparql(
-            importResult.endpoint,
-            dataset.iri
-          );
-          dataset.distributions.push(distribution);
-        } else if (importResult instanceof ImportFailed) {
-          const actionBlankNode = [
-            ...store.match(
-              null,
-              namedNode('https://schema.org/target'),
-              namedNode(importResult.downloadUrl)
-            ),
-          ][0];
-          store.addQuads([
-            quad(
-              actionBlankNode.subject,
-              namedNode('https://schema.org/error'),
-              literal(importResult.error)
-            ),
-          ]);
-        }
+    if (null === dataset.getSparqlDistribution()) {
+      // Import a dump if dataset does not have a SPARQL endpoint distribution.
+      const importResult = await this.importer.import(dataset);
+      if (importResult instanceof ImportSuccessful) {
+        // Add imported SPARQL distribution to dataset so next analyzers can use it.
+        const distribution = Distribution.sparql(
+          importResult.endpoint,
+          dataset.iri
+        );
+        dataset.distributions.push(distribution);
+      } else if (importResult instanceof ImportFailed) {
+        const actionBlankNode = [
+          ...store.match(
+            null,
+            namedNode('https://schema.org/target'),
+            namedNode(importResult.downloadUrl)
+          ),
+        ][0];
+        store.addQuads([
+          quad(
+            actionBlankNode.subject,
+            namedNode('https://schema.org/error'),
+            literal(importResult.error)
+          ),
+        ]);
       }
     }
 
