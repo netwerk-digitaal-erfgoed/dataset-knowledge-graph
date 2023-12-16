@@ -45,6 +45,7 @@ new Pipeline({
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'subjects.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'triples.rq'),
     await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-properties.rq'),
+    await SparqlQueryAnalyzer.fromFile(queryEngine, 'licenses.rq'),
     new UriSpaceAnalyzer(
       await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-uri-space.rq')
     ),

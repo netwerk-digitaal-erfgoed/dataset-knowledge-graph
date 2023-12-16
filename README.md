@@ -157,6 +157,22 @@ The vocabularies that the dataset’s predicates refer to:
     void:vocabulary <http://schema.org>, <http://xmlns.com/foaf/0.1/>.
 ```
 
+### Licenses
+
+Licenses that apply to resources in the dataset.
+
+```tll
+<https://example.com/dataset> a void:Dataset;
+    void:subset [
+        dcterms:license <http://creativecommons.org/publicdomain/mark/1.0/>,
+        void:triples 120.
+    ],
+    [
+        dcterms:license <http://creativecommons.org/publicdomain/mark/1.0/>,
+        void:triples 120.
+    ].
+```
+
 ### Distributions
 
 All declared RDF distributions are validated:
