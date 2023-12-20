@@ -4,12 +4,13 @@ CONSTRUCT {
     ?dataset a void:Dataset ;
         void:propertyPartition [
             void:property ?p ;
-            void:entities ?entities ;
+            void:entities ?subjects ;
+            void:distinctObjects ?objects ;
         ] .
 }
 #namedGraph#
 WHERE {
-    SELECT (COUNT(?p) AS ?entities) ?p {
+    SELECT (COUNT(DISTINCT ?s) AS ?subjects) (COUNT(DISTINCT ?o) as ?objects) ?p {
         #subjectFilter#
         ?s ?p ?o .
     }

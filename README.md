@@ -86,23 +86,27 @@ The RDF subject classes that occur in the dataset, and for each class, the numbe
 
 ### Properties
 
-The predicates that occur in the dataset, and for each predicate, the number of entities that have that predicate.
+The predicates that occur in the dataset, and for each predicate, the number of entities that have that predicate
+as well as the number of distinct objects.
 
 ```ttl
 <http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
     void:propertyPartition [
-        void:property schema:name;
-        void:entities 203000;
+        void:property schema:name; 
+        void:entities 203000;         # 20.300 resources have a schema:name.
+        void:distinctObjects 20000;   # These resources have a total of 20.000 unique names.   
     ],
     [
         void:property schema:birthDate;
         void:entities 19312;
+        void:distinctObjects 19312;
     ].
 ```
 
 ### Property density per subject class
 
-The predicates per subject class, and for each predicate, the number of entities that have that predicate. 
+The predicates per subject class, and for each predicate, the number of entities that have that predicate
+as well as the number of distinct objects.
 
 Nest a `void:propertyPartition` in `void:classPartition`:
 
@@ -111,12 +115,14 @@ Nest a `void:propertyPartition` in `void:classPartition`:
     void:classPartition [
         void:class schema:Person;
         void:propertyPartition [
-            void:property schema:name;
-            void:entities 155;
+            void:property schema:name;   # This partition is about schema:Persons with a schema:name.
+            void:entities 155;           # 155 persons have a name.
+            void:distinctObjects 205;    # These 155 persons have a total of 205 unique names, because some persons have multiple names.
         ],
         [
             void:property schema:birthDate;
             void:entities 76;
+            void:distinctObjects 76;
         ]
     ],
     [
@@ -124,10 +130,12 @@ Nest a `void:propertyPartition` in `void:classPartition`:
         void:propertyPartition [
             void:property schema:name;
             void:entities 1200;
+            void:distinctObjects 1200;
         ],
         [
             void:property schema:image;
             void:entities 52;
+            void:distinctObjects 20;
         ]
     ].
 ```
