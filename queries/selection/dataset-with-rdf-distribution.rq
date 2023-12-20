@@ -29,4 +29,6 @@ CONSTRUCT {
         || ?distribution_format = "text/turtle"
         || ?distribution_format = "text/turtle+gzip"
     )
+    # Skip unreliable endpoints.
+    FILTER(!STRSTARTS(STR(?distribution_url), "https://cat.apis.beeldengeluid.nl/sparql"))
 } ORDER BY ?dataset ?distribution
