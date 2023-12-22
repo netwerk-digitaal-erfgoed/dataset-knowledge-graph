@@ -19,6 +19,22 @@ const schema = {
       type: 'string',
       default: 'dataset-knowledge-graph',
     },
+    GRAPHDB_IMPORTS_URL: {
+      type: 'string',
+      default: 'http://localhost:7200',
+    },
+    GRAPHDB_IMPORTS_USERNAME: {
+      type: 'string',
+      default: 'admin',
+    },
+    GRAPHDB_IMPORTS_PASSWORD: {
+      type: 'string',
+      default: 'root',
+    },
+    GRAPHDB_IMPORTS_REPOSITORY: {
+      type: 'string',
+      default: 'dataset-knowledge-graph-imports',
+    },
   },
 };
 

@@ -31,10 +31,10 @@ new Pipeline({
     new DistributionAnalyzer(
       new RdfDumpImporter(
         new GraphDBClient({
-          url: config.GRAPHDB_URL as string,
-          username: config.GRAPHDB_USERNAME as string,
-          password: config.GRAPHDB_PASSWORD as string,
-          repository: `${config.GRAPHDB_REPOSITORY}-imports` as string,
+          url: config.GRAPHDB_IMPORTS_URL as string,
+          username: config.GRAPHDB_IMPORTS_USERNAME as string,
+          password: config.GRAPHDB_IMPORTS_PASSWORD as string,
+          repository: config.GRAPHDB_IMPORTS_REPOSITORY as string,
         })
       )
     ),
