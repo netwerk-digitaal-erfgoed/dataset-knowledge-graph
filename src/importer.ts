@@ -13,12 +13,20 @@ export class RdfDumpImporter implements Importer {
   async import(
     dataset: Dataset
   ): Promise<NotSupported | ImportSuccessful | ImportFailed> {
-    const download = dataset.getDownloadDistribution();
-    if (null === download || undefined === download.accessUrl) {
+    const downloads = dataset.getDownloadDistributions();
+    if (downloads.length === 0) {
       return new NotSupported('No data dump available');
     }
 
-    return await this.sparqlClient.import(dataset, download.accessUrl);
+    let result!: ImportSuccessful | ImportFailed;
+    for (const download of downloads) {
+      result = await this.sparqlClient.import(dataset, download.accessUrl!);
+      if (result instanceof ImportSuccessful) {
+        return result;
+      }
+    }
+
+    return result;
   }
 }
 
