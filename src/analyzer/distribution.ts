@@ -91,7 +91,10 @@ async function probe(
     distribution.isValid = result.isSuccess();
     return result;
   } catch (e) {
-    return new NetworkError(distribution.accessUrl!, (e as Error).name);
+    return new NetworkError(
+      distribution.accessUrl!,
+      (e as Error).cause as string
+    );
   }
 }
 
