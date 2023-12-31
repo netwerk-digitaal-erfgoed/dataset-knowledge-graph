@@ -5,7 +5,7 @@
     "sourceMap": true,
     "target": "es2018",
     "lib": [
-      "ES2020"
+      "es2022"
     ],
     "module": "es2022",
     "declarationMap": true,
