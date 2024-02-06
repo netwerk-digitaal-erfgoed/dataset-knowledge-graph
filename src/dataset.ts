@@ -16,27 +16,26 @@ export class Dataset {
     );
   }
 
-  public getDownloadDistribution(): Distribution | null {
+  public getDownloadDistributions(): Distribution[] {
     const validDistributions = this.distributions.filter(
       distribution => distribution.isValid
     );
 
-    return (
-      validDistributions.filter(
+    return [
+      ...validDistributions.filter(
         distribution => distribution.mimeType?.endsWith('+gzip')
-      )[0] ??
-      validDistributions.filter(
+      ),
+      ...validDistributions.filter(
         distribution => distribution.accessUrl?.endsWith('.nt.gz')
-      )[0] ??
-      validDistributions.filter(
+      ),
+      ...validDistributions.filter(
         distribution =>
           undefined !== distribution.mimeType &&
           ['application/n-triples', 'text/turtle'].includes(
             distribution.mimeType
           )
-      )[0] ??
-      null
-    );
+      ),
+    ];
   }
 }
 
