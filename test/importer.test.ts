@@ -6,6 +6,7 @@ import {
 } from '../src/importer.js';
 import {Dataset, Distribution} from '../src/dataset.js';
 import {NotSupported} from '../src/pipeline.js';
+// eslint-disable-next-line node/no-unpublished-import
 import {jest} from '@jest/globals';
 
 describe('RdfDumpImporter', () => {
