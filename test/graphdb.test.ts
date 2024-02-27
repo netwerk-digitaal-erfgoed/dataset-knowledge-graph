@@ -29,7 +29,7 @@ describe('GraphDBClient', () => {
     formData.append(
       'config',
       fs.createReadStream(
-        path.join(__dirname, './assets/graphdb-repo-config.ttl')
+        path.join(__dirname, './fixtures/graphdb-repo-config.ttl')
       )
     );
 
