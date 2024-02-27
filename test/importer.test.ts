@@ -6,7 +6,6 @@ import {
 } from '../src/importer.js';
 import {Dataset, Distribution} from '../src/dataset.js';
 import {NotSupported} from '../src/pipeline.js';
-// eslint-disable-next-line node/no-unpublished-import
 import {jest} from '@jest/globals';
 
 describe('RdfDumpImporter', () => {
@@ -41,7 +40,6 @@ describe('RdfDumpImporter', () => {
 
       const result = await importer.import(dataset);
 
-      // TODO: shouldn't this be 2?
       expect(importSpy).toHaveBeenCalledTimes(1);
       expect(result).toBeInstanceOf(ImportSuccessful);
     });

@@ -1,11 +1,15 @@
 {
   "name": "@netwerk-digitaal-erfgoed/knowledge-graph-pipeline",
   "type": "module",
+  "private": true,
+  "files": [
+    "build/"
+  ],
   "exports": "./build/src/main.js",
   "version": "0.0.0-semantically-released",
   "description": "A pipeline for the NDE Dataset Knowledge Graph",
   "engines": {
-    "node": ">=16"
+    "node": ">=20"
   },
   "scripts": {
     "start": "node --experimental-specifier-resolution=node build/main.js",

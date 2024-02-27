@@ -1,18 +1,15 @@
 import {GraphDBClient} from '../src/graphdb';
 import {Dataset} from '../src/dataset';
 import {QueryEngine} from '@comunica/query-sparql';
-// eslint-disable-next-line node/no-unpublished-import
 import {GenericContainer, StartedTestContainer} from 'testcontainers';
 import factory from 'rdf-ext';
 import axios from 'axios';
-// eslint-disable-next-line node/no-unpublished-import
 import FormData from 'form-data';
 import * as fs from 'fs';
 import * as path from 'path';
 import {fileURLToPath} from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const graphDb = new GenericContainer(
   'ontotext/graphdb:10.5.1'
