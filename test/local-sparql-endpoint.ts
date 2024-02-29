@@ -9,13 +9,13 @@ export const teardown = async () => {
 };
 
 let servers: SpawndChildProcess[];
-export async function startDistributionSparqlEndpoint(
+export async function startLocalSparqlEndpoint(
   port: number,
   fixture: string
 ): Promise<void> {
   servers = await setup({
     command: `npx comunica-sparql-file-http ${__dirname}/fixtures/${fixture} -p ${port}`,
     port,
-    launchTimeout: 20000,
+    launchTimeout: 60000,
   });
 }

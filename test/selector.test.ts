@@ -1,16 +1,13 @@
 import {SparqlQuerySelector} from '../src/selector';
 import {QueryEngine} from '@comunica/query-sparql';
-import {
-  startDistributionSparqlEndpoint,
-  teardown,
-} from './local-sparql-endpoint';
+import {startLocalSparqlEndpoint, teardown} from './local-sparql-endpoint';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 
 describe('SparqlQuerySelector', () => {
   beforeAll(async () => {
-    await startDistributionSparqlEndpoint(3001, 'registry.ttl');
-  });
+    await startLocalSparqlEndpoint(3002, 'registry.ttl');
+  }, 60000);
 
   afterAll(async () => {
     await teardown();
@@ -25,7 +22,7 @@ describe('SparqlQuerySelector', () => {
               resolve('queries/selection/dataset-with-rdf-distribution.rq')
             )
           ).toString(),
-          endpoint: 'http://localhost:3001/sparql',
+          endpoint: 'http://localhost:3002/sparql',
         },
         new QueryEngine()
       );
