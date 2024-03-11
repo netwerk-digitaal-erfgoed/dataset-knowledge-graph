@@ -2,17 +2,20 @@ import {SparqlQueryAnalyzer} from '../src/analyzer.js';
 import {QueryEngine} from '@comunica/query-sparql';
 import {Dataset, Distribution} from '../src/dataset.js';
 import {NotSupported, Success} from '../src/pipeline.js';
-import {startLocalSparqlEndpoint, teardown} from './local-sparql-endpoint';
+import {
+  startLocalSparqlEndpoint,
+  teardownSparqlEndpoint,
+} from './localSparqlEndpoint.js';
 import {jest} from '@jest/globals';
 
 describe('SparqlQueryAnalyzer', () => {
   const port = 3001;
   beforeAll(async () => {
-    await startLocalSparqlEndpoint(port, 'analysisTarget.trig');
+    await startLocalSparqlEndpoint(port, 'fixtures/analysisTarget.trig');
   }, 60000);
 
   afterAll(async () => {
-    await teardown();
+    await teardownSparqlEndpoint();
   });
 
   describe('fromFile', () => {

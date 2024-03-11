@@ -4,18 +4,18 @@ import {dirname} from 'path';
 import {fileURLToPath} from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-export const teardown = async () => {
+export const teardownDataDumpEndpoint = async () => {
   await teardownServer(servers);
 };
 
 let servers: SpawndChildProcess[];
-export async function startLocalSparqlEndpoint(
+export async function startLocalDataDumpEndpoint(
   port: number,
   fixture: string
 ): Promise<void> {
   servers = await setup({
-    command: `npx comunica-sparql-file-http ${__dirname}/fixtures/${fixture} -p ${port}`,
+    command: `npx http-server ${__dirname}/${fixture} -p ${port}`,
     port,
-    launchTimeout: 60000,
+    launchTimeout: 10000,
   });
 }

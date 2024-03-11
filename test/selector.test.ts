@@ -1,16 +1,19 @@
 import {SparqlQuerySelector} from '../src/selector';
 import {QueryEngine} from '@comunica/query-sparql';
-import {startLocalSparqlEndpoint, teardown} from './local-sparql-endpoint';
+import {
+  startLocalSparqlEndpoint,
+  teardownSparqlEndpoint,
+} from './localSparqlEndpoint';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 
 describe('SparqlQuerySelector', () => {
   beforeAll(async () => {
-    await startLocalSparqlEndpoint(3002, 'registry.ttl');
+    await startLocalSparqlEndpoint(3002, 'fixtures/registry.ttl');
   }, 60000);
 
   afterAll(async () => {
-    await teardown();
+    await teardownSparqlEndpoint();
   });
 
   describe('select', () => {

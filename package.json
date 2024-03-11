@@ -58,6 +58,7 @@
     "@types/rdf-ext": "^2.2.5",
     "form-data": "^4.0.0",
     "gts": "^5.2.0",
+    "http-server": "^14.1.1",
     "jest": "^29.7.0",
     "jest-coverage-thresholds-bumper": "^1.1.0",
     "jest-dev-server": "^10.0.0",
