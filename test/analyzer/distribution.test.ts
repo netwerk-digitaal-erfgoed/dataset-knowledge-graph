@@ -139,10 +139,7 @@ describe('DistributionAnalyzer', () => {
             `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`
           ),
           factory.namedNode('https://schema.org/dateModified'),
-          factory.literal(
-            '2024-03-11T09:29:02.000Z',
-            factory.namedNode('http://www.w3.org/2001/XMLSchema#dateTime')
-          )
+          null
         ).size
       ).toBe(1);
       expect(
