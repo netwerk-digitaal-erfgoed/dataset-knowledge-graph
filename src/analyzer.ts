@@ -58,7 +58,7 @@ export class SparqlQueryAnalyzer implements Analyzer {
     type?: string
   ): Promise<AsyncIterator<Quad> & ResultStream<Quad>> {
     try {
-      return await new QueryEngine().queryQuads(
+      return await this.queryEngine.queryQuads(
         this.query
           .replace('#subjectFilter#', dataset.subjectFilter ?? '')
           .replace(

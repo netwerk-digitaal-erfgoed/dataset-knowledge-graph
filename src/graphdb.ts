@@ -53,7 +53,7 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
       await this.repository.update(
         new graphdb.query.UpdateQueryPayload()
           .setQuery(
-            `CLEAR GRAPH <${dataset.iri}>; LOAD <${distributionUrl}> INTO GRAPH <${namedGraph}>`
+            `CLEAR GRAPH <${namedGraph}>; LOAD <${distributionUrl}> INTO GRAPH <${namedGraph}>`
           )
           .setInference(false)
       );
