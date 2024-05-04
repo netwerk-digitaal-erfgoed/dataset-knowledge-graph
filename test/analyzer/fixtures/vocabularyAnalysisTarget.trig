@@ -1,0 +1,10 @@
+@prefix ex: <http://example.org/> .
+@prefix schema: <http://schema.org/> .
+
+<http://foo.org/id/graph/foo> {
+  <http://foo.org/id/object/foo>
+    schema:name "foo" ;
+    ex:foo ex:Foo ;
+    ex:bar [] ;
+    ex:baz "baz1", "baz2", "baz3" .
+}
