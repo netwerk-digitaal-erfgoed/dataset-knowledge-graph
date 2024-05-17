@@ -2,21 +2,21 @@ PREFIX void: <http://rdfs.org/ns/void#>
 
 CONSTRUCT {
     ?dataset a void:Dataset ;
-        void:classPartition [
-            void:class ?t ;
-            void:propertyPartition [
-                void:property ?p ;
-                void:entities ?subjects ;
-                void:distinctObjects ?objects ;
-            ]
+        void:classPartition ?classPartition .
+    ?classPartition void:class ?type ;
+        void:propertyPartition [
+            void:property ?p ;
+            void:entities ?subjects ;
+            void:distinctObjects ?objects ;
         ] .
 }
 #namedGraph#
 WHERE {
-    SELECT ?p ?t (COUNT(DISTINCT ?s) AS ?subjects) (COUNT(DISTINCT ?o) AS ?objects) {
+    SELECT ?p ?type ?classPartition (COUNT(DISTINCT ?s) AS ?subjects) (COUNT(DISTINCT ?o) AS ?objects) {
         #subjectFilter#
-        ?s a ?t ;
+        ?s a ?type ;
             ?p ?o .
+        BIND(URI(CONCAT("#class-", MD5(STR(?type)))) as ?classPartition)
     }
-    GROUP BY ?p ?t
+    GROUP BY ?p ?type ?classPartition
 }
