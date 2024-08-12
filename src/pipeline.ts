@@ -2,8 +2,8 @@ import {SummaryWriter} from './writer.js';
 import {Selector} from './selector.js';
 import {Store} from 'n3';
 import {withProvenance} from './provenance.js';
-import {DatasetCore} from 'rdf-js';
 import {Analyzer} from './analyzer.js';
+import {DatasetCore} from '@rdfjs/types';
 
 export class Success {
   constructor(public readonly data: DatasetCore) {}

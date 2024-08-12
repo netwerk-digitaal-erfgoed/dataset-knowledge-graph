@@ -8,10 +8,10 @@ import {
 } from '../localSparqlEndpoint.js';
 import {QueryEngine} from '@comunica/query-sparql';
 import factory from 'rdf-ext';
-import {DatasetCore, Quad, Quad_Subject} from 'rdf-js';
 import NamedNodeExt from 'rdf-ext/lib/NamedNode';
+import {DatasetCore, Quad_Subject} from '@rdfjs/types';
 
-const subject = (dataset: DatasetCore<Quad, Quad>): Quad_Subject | null =>
+const subject = (dataset: DatasetCore): Quad_Subject | null =>
   dataset[Symbol.iterator]().next().value.subject;
 
 describe('VocabularyAnalyzer', () => {
@@ -119,7 +119,7 @@ describe('VocabularyAnalyzer', () => {
 });
 
 const assertPartition = (
-  data: DatasetCore<Quad, Quad>,
+  data: DatasetCore,
   property: NamedNodeExt,
   partition: NamedNodeExt,
   entities: Number

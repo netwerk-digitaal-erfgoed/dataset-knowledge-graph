@@ -1,9 +1,9 @@
-import {DatasetCore} from 'rdf-js';
 import {DataFactory} from 'n3';
 import quad = DataFactory.quad;
 import namedNode = DataFactory.namedNode;
 import blankNode = DataFactory.blankNode;
 import literal = DataFactory.literal;
+import {DatasetCore} from '@rdfjs/types';
 
 export function withProvenance(
   dataset: DatasetCore,

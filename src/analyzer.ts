@@ -1,5 +1,4 @@
 import {QueryEngine} from '@comunica/query-sparql';
-import {Bindings, Quad, ResultStream} from 'rdf-js';
 import {Store} from 'n3';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
@@ -8,6 +7,7 @@ import {BindingsFactory} from '@comunica/bindings-factory';
 import {DataFactory} from 'rdf-data-factory';
 import {Dataset, Distribution} from './dataset.js';
 import {Failure, NotSupported, Success} from './pipeline.js';
+import {Bindings, Quad, ResultStream} from '@rdfjs/types';
 
 export interface Analyzer {
   execute(dataset: Dataset): Promise<Success | Failure | NotSupported>;

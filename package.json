@@ -44,8 +44,7 @@
     "pino": "^8.16.2",
     "rdf-data-factory": "^1.1.2",
     "rdf-dereference": "^3.0.0",
-    "rdf-ext": "^2.5.0",
-    "rdf-js": "^4.0.2"
+    "rdf-ext": "^2.5.0"
   },
   "devDependencies": {
     "@comunica/query-sparql-file": "^3.2.1",

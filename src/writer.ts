@@ -1,8 +1,8 @@
-import {DatasetCore} from 'rdf-js';
 import {Writer} from 'n3';
 import {writeFile} from 'node:fs/promises';
 import {Dataset} from './dataset.js';
 import filenamifyUrl from 'filenamify-url';
+import {DatasetCore} from '@rdfjs/types';
 
 export interface SummaryWriter {
   write(dataset: Dataset, summary: DatasetCore): Promise<void>;

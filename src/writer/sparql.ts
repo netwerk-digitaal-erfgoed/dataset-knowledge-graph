@@ -1,6 +1,6 @@
 import {SummaryWriter} from '../writer.js';
-import {DatasetCore} from 'rdf-js';
 import {Dataset} from '../dataset.js';
+import {DatasetCore} from '@rdfjs/types';
 
 export class SparqlWriter implements SummaryWriter {
   constructor(private sparqlClient: SparqlClient) {}

@@ -1,7 +1,6 @@
 import RDFRepositoryClient from 'graphdb/lib/repository/rdf-repository-client.js';
 import graphdb from 'graphdb';
 import {Dataset} from './dataset.js';
-import {DatasetCore} from 'rdf-js';
 import {SparqlClient as WriterSparqlClient} from './writer/sparql.js';
 import {
   ImportFailed,
@@ -9,6 +8,7 @@ import {
   SparqlClient as ImporterSparqlClient,
 } from './importer.js';
 import {AxiosError} from 'axios';
+import {DatasetCore} from '@rdfjs/types';
 
 export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
   private repository: RDFRepositoryClient;
