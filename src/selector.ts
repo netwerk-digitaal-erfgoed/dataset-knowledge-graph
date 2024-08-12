@@ -2,7 +2,7 @@ import {Dataset, Distribution} from './dataset.js';
 import {QueryEngine} from '@comunica/query-sparql';
 import {DataFactory, Quad} from 'n3';
 import {resolve} from 'node:path';
-import rdfDereferencer from 'rdf-dereference';
+import {rdfDereferencer} from 'rdf-dereference';
 import namedNode = DataFactory.namedNode;
 import factory from 'rdf-ext';
 
@@ -19,9 +19,7 @@ export class SparqlQuerySelector implements Selector {
     private readonly queryEngine: QueryEngine
   ) {}
   async select(): Promise<Set<Dataset>> {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const {data} = await rdfDereferencer.default.dereference(
+    const {data} = await rdfDereferencer.dereference(
       resolve('queries/selection/supplemental.ttl'),
       {localFiles: true}
     );

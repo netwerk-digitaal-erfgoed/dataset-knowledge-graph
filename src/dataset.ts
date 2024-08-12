@@ -22,11 +22,11 @@ export class Dataset {
     );
 
     return [
-      ...validDistributions.filter(
-        distribution => distribution.mimeType?.endsWith('+gzip')
+      ...validDistributions.filter(distribution =>
+        distribution.mimeType?.endsWith('+gzip')
       ),
-      ...validDistributions.filter(
-        distribution => distribution.accessUrl?.endsWith('.nt.gz')
+      ...validDistributions.filter(distribution =>
+        distribution.accessUrl?.endsWith('.nt.gz')
       ),
       ...validDistributions.filter(
         distribution =>
