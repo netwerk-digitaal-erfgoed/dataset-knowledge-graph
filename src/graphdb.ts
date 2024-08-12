@@ -32,7 +32,11 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
 
   async store(dataset: Dataset, summary: DatasetCore): Promise<void> {
     try {
-      await this.repository.putQuads([...summary], dataset.iri);
+      await this.repository.putQuads(
+        [...summary],
+        dataset.iri,
+        `<${dataset.iri}>`
+      );
     } catch (e) {
       console.error(
         'Write to GraphDB failed for dataset ' + dataset.iri,
