@@ -1,29 +1,25 @@
-import {QueryEngine} from '@comunica/query-sparql';
 import {Store} from 'n3';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
-import {AsyncIterator} from 'asynciterator';
-import {BindingsFactory} from '@comunica/bindings-factory';
-import {DataFactory} from 'rdf-data-factory';
 import {Dataset, Distribution} from './dataset.js';
 import {Failure, NotSupported, Success} from './pipeline.js';
-import {Bindings, Quad, ResultStream} from '@rdfjs/types';
+import {Stream} from '@rdfjs/types';
+import {SparqlEndpointFetcher} from 'fetch-sparql-endpoint';
+import type {Readable} from 'node:stream';
 
 export interface Analyzer {
   execute(dataset: Dataset): Promise<Success | Failure | NotSupported>;
 }
 
-export class SparqlQueryAnalyzer implements Analyzer {
-  constructor(
-    private readonly queryEngine: QueryEngine,
-    private readonly query: string,
-    private readonly dataFactory = new DataFactory(),
-    private readonly bindingsFactory = new BindingsFactory(dataFactory)
-  ) {}
+const fetcher = new SparqlEndpointFetcher({
+  timeout: 300_000, // Some SPARQL queries really take this long.
+});
 
-  public static async fromFile(queryEngine: QueryEngine, filename: string) {
+export class SparqlQueryAnalyzer implements Analyzer {
+  constructor(private readonly query: string) {}
+
+  public static async fromFile(filename: string) {
     return new SparqlQueryAnalyzer(
-      queryEngine,
       await fromFile('queries/analysis/' + filename)
     );
   }
@@ -40,8 +36,10 @@ export class SparqlQueryAnalyzer implements Analyzer {
 
     const store = new Store();
     try {
-      const stream = await this.tryQuery(sparqlDistribution, dataset);
-      store.addQuads(await stream.toArray());
+      const stream = await this.executeQuery(sparqlDistribution, dataset);
+      for await (const q of stream) {
+        store.addQuad(q);
+      }
     } catch (e) {
       return new Failure(
         sparqlDistribution.accessUrl!,
@@ -52,39 +50,19 @@ export class SparqlQueryAnalyzer implements Analyzer {
     return new Success(store);
   }
 
-  private async tryQuery(
+  private async executeQuery(
     distribution: Distribution,
-    dataset: Dataset,
-    type?: string
-  ): Promise<AsyncIterator<Quad> & ResultStream<Quad>> {
-    try {
-      return await this.queryEngine.queryQuads(
-        this.query
-          .replace('#subjectFilter#', dataset.subjectFilter ?? '')
-          .replace(
-            '#namedGraph#',
-            distribution.namedGraph ? `FROM <${distribution.namedGraph}>` : ''
-          ),
-        {
-          initialBindings: this.bindingsFactory.fromRecord({
-            dataset: this.dataFactory.namedNode(dataset.iri),
-          }) as unknown as Bindings,
-          sources: [
-            {
-              type: 'sparql',
-              value: distribution.accessUrl!,
-            },
-          ],
-          httpTimeout: 300_000, // Some SPARQL queries really take this long.
-        }
+    dataset: Dataset
+  ): Promise<Readable & Stream> {
+    const query = this.query
+      .replace('#subjectFilter#', dataset.subjectFilter ?? '')
+      .replace('?dataset', `<${dataset.iri}>`)
+      .replace(
+        '#namedGraph#',
+        distribution.namedGraph ? `FROM <${distribution.namedGraph}>` : ''
       );
-    } catch (e) {
-      if (type !== undefined) {
-        // Retry without explicit SPARQL type, which is needed for endpoints that offer a SPARQL Service Description.
-        return await this.tryQuery(distribution, dataset);
-      }
-      throw e;
-    }
+
+    return await fetcher.fetchTriples(distribution.accessUrl!, query);
   }
 }
 

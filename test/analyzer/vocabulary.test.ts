@@ -6,7 +6,6 @@ import {
   startLocalSparqlEndpoint,
   teardownSparqlEndpoint,
 } from '../localSparqlEndpoint.js';
-import {QueryEngine} from '@comunica/query-sparql';
 import factory from 'rdf-ext';
 import NamedNodeExt from 'rdf-ext/lib/NamedNode';
 import {DatasetCore, Quad_Subject} from '@rdfjs/types';
@@ -30,10 +29,7 @@ describe('VocabularyAnalyzer', () => {
   describe('execute', () => {
     it('should analyze vocabulary', async () => {
       const analyzer = new VocabularyAnalyzer(
-        await SparqlQueryAnalyzer.fromFile(
-          new QueryEngine(),
-          'entity-properties.rq'
-        )
+        await SparqlQueryAnalyzer.fromFile('entity-properties.rq')
       );
 
       const distribution = Distribution.sparql(
