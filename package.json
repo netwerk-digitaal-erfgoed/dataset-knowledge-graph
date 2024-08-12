@@ -35,7 +35,7 @@
     "@comunica/bindings-factory": "^3.2.1",
     "@comunica/query-sparql": "^3.2.1",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^9.9.0",
-    "@netwerk-digitaal-erfgoed/network-of-terms-query": "^4.0.0",
+    "@netwerk-digitaal-erfgoed/network-of-terms-query": "^5.3.0",
     "axios": "^1.7.3",
     "env-schema": "^5.2.1",
     "filenamify-url": "^3.0.0",
