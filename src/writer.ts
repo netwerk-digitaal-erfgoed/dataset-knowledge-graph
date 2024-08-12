@@ -16,11 +16,9 @@ export class FileWriter implements SummaryWriter {
         prov: 'http://www.w3.org/ns/prov#',
       },
     });
-    for (const quad of summary) {
-      writer.addQuad(quad);
-    }
+    writer.addQuads([...summary]);
     writer.end(
-      async (error, result) =>
+      async (_error, result) =>
         await writeFile(
           `output/${filenamifyUrl(dataset.iri, {replacement: '-'})}.ttl`,
           result
