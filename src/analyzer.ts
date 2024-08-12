@@ -11,12 +11,15 @@ export interface Analyzer {
   execute(dataset: Dataset): Promise<Success | Failure | NotSupported>;
 }
 
-const fetcher = new SparqlEndpointFetcher({
-  timeout: 300_000, // Some SPARQL queries really take this long.
-});
-
 export class SparqlQueryAnalyzer implements Analyzer {
-  constructor(private readonly query: string) {}
+  constructor(
+    private readonly query: string,
+    private readonly fetcher: SparqlEndpointFetcher = new SparqlEndpointFetcher(
+      {
+        timeout: 300_000, // Some SPARQL queries really take this long.
+      }
+    )
+  ) {}
 
   public static async fromFile(filename: string) {
     return new SparqlQueryAnalyzer(
@@ -62,7 +65,7 @@ export class SparqlQueryAnalyzer implements Analyzer {
         distribution.namedGraph ? `FROM <${distribution.namedGraph}>` : ''
       );
 
-    return await fetcher.fetchTriples(distribution.accessUrl!, query);
+    return await this.fetcher.fetchTriples(distribution.accessUrl!, query);
   }
 }
 
