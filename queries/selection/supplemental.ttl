@@ -1,14 +1,14 @@
 @prefix nde: <https://data.netwerkdigitaalerfgoed.nl/def/> .
 
-<http://data.bibliotheken.nl/id/dataset/albac> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/albac>" .
-<http://data.bibliotheken.nl/id/dataset/brinkman> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/brinkman>" .
-<http://data.bibliotheken.nl/id/dataset/corps> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/corps>" .
-<http://data.bibliotheken.nl/id/dataset/dbnla> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/dbnla>" .
-<http://data.bibliotheken.nl/id/dataset/dbnlt> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/dbnlt>" .
-<http://data.bibliotheken.nl/id/dataset/gtt> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/gtt>" .
-<http://data.bibliotheken.nl/id/dataset/kbcode> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/kbcode>" .
-<http://data.bibliotheken.nl/id/dataset/nbt> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/nbt>" .
-<http://data.bibliotheken.nl/id/dataset/persons> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/persone>" .
-<http://data.bibliotheken.nl/id/dataset/rise-alba> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/rise-alba>" .
-<http://data.bibliotheken.nl/id/dataset/rise-centsprenten> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/rise-centsprenten>" .
-<http://data.bibliotheken.nl/id/dataset/stcn> nde:subjectFilter "?s schema:mainEntityOfPage/schema:isPartOf <http://data.bibliotheken.nl/id/dataset/stcn>" .
+<http://data.bibliotheken.nl/id/dataset/albac> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/albac>" .
+<http://data.bibliotheken.nl/id/dataset/brinkman> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/brinkman>" .
+<http://data.bibliotheken.nl/id/dataset/corps> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/corps>" .
+<http://data.bibliotheken.nl/id/dataset/dbnla> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/dbnla>" .
+<http://data.bibliotheken.nl/id/dataset/dbnlt> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/dbnlt>" .
+<http://data.bibliotheken.nl/id/dataset/gtt> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/gtt>" .
+<http://data.bibliotheken.nl/id/dataset/kbcode> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/kbcode>" .
+<http://data.bibliotheken.nl/id/dataset/nbt> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/nbt>" .
+<http://data.bibliotheken.nl/id/dataset/persons> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/persone>" .
+<http://data.bibliotheken.nl/id/dataset/rise-alba> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/rise-alba>" .
+<http://data.bibliotheken.nl/id/dataset/rise-centsprenten> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/rise-centsprenten>" .
+<http://data.bibliotheken.nl/id/dataset/stcn> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/stcn>" .
