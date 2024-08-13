@@ -1,5 +1,4 @@
 import {SparqlQueryAnalyzer} from '../src/analyzer.js';
-import {QueryEngine} from '@comunica/query-sparql';
 import {Dataset, Distribution} from '../src/dataset.js';
 import {NotSupported, Success} from '../src/pipeline.js';
 import {
@@ -7,6 +6,7 @@ import {
   teardownSparqlEndpoint,
 } from './localSparqlEndpoint.js';
 import {jest} from '@jest/globals';
+import {SparqlEndpointFetcher} from 'fetch-sparql-endpoint';
 
 describe('SparqlQueryAnalyzer', () => {
   const port = 3001;
@@ -20,10 +20,8 @@ describe('SparqlQueryAnalyzer', () => {
 
   describe('fromFile', () => {
     it('should create a new SparqlQueryAnalyzer from a file', async () => {
-      const sparqlQueryAnalyzer = await SparqlQueryAnalyzer.fromFile(
-        new QueryEngine(),
-        'class-partition.rq'
-      );
+      const sparqlQueryAnalyzer =
+        await SparqlQueryAnalyzer.fromFile('class-partition.rq');
 
       expect(sparqlQueryAnalyzer).toBeInstanceOf(SparqlQueryAnalyzer);
     });
@@ -31,10 +29,7 @@ describe('SparqlQueryAnalyzer', () => {
 
   describe('execute', () => {
     it('should return a NotSupported when no SPARQL distribution is available', async () => {
-      const sparqlQueryAnalyzer = new SparqlQueryAnalyzer(
-        new QueryEngine(),
-        'foo'
-      );
+      const sparqlQueryAnalyzer = new SparqlQueryAnalyzer('foo');
       const dataset = new Dataset('http://example.org/dataset', []);
       jest.spyOn(dataset, 'getSparqlDistribution').mockReturnValue(null);
 
@@ -44,18 +39,18 @@ describe('SparqlQueryAnalyzer', () => {
     });
 
     it('should apply named graph and subject filter in SPARQL query', async () => {
-      const queryEngine = new QueryEngine();
-      const querySpy = jest.spyOn(queryEngine, 'queryQuads');
+      const fetcher = new SparqlEndpointFetcher();
+      const querySpy = jest.spyOn(fetcher, 'fetchTriples');
 
       const sparqlQueryAnalyzer = new SparqlQueryAnalyzer(
-        queryEngine,
         `CONSTRUCT {
           ?dataset ?p ?o .
         }
         #namedGraph#
         WHERE {
           #subjectFilter# ?p ?o .
-        }`
+        }`,
+        fetcher
       );
       const distribution = Distribution.sparql(
         `http://localhost:${port}/sparql`,
@@ -69,15 +64,15 @@ describe('SparqlQueryAnalyzer', () => {
       await sparqlQueryAnalyzer.execute(dataset);
 
       const expectedQuery = `CONSTRUCT {
-          ?dataset ?p ?o .
+          <${datasetIri}> ?p ?o .
         }
         FROM <http://foo.org/id/graph/foo>
         WHERE {
           <http://example.org/foo> ?p ?o .
         }`;
       expect(querySpy).toBeCalledWith(
-        expect.stringContaining(expectedQuery),
-        expect.any(Object)
+        expect.any(String),
+        expect.stringContaining(expectedQuery)
       );
     });
 
@@ -85,7 +80,6 @@ describe('SparqlQueryAnalyzer', () => {
       const datasetIri = 'http://foo.org/id/dataset/foo';
 
       const sparqlQueryAnalyzer = new SparqlQueryAnalyzer(
-        new QueryEngine(),
         `CONSTRUCT {
           ?dataset ?p ?o .
         }

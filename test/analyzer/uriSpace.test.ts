@@ -6,7 +6,6 @@ import {
   startLocalSparqlEndpoint,
   teardownSparqlEndpoint,
 } from '../localSparqlEndpoint.js';
-import {QueryEngine} from '@comunica/query-sparql';
 import factory from 'rdf-ext';
 
 describe('UriSpaceAnalyzer', () => {
@@ -25,10 +24,7 @@ describe('UriSpaceAnalyzer', () => {
   describe('execute', () => {
     it('should analyze uri space', async () => {
       const analyzer = new UriSpaceAnalyzer(
-        await SparqlQueryAnalyzer.fromFile(
-          new QueryEngine(),
-          'object-uri-space.rq'
-        )
+        await SparqlQueryAnalyzer.fromFile('object-uri-space.rq')
       );
 
       const distribution = Distribution.sparql(

@@ -38,19 +38,19 @@ new Pipeline({
         })
       )
     ),
-    await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-partition.rq'),
-    await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-literals.rq'),
-    await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-uris.rq'),
-    await SparqlQueryAnalyzer.fromFile(queryEngine, 'properties.rq'),
-    await SparqlQueryAnalyzer.fromFile(queryEngine, 'subjects.rq'),
-    await SparqlQueryAnalyzer.fromFile(queryEngine, 'triples.rq'),
-    await SparqlQueryAnalyzer.fromFile(queryEngine, 'class-properties.rq'),
-    await SparqlQueryAnalyzer.fromFile(queryEngine, 'licenses.rq'),
+    await SparqlQueryAnalyzer.fromFile('class-partition.rq'),
+    await SparqlQueryAnalyzer.fromFile('object-literals.rq'),
+    await SparqlQueryAnalyzer.fromFile('object-uris.rq'),
+    await SparqlQueryAnalyzer.fromFile('properties.rq'),
+    await SparqlQueryAnalyzer.fromFile('subjects.rq'),
+    await SparqlQueryAnalyzer.fromFile('triples.rq'),
+    await SparqlQueryAnalyzer.fromFile('class-properties.rq'),
+    await SparqlQueryAnalyzer.fromFile('licenses.rq'),
     new UriSpaceAnalyzer(
-      await SparqlQueryAnalyzer.fromFile(queryEngine, 'object-uri-space.rq')
+      await SparqlQueryAnalyzer.fromFile('object-uri-space.rq')
     ),
     new VocabularyAnalyzer(
-      await SparqlQueryAnalyzer.fromFile(queryEngine, 'entity-properties.rq')
+      await SparqlQueryAnalyzer.fromFile('entity-properties.rq')
     ),
   ],
   writers: [
