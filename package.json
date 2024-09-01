@@ -33,7 +33,7 @@
   "homepage": "https://github.com/netwerk-digitaal-erfgoed/kg-pipeline#readme",
   "dependencies": {
     "@comunica/bindings-factory": "^3.2.1",
-    "@comunica/query-sparql": "^3.2.1",
+    "@comunica/query-sparql": "^3.2.3",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^9.9.0",
     "@netwerk-digitaal-erfgoed/network-of-terms-query": "^5.3.0",
     "axios": "^1.7.3",
@@ -48,7 +48,7 @@
     "rdf-ext": "^2.5.0"
   },
   "devDependencies": {
-    "@comunica/query-sparql-file": "^3.2.1",
+    "@comunica/query-sparql-file": "^3.2.3",
     "@jest/globals": "^29.7.0",
     "@rdfjs/types": "^1.1.0",
     "@types/jest": "^29.5.12",
