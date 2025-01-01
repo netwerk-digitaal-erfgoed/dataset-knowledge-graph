@@ -44,7 +44,7 @@
     "n3": "^1.17.2",
     "pino": "^9.5.0",
     "rdf-data-factory": "^1.1.2",
-    "rdf-dereference": "^3.0.0",
+    "rdf-dereference": "^4.0.0",
     "rdf-ext": "^2.5.0"
   },
   "devDependencies": {
