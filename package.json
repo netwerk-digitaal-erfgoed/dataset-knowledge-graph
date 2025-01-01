@@ -51,7 +51,7 @@
     "@comunica/query-sparql-file": "^3.2.3",
     "@jest/globals": "^29.7.0",
     "@rdfjs/types": "^1.1.2",
-    "@types/jest": "^29.5.12",
+    "@types/jest": "^29.5.14",
     "@types/n3": "^1.16.4",
     "@types/node": "^22.8.6",
     "@types/rdf-ext": "^2.2.5",
