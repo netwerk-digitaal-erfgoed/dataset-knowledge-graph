@@ -6,28 +6,28 @@ CONSTRUCT {
 
     ?distribution a dcat:Distribution ;
         dcat:accessURL ?distribution_url ;
-        dct:format ?distribution_format ;
+        dcat:mediaType ?distribution_mediaType ;
         dcat:byteSize ?distribution_size ;
         dct:modified ?distribution_modified .
 } WHERE {
     ?dataset a dcat:Dataset .
     ?dataset dcat:distribution ?distribution .
     ?distribution dcat:accessURL ?distribution_url ;
-        dct:format ?distribution_format .
+        dcat:mediaType ?distribution_mediaType .
 
     OPTIONAL { ?distribution dcat:byteSize ?distribution_size . }
     OPTIONAL { ?distribution dct:modified ?distribution_modified . }
     FILTER(
-        ?distribution_format = "application/sparql-query"
-        || ?distribution_format = "application/sparql-results+json"
-        || ?distribution_format = "application/ld+json"
-        || ?distribution_format = "application/ld+json+gzip"
-        || ?distribution_format = "application/n-quads"
-        || ?distribution_format = "application/n-quads+gzip"
-        || ?distribution_format = "application/n-triples"
-        || ?distribution_format = "application/n-triples+gzip"
-        || ?distribution_format = "text/turtle"
-        || ?distribution_format = "text/turtle+gzip"
+        ?distribution_mediaType = "application/sparql-query"
+        || ?distribution_mediaType = "application/sparql-results+json"
+        || ?distribution_mediaType = "application/ld+json"
+        || ?distribution_mediaType = "application/ld+json+gzip"
+        || ?distribution_mediaType = "application/n-quads"
+        || ?distribution_mediaType = "application/n-quads+gzip"
+        || ?distribution_mediaType = "application/n-triples"
+        || ?distribution_mediaType = "application/n-triples+gzip"
+        || ?distribution_mediaType = "text/turtle"
+        || ?distribution_mediaType = "text/turtle+gzip"
     )
     # Skip unreliable endpoints.
     FILTER(!STRSTARTS(STR(?distribution_url), "https://cat.apis.beeldengeluid.nl/sparql"))
