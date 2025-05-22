@@ -3,7 +3,6 @@ import {QueryEngine} from '@comunica/query-sparql';
 import {DataFactory, Quad} from 'n3';
 import {resolve} from 'node:path';
 import {rdfDereferencer} from 'rdf-dereference';
-import namedNode = DataFactory.namedNode;
 import factory from 'rdf-ext';
 
 export interface Selector {
@@ -47,7 +46,7 @@ export class SparqlQuerySelector implements Selector {
           const subjectFilter = [
             ...supplementalStore.match(
               quad.subject,
-              namedNode(
+              DataFactory.namedNode(
                 'https://data.netwerkdigitaalerfgoed.nl/def/subjectFilter'
               )
             ),
@@ -73,7 +72,7 @@ export class SparqlQuerySelector implements Selector {
           distribution.accessUrl = quad.object.value;
         }
 
-        if ('http://purl.org/dc/terms/format' === quad.predicate.value) {
+        if ('http://www.w3.org/ns/dcat#mediaType' === quad.predicate.value) {
           distribution.mimeType = quad.object.value;
         }
 

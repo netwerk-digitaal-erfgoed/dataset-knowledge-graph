@@ -2,7 +2,7 @@ import {Analyzer} from '../analyzer.js';
 import {Dataset} from '../dataset.js';
 import {DataFactory} from 'n3';
 import {Failure, NotSupported, Success} from '../pipeline.js';
-import namedNode = DataFactory.namedNode;
+const {namedNode} = DataFactory;
 
 const vocabularyPrefixes = new Map([
   ['http://schema.org/', 'http://schema.org'],
