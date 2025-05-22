@@ -7,7 +7,7 @@
     dcat:distribution [
       a dcat:Distribution ;
       dcat:accessURL <http://foo.org/sparql> ;
-      dct:format "application/sparql-query" ;
+      dcat:mediaType "application/sparql-query" ;
       dct:modified "2022-12-03T10:26"^^xsd:dateTime ;
     ] .
 }

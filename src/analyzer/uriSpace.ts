@@ -4,10 +4,7 @@ import {IRI} from '@netwerk-digitaal-erfgoed/network-of-terms-query';
 import {Dataset} from '../dataset.js';
 import {DataFactory, Store} from 'n3';
 import {Failure, NotSupported, Success} from '../pipeline.js';
-import quad = DataFactory.quad;
-import namedNode = DataFactory.namedNode;
-import blankNode = DataFactory.blankNode;
-import literal = DataFactory.literal;
+const {quad, namedNode, blankNode, literal} = DataFactory;
 
 const catalog = await getCatalog();
 

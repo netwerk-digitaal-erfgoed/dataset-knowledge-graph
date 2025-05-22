@@ -2,10 +2,7 @@ import {Dataset, Distribution} from '../dataset.js';
 import {Analyzer} from '../analyzer.js';
 import {DataFactory, Store} from 'n3';
 import {Failure, NotSupported, Success} from '../pipeline.js';
-import quad = DataFactory.quad;
-import namedNode = DataFactory.namedNode;
-import blankNode = DataFactory.blankNode;
-import literal = DataFactory.literal;
+const {quad, namedNode, blankNode, literal} = DataFactory;
 import {Importer, ImportFailed, ImportSuccessful} from '../importer.js';
 
 class NetworkError {
