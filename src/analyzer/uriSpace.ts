@@ -9,6 +9,7 @@ const {quad, namedNode, blankNode, literal} = DataFactory;
 const catalog = await getCatalog();
 
 export class UriSpaceAnalyzer implements Analyzer {
+  public readonly name = 'uri-space';
   constructor(private readonly decorated: Analyzer) {}
 
   async execute(dataset: Dataset): Promise<Success | NotSupported | Failure> {

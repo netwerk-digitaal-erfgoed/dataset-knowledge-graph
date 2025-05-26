@@ -29,7 +29,7 @@ describe('SparqlQueryAnalyzer', () => {
 
   describe('execute', () => {
     it('should return a NotSupported when no SPARQL distribution is available', async () => {
-      const sparqlQueryAnalyzer = new SparqlQueryAnalyzer('foo');
+      const sparqlQueryAnalyzer = new SparqlQueryAnalyzer('foo', 'bar');
       const dataset = new Dataset('http://example.org/dataset', []);
       jest.spyOn(dataset, 'getSparqlDistribution').mockReturnValue(null);
 
@@ -43,6 +43,7 @@ describe('SparqlQueryAnalyzer', () => {
       const querySpy = jest.spyOn(fetcher, 'fetchTriples');
 
       const sparqlQueryAnalyzer = new SparqlQueryAnalyzer(
+        'foo',
         `CONSTRUCT {
           ?dataset ?p ?o .
         }
@@ -80,6 +81,7 @@ describe('SparqlQueryAnalyzer', () => {
       const datasetIri = 'http://foo.org/id/dataset/foo';
 
       const sparqlQueryAnalyzer = new SparqlQueryAnalyzer(
+        'foo',
         `CONSTRUCT {
           ?dataset ?p ?o .
         }
