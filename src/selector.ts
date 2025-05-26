@@ -9,11 +9,19 @@ export interface Selector {
   select(): Promise<Set<Dataset>>;
 }
 
+export class SparqlEndpoint {
+  constructor(public readonly url: string) {}
+}
+
+export class RdfFile {
+  constructor(public readonly path: string) {}
+}
+
 export class SparqlQuerySelector implements Selector {
   constructor(
     private readonly config: {
       query: string;
-      endpoint: string;
+      endpoint: SparqlEndpoint | RdfFile;
     },
     private readonly queryEngine: QueryEngine
   ) {}
@@ -25,11 +33,17 @@ export class SparqlQuerySelector implements Selector {
     const supplementalStore = await factory.dataset().import(data);
 
     const quadStream = await this.queryEngine.queryQuads(this.config.query, {
+      distinctConstruct: true,
       sources: [
-        {
-          type: 'sparql',
-          value: this.config.endpoint,
-        },
+        this.config.endpoint instanceof SparqlEndpoint
+          ? {
+              type: 'sparql',
+              value: this.config.endpoint.url,
+            }
+          : {
+              type: 'file',
+              value: this.config.endpoint.path,
+            },
       ],
     });
     const datasets: Set<Dataset> = new Set();
