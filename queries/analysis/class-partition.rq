@@ -8,11 +8,13 @@ CONSTRUCT {
 }
 #namedGraph#
 WHERE {
-    SELECT (COUNT(?type) AS ?entities) ?type ?classPartition {
-        #subjectFilter#
-        ?s a ?type .
-        BIND(URI(CONCAT("#class-", MD5(STR(?type)))) as ?classPartition)
+    {
+        SELECT (COUNT(?type) AS ?entities) ?type {
+            #subjectFilter#
+            ?s a ?type .
+        }
+        GROUP BY ?type
     }
-    GROUP BY ?type ?classPartition
+    BIND(URI(CONCAT("#class-", MD5(STR(?type)))) AS ?classPartition)
 }
 LIMIT 10000
