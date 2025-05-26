@@ -1,5 +1,5 @@
 import {Dataset, Distribution} from './dataset.js';
-import {QueryEngine} from '@comunica/query-sparql';
+import {QueryEngine} from '@comunica/query-sparql-file';
 import {DataFactory, Quad} from 'n3';
 import {resolve} from 'node:path';
 import {rdfDereferencer} from 'rdf-dereference';
