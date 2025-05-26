@@ -1,5 +1,5 @@
-import {SparqlQuerySelector} from '../src/selector';
-import {QueryEngine} from '@comunica/query-sparql';
+import {RdfFile, SparqlEndpoint, SparqlQuerySelector} from '../src/selector';
+import {QueryEngine} from '@comunica/query-sparql-file';
 import {
   startLocalSparqlEndpoint,
   teardownSparqlEndpoint,
@@ -25,7 +25,7 @@ describe('SparqlQuerySelector', () => {
               resolve('queries/selection/dataset-with-rdf-distribution.rq')
             )
           ).toString(),
-          endpoint: 'http://localhost:3002/sparql',
+          endpoint: new SparqlEndpoint('http://localhost:3002/sparql'),
         },
         new QueryEngine()
       );
@@ -38,6 +38,19 @@ describe('SparqlQuerySelector', () => {
       for (const dataset of datasets) {
         expect(dataset.distributions).toHaveLength(1);
       }
+    });
+
+    it('reads datasets from a file', async () => {
+      const selector = new SparqlQuerySelector(
+        {
+          query: 'CONSTRUCT WHERE { ?s ?p ?o }',
+          endpoint: new RdfFile(resolve('test/fixtures/registry.ttl')),
+        },
+        new QueryEngine()
+      );
+
+      const datasets = await selector.select();
+      expect(datasets.size).toBe(1);
     });
   });
 });

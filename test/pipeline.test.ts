@@ -1,6 +1,6 @@
 import {Pipeline} from '../src/pipeline.js';
 import {QueryEngine} from '@comunica/query-sparql';
-import {SparqlQuerySelector} from '../src/selector.js';
+import {SparqlEndpoint, SparqlQuerySelector} from '../src/selector.js';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {FileWriter} from '../src/writer.js';
@@ -16,8 +16,9 @@ describe('Pipeline', () => {
               resolve('queries/selection/dataset-with-rdf-distribution.rq')
             )
           ).toString(),
-          endpoint:
-            'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry',
+          endpoint: new SparqlEndpoint(
+            'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry'
+          ),
         },
         queryEngine
       ),
