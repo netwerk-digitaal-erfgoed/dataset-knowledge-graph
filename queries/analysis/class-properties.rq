@@ -12,11 +12,14 @@ CONSTRUCT {
 }
 #namedGraph#
 WHERE {
-    SELECT ?p ?type ?classPartition (COUNT(DISTINCT ?s) AS ?subjects) (COUNT(DISTINCT ?o) AS ?objects) {
-        #subjectFilter#
-        ?s a ?type ;
-            ?p ?o .
-        BIND(URI(CONCAT("#class-", MD5(STR(?type)))) as ?classPartition)
+    {
+        SELECT ?type ?p (COUNT(DISTINCT ?s) AS ?subjects) (COUNT(DISTINCT ?o) AS ?objects) {
+            #subjectFilter#
+            ?s a ?type ;
+                ?p ?o .
+        }
+        GROUP BY ?type ?p
     }
-    GROUP BY ?p ?type ?classPartition
+    BIND(URI(CONCAT("#class-", MD5(STR(?type)))) as ?classPartition)
 }
+LIMIT 100000
