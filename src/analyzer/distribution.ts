@@ -96,6 +96,7 @@ async function probe(
 }
 
 export class DistributionAnalyzer implements Analyzer {
+  public readonly name = 'distribution';
   constructor(private readonly importer: Importer) {}
 
   async execute(dataset: Dataset): Promise<Success | NotSupported | Failure> {
@@ -215,6 +216,10 @@ export class DistributionAnalyzer implements Analyzer {
           ),
         ]);
       }
+    }
+
+    if (null === dataset.getSparqlDistribution()) {
+      return new Failure(dataset.iri, 'no distribution available');
     }
 
     return new Success(store);

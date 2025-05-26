@@ -8,11 +8,13 @@ import {SparqlEndpointFetcher} from 'fetch-sparql-endpoint';
 import type {Readable} from 'node:stream';
 
 export interface Analyzer {
+  readonly name: string;
   execute(dataset: Dataset): Promise<Success | Failure | NotSupported>;
 }
 
 export class SparqlQueryAnalyzer implements Analyzer {
   constructor(
+    public readonly name: string,
     private readonly query: string,
     private readonly fetcher: SparqlEndpointFetcher = new SparqlEndpointFetcher(
       {
@@ -23,6 +25,7 @@ export class SparqlQueryAnalyzer implements Analyzer {
 
   public static async fromFile(filename: string) {
     return new SparqlQueryAnalyzer(
+      filename,
       await fromFile('queries/analysis/' + filename)
     );
   }
@@ -34,8 +37,6 @@ export class SparqlQueryAnalyzer implements Analyzer {
     if (null === sparqlDistribution) {
       return new NotSupported('No SPARQL distribution available');
     }
-
-    console.info(`  Analyzing distribution ${sparqlDistribution.accessUrl}`);
 
     const store = new Store();
     try {

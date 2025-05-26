@@ -4,6 +4,9 @@ import {Store} from 'n3';
 import {withProvenance} from './provenance.js';
 import {Analyzer} from './analyzer.js';
 import {DatasetCore} from '@rdfjs/types';
+import prettyMilliseconds from 'pretty-ms';
+import chalk from 'chalk';
+import ora from 'ora';
 
 export class Success {
   constructor(public readonly data: DatasetCore) {}
@@ -31,25 +34,27 @@ export class Pipeline {
 
   public async run(): Promise<void> {
     const datasets = await this.config.selector.select();
-    console.info(`Selected ${datasets.size} datasets`);
+    console.info(`Selected ${chalk.bold(datasets.size)} datasets`);
     for (const dataset of datasets) {
-      console.info(`Analyzing dataset ${dataset.iri}`);
+      console.info(`\nAnalyzing dataset ${chalk.bold(dataset.iri)}`);
       const store = new Store();
       for (const step of this.config.analyzers) {
         const start = new Date();
+        const startTime = performance.now();
+        const progress = ora({discardStdin: false}).start();
+        progress.text = `Analyzer ${chalk.bold(step.name)}`;
         const result = await step.execute(dataset);
-        const end = new Date();
+        progress.suffixText = `took ${chalk.bold(prettyMilliseconds(performance.now() - startTime))}`;
         if (result instanceof NotSupported) {
-          console.warn(
-            `  ${dataset.iri} not supported by ${step.constructor.name}`
-          );
+          progress.suffixText = `skipped: ${chalk.red('not supported')}`;
+          progress.fail();
         } else if (result instanceof Failure) {
-          console.warn(
-            `  ${dataset.iri} failed with message ${result.message}`
-          );
-        } else if (result instanceof Success && result.data) {
+          progress.suffixText = `failed in ${chalk.bold(prettyMilliseconds(performance.now() - startTime))}: ${chalk.red(result.message)}`;
+          progress.fail();
+        } else {
+          progress.succeed();
           store.addQuads([
-            ...withProvenance(result.data, dataset.iri, start, end),
+            ...withProvenance(result.data, dataset.iri, start, new Date()),
           ]);
         }
       }

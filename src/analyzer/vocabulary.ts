@@ -24,6 +24,7 @@ const vocabularyPrefixes = new Map([
 ]);
 
 export class VocabularyAnalyzer implements Analyzer {
+  public readonly name = 'vocabulary';
   constructor(private readonly decorated: Analyzer) {}
 
   async execute(dataset: Dataset): Promise<Success | NotSupported | Failure> {
