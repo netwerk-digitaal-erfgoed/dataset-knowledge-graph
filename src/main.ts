@@ -1,6 +1,6 @@
 import {Pipeline} from './pipeline.js';
 import {SparqlEndpoint, SparqlQuerySelector} from './selector.js';
-import {QueryEngine} from '@comunica/query-sparql';
+import {QueryEngine} from '@comunica/query-sparql-file';
 import {FileWriter} from './writer.js';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';

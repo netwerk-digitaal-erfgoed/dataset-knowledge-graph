@@ -1,6 +1,6 @@
 import {GraphDBClient} from '../src/graphdb';
 import {Dataset} from '../src/dataset';
-import {QueryEngine} from '@comunica/query-sparql';
+import {QueryEngine} from '@comunica/query-sparql-file';
 import {GenericContainer, StartedTestContainer} from 'testcontainers';
 import factory from 'rdf-ext';
 import axios from 'axios';
