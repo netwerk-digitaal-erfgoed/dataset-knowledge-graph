@@ -1,7 +1,7 @@
 import {Analyzer} from '../analyzer.js';
 import {Dataset} from '../dataset.js';
 import {DataFactory} from 'n3';
-import {Failure, NotSupported, Success} from '../pipeline.js';
+import {Context, Failure, NotSupported, Success} from '../pipeline.js';
 const {namedNode} = DataFactory;
 
 const vocabularyPrefixes = new Map([
@@ -27,8 +27,11 @@ export class VocabularyAnalyzer implements Analyzer {
   public readonly name = 'vocabulary';
   constructor(private readonly decorated: Analyzer) {}
 
-  async execute(dataset: Dataset): Promise<Success | NotSupported | Failure> {
-    const result = await this.decorated.execute(dataset);
+  async execute(
+    dataset: Dataset,
+    context?: Context
+  ): Promise<Success | NotSupported | Failure> {
+    const result = await this.decorated.execute(dataset, context);
     if (result instanceof NotSupported || result instanceof Failure) {
       return result;
     }

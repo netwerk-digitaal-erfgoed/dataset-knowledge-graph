@@ -35,6 +35,15 @@ const schema = {
       type: 'string',
       default: 'dataset-knowledge-graph-imports',
     },
+    QLEVER_ENV: {
+      type: 'string',
+      enum: ['docker', 'native'],
+      default: 'docker',
+    },
+    QLEVER_PORT: {
+      type: 'number',
+      default: 7001,
+    },
   },
 };
 

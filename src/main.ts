@@ -9,12 +9,13 @@ import {UriSpaceAnalyzer} from './analyzer/uriSpace.js';
 import {DistributionAnalyzer} from './analyzer/distribution.js';
 import {SparqlWriter} from './writer/sparql.js';
 import {config} from './config.js';
-import {RdfDumpImporter} from './importer.js';
 import {GraphDBClient} from './graphdb.js';
 import {VocabularyAnalyzer} from './analyzer/vocabulary.js';
+import {QleverImporter} from './qlever.js';
+import {createTaskRunner} from './task.js';
 
 const queryEngine = new QueryEngine();
-new Pipeline({
+await new Pipeline({
   selector: new SparqlQuerySelector(
     {
       query: (
@@ -30,14 +31,14 @@ new Pipeline({
   ),
   analyzers: [
     new DistributionAnalyzer(
-      new RdfDumpImporter(
-        new GraphDBClient({
-          url: config.GRAPHDB_IMPORTS_URL as string,
-          username: config.GRAPHDB_IMPORTS_USERNAME as string,
-          password: config.GRAPHDB_IMPORTS_PASSWORD as string,
-          repository: config.GRAPHDB_IMPORTS_REPOSITORY as string,
-        })
-      )
+      new QleverImporter({
+        taskRunner: createTaskRunner(config.QLEVER_ENV as 'docker' | 'native', {
+          image: 'adfreiburg/qlever',
+          containerName: 'dkg-qlever',
+          mountDir: resolve('imports'),
+          port: config.QLEVER_PORT as number,
+        }),
+      })
     ),
     await SparqlQueryAnalyzer.fromFile('class-partition.rq'),
     await SparqlQueryAnalyzer.fromFile('object-literals.rq'),

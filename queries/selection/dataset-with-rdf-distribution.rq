@@ -23,6 +23,7 @@ CONSTRUCT {
     FILTER(
         ?distribution_mediaType = "application/sparql-query"
         || ?distribution_mediaType = "application/sparql-results+json"
+        || ?distribution_mediaType = "application/sparql-results+xml"
         || ?distribution_mediaType = "application/ld+json"
         || ?distribution_mediaType = "application/ld+json+gzip"
         || ?distribution_mediaType = "application/n-quads"

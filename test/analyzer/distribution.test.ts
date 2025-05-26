@@ -1,6 +1,6 @@
 import {
   ImportSuccessful,
-  RdfDumpImporter,
+  SparqlImporter,
   SparqlClient,
 } from '../../src/importer.js';
 import {DistributionAnalyzer} from '../../src/analyzer/distribution.js';
@@ -40,7 +40,7 @@ describe('DistributionAnalyzer', () => {
         import: () => Promise.resolve(new ImportSuccessful('foo', 'bar')),
       };
 
-      const importer = new RdfDumpImporter(successSparqlClient);
+      const importer = new SparqlImporter(successSparqlClient);
       const distributionAnalyzer = new DistributionAnalyzer(importer);
 
       const distribution = Distribution.sparql(
@@ -91,7 +91,7 @@ describe('DistributionAnalyzer', () => {
         import: () => Promise.resolve(new ImportSuccessful('foo', 'bar')),
       };
 
-      const importer = new RdfDumpImporter(successSparqlClient);
+      const importer = new SparqlImporter(successSparqlClient);
       const distributionAnalyzer = new DistributionAnalyzer(importer);
 
       const distribution = new Distribution();
@@ -170,7 +170,7 @@ describe('DistributionAnalyzer', () => {
         import: () => Promise.resolve(new ImportSuccessful('foo', 'bar')),
       };
 
-      const importer = new RdfDumpImporter(successSparqlClient);
+      const importer = new SparqlImporter(successSparqlClient);
       const distributionAnalyzer = new DistributionAnalyzer(importer);
 
       const distribution = new Distribution();
@@ -214,7 +214,7 @@ describe('DistributionAnalyzer', () => {
         import: () => Promise.resolve(new ImportSuccessful('foo', 'bar')),
       };
 
-      const importer = new RdfDumpImporter(successSparqlClient);
+      const importer = new SparqlImporter(successSparqlClient);
       const distributionAnalyzer = new DistributionAnalyzer(importer);
 
       const distribution = new Distribution();

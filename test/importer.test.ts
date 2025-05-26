@@ -1,5 +1,5 @@
 import {
-  RdfDumpImporter,
+  SparqlImporter,
   SparqlClient,
   ImportSuccessful,
   ImportFailed,
@@ -16,7 +16,7 @@ describe('RdfDumpImporter', () => {
 
     it('should return not supported for dataset without download distributions', async () => {
       const dataset = new Dataset('http://example.org/dataset', []);
-      const importer = new RdfDumpImporter(succesSparqlClient);
+      const importer = new SparqlImporter(succesSparqlClient);
       const result = await importer.import(dataset);
 
       expect(result).toBeInstanceOf(NotSupported);
@@ -36,7 +36,7 @@ describe('RdfDumpImporter', () => {
         distribution2,
       ]);
       const importSpy = jest.spyOn(succesSparqlClient, 'import');
-      const importer = new RdfDumpImporter(succesSparqlClient);
+      const importer = new SparqlImporter(succesSparqlClient);
 
       const result = await importer.import(dataset);
 
@@ -54,7 +54,7 @@ describe('RdfDumpImporter', () => {
       const sparqlClient: SparqlClient = {
         import: () => Promise.resolve(new ImportFailed('foo', 'bar')),
       };
-      const importer = new RdfDumpImporter(sparqlClient);
+      const importer = new SparqlImporter(sparqlClient);
       const result = await importer.import(dataset);
 
       expect(result).toBeInstanceOf(ImportFailed);
