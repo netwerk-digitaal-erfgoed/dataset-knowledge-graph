@@ -33,8 +33,15 @@ export class Pipeline {
   ) {}
 
   public async run(): Promise<void> {
+    const pipelineStart = performance.now();
+    const selectionProgress = ora({
+      discardStdin: false,
+      text: 'Selecting datasets',
+    }).start();
     const datasets = await this.config.selector.select();
-    console.info(`Selected ${chalk.bold(datasets.size)} datasets`);
+    selectionProgress.succeed(
+      `Selected ${chalk.bold(datasets.size)} datasets in ${chalk.bold(prettyMilliseconds(performance.now() - pipelineStart))}`
+    );
     for (const dataset of datasets) {
       console.info(`\nAnalyzing dataset ${chalk.bold(dataset.iri)}`);
       const store = new Store();

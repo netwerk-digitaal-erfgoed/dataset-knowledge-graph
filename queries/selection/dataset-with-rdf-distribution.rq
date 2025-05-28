@@ -1,5 +1,7 @@
 PREFIX dcat: <http://www.w3.org/ns/dcat#>
 PREFIX dct: <http://purl.org/dc/terms/>
+PREFIX schema: <http://schema.org/>
+
 CONSTRUCT {
     ?dataset a dcat:Dataset ;
         dcat:distribution ?distribution .
@@ -10,8 +12,9 @@ CONSTRUCT {
         dcat:byteSize ?distribution_size ;
         dct:modified ?distribution_modified .
 } WHERE {
-    ?dataset a dcat:Dataset .
-    ?dataset dcat:distribution ?distribution .
+    ?dataset a dcat:Dataset ;
+        dcat:distribution ?distribution .
+
     ?distribution dcat:accessURL ?distribution_url ;
         dcat:mediaType ?distribution_mediaType .
 
@@ -29,6 +32,27 @@ CONSTRUCT {
         || ?distribution_mediaType = "text/turtle"
         || ?distribution_mediaType = "text/turtle+gzip"
     )
+
+    # Exclude dataset descriptions that are no longer valid.
+    FILTER(NOT EXISTS {
+        ?dataset schema:subjectOf ?registrationUrl .
+        ?registrationUrl schema:validUntil [] .
+    })
+
+    # In case of a catalog, exclude datasets that are no longer part of the catalog.
+    OPTIONAL {
+        SELECT ?dataset (MAX(?datasetRead) AS ?datasetLastRead) (MAX(?registrationUrlRead) AS ?registrationUrlLastRead) {
+            ?dataset schema:dateRead ?datasetRead ;
+                schema:subjectOf ?registrationUrl .
+            ?registrationUrl schema:dateRead ?registrationUrlRead .
+        }
+        GROUP BY ?dataset
+    }
+    FILTER(
+        (!BOUND(?datasetLastRead) && !BOUND(?registrationUrlLastRead)) # Without Dataset Register metadata, for local tests.
+        || ?datasetLastRead >= ?registrationUrlLastRead
+    )
+
     # Skip unreliable endpoints.
     FILTER(!STRSTARTS(STR(?distribution_url), "https://cat.apis.beeldengeluid.nl/sparql"))
 } ORDER BY ?dataset ?distribution
