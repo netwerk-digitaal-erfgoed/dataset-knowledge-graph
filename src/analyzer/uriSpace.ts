@@ -3,7 +3,7 @@ import {getCatalog} from '@netwerk-digitaal-erfgoed/network-of-terms-catalog';
 import {IRI} from '@netwerk-digitaal-erfgoed/network-of-terms-query';
 import {Dataset} from '../dataset.js';
 import {DataFactory, Store} from 'n3';
-import {Failure, NotSupported, Success} from '../pipeline.js';
+import {Context, Failure, NotSupported, Success} from '../pipeline.js';
 const {quad, namedNode, blankNode, literal} = DataFactory;
 
 const catalog = await getCatalog();
@@ -12,8 +12,11 @@ export class UriSpaceAnalyzer implements Analyzer {
   public readonly name = 'uri-space';
   constructor(private readonly decorated: Analyzer) {}
 
-  async execute(dataset: Dataset): Promise<Success | NotSupported | Failure> {
-    const result = await this.decorated.execute(dataset);
+  async execute(
+    dataset: Dataset,
+    context?: Context
+  ): Promise<Success | NotSupported | Failure> {
+    const result = await this.decorated.execute(dataset, context);
     if (result instanceof NotSupported || result instanceof Failure) {
       return result;
     }

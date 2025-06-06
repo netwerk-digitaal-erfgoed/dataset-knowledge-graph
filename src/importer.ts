@@ -1,13 +1,15 @@
 import {Dataset} from './dataset.js';
-import {NotSupported} from './pipeline.js';
+import {Context, NotSupported} from './pipeline.js';
 
 export interface Importer {
   import(
-    dataset: Dataset
+    dataset: Dataset,
+    context?: Context
   ): Promise<NotSupported | ImportSuccessful | ImportFailed | void>;
+  finish(): Promise<void>;
 }
 
-export class RdfDumpImporter implements Importer {
+export class SparqlImporter implements Importer {
   constructor(private readonly sparqlClient: SparqlClient) {}
 
   async import(
@@ -28,6 +30,8 @@ export class RdfDumpImporter implements Importer {
 
     return result;
   }
+
+  async finish(): Promise<void> {}
 }
 
 export interface SparqlClient {
@@ -40,7 +44,7 @@ export interface SparqlClient {
 export class ImportSuccessful {
   constructor(
     public readonly endpoint: string,
-    public readonly identifier: string
+    public readonly identifier?: string
   ) {}
 }
 
