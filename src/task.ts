@@ -152,65 +152,39 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
       cwd: 'imports', // TODO: don't hard-code
     });
     task.on('close', (code: number) => {
-      console.error('close listener 1', code, task.pid);
-      // Code is null on destroy, which is expected in stop();
+      // Code is null on destroy, which is expected when the stop() function is called.
       if (code !== null && code !== 0) {
-        // throw new Error('nope ' + code);
-        const output =
-          (this.stdout.get(process.pid!) ?? '') + this.stderr.get(process.pid!);
-        this.stdout.delete(process.pid!);
-        this.stderr.delete(process.pid!);
-        throw new Error(output);
+        throw new Error(this.taskOutput(task));
       }
     });
     task.on('error', (code: number) => {
-      console.error('error listener 1', code, task.pid);
+      throw new Error(`Task errored with code ${code}`);
     });
-    task.on('exit', (code: number) => {
-      console.error('exit listener 1', code, task.pid);
-    });
+
     task.stdout.on('data', data => {
-      // console.log('out', data.toString());
       this.stdout.set(
-        process.pid!,
-        this.stdout.get(process.pid!) ?? '' + data.toString()
+        task.pid!,
+        this.stdout.get(task.pid!) ?? '' + data.toString()
       );
     });
 
     task.stderr.on('data', data => {
-      // console.log('err', data.toString());
-      throw new Error(data.toString());
-      // this.stderr.set(
-      //   process.pid!,
-      //   this.stderr.get(process.pid!) ?? '' + data.toString()
-      // );
+      this.stderr.set(
+        task.pid!,
+        this.stderr.get(task.pid!) ?? '' + data.toString()
+      );
     });
 
-    // process.unref();
-    console.log('returning process', task.pid);
-    // task.unref();
     return task;
   }
 
   async wait(task: ChildProcess): Promise<string> {
-    console.log('waiting for id ', task.pid!);
     return new Promise((resolve, reject) => {
-      task.on('error', () => {
-        console.log('error listener 2', task.pid);
-        reject(new Error('error'));
-      });
-      task.on('close', (code: number) => {
-        console.log('close listener 2', code, task.pid);
-        const output =
-          (this.stdout.get(task.pid!) ?? '') + this.stderr.get(task.pid!);
+      task.prependListener('close', (code: number) => {
+        const output = this.taskOutput(task);
         if (code === 0) {
-          console.log('resolving');
-          // this.stdout.delete(task.pid!);
-          // this.stderr.delete(task.pid!);
-          resolve('done');
+          resolve(output);
         } else {
-          // this.stdout.delete(task.pid!);
-          // this.stderr.delete(task.pid!);
           reject(new Error(`Process failed with code ${code}: ${output}`));
         }
       });
@@ -218,20 +192,22 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
   }
 
   async stop(task: ChildProcess): Promise<string | null> {
-    console.log('killing', task.pid);
     return new Promise(resolve => {
       task.on('close', () => {
-        console.log('close through kill');
-        resolve('logs');
+        resolve(this.taskOutput(task));
       });
-      console.log('killing process', task.pid);
-
-      try {
-        process.kill(-task.pid!, 'SIGTERM'); // negative to kill whole process group: the {shell: true} splits off a sepraate process.
-      } catch (e) {
-        console.log('error killing process', e);
-        resolve('logs');
-      }
+      // Negative PID to kill whole process group: the {shell: true} argument
+      // to spawn splits off a separate process.
+      process.kill(-task.pid!, 'SIGTERM');
     });
+  }
+
+  private taskOutput(task: ChildProcess) {
+    const output =
+      (this.stdout.get(task.pid!) ?? '') + this.stderr.get(task.pid!);
+    this.stdout.delete(task.pid!);
+    this.stderr.delete(task.pid!);
+
+    return output;
   }
 }
