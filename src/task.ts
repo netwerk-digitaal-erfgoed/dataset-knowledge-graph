@@ -152,8 +152,8 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
       cwd: 'imports', // TODO: don't hard-code
     });
     task.on('close', (code: number) => {
-      // Code is null on destroy, which is expected when the stop() function is called.
-      if (code !== null && code !== 0) {
+      if (code !== 0) {
+        // Throw to detect errors in the command arguments.
         throw new Error(this.taskOutput(task));
       }
     });
@@ -180,7 +180,10 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
 
   async wait(task: ChildProcess): Promise<string> {
     return new Promise((resolve, reject) => {
-      task.prependListener('close', (code: number) => {
+      // When waiting for a task, reject on error instead of crashing the
+      // process, as we do on purpose in the close listener above.
+      task.removeAllListeners('close');
+      task.on('close', (code: number) => {
         const output = this.taskOutput(task);
         if (code === 0) {
           resolve(output);

@@ -66,13 +66,7 @@ export class QleverImporter implements Importer {
     context: Context
   ): Promise<ImportSuccessful | ImportFailed> {
     context.progress.suffixText = `downloading ${distribution.accessUrl}`;
-    let localFile: string;
-    try {
-      localFile = await this.downloader.download(distribution, context);
-    } catch (e) {
-      return new ImportFailed(distribution.accessUrl!, (e as Error).message);
-    }
-
+    const localFile = await this.downloader.download(distribution, context);
     context.progress.suffixText = `indexing ${distribution.accessUrl}`;
     await this.index(
       localFile,
