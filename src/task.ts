@@ -152,7 +152,9 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
       cwd: 'imports', // TODO: don't hard-code
     });
     task.on('close', (code: number) => {
-      if (code !== 0) {
+      /** code is null when the process was killed, which is expected when
+       * {@link stop} is called. */
+      if (code !== null && code !== 0) {
         // Throw to detect errors in the command arguments.
         throw new Error(this.taskOutput(task));
       }
