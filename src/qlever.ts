@@ -131,5 +131,7 @@ export class QleverImporter implements Importer {
 
     const logs = await this.options.taskRunner.stop(this.serverTask);
     context?.logger.debug(logs);
+
+    this.serverTask = undefined;
   }
 }
