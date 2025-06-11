@@ -55,7 +55,7 @@ export class Distribution {
     );
   }
 
-  public static sparql(endpoint: string, namedGraph: string) {
+  public static sparql(endpoint: string, namedGraph?: string) {
     const distribution = new this();
     distribution.mimeType = 'application/sparql-query';
     distribution.isValid = true;
