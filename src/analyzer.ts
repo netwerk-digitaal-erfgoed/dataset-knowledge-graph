@@ -2,17 +2,31 @@ import {Store} from 'n3';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {Dataset, Distribution} from './dataset.js';
-import {Failure, NotSupported, Success} from './pipeline.js';
+import {Context, Failure, NotSupported, Success} from './pipeline.js';
 import {Stream} from '@rdfjs/types';
 import {SparqlEndpointFetcher} from 'fetch-sparql-endpoint';
 import type {Readable} from 'node:stream';
+import {Logger} from 'pino';
 
 export interface Analyzer {
   readonly name: string;
-  execute(dataset: Dataset): Promise<Success | Failure | NotSupported>;
+  execute(
+    dataset: Dataset,
+    context?: Context
+  ): Promise<Success | Failure | NotSupported>;
+  finish(context?: {logger: Logger}): Promise<void>;
 }
 
-export class SparqlQueryAnalyzer implements Analyzer {
+export abstract class BaseAnalyzer implements Analyzer {
+  abstract readonly name: string;
+  abstract execute(
+    dataset: Dataset,
+    context?: Context
+  ): Promise<Success | Failure | NotSupported>;
+  public async finish() {}
+}
+
+export class SparqlQueryAnalyzer extends BaseAnalyzer {
   constructor(
     public readonly name: string,
     private readonly query: string,
@@ -21,7 +35,9 @@ export class SparqlQueryAnalyzer implements Analyzer {
         timeout: 300_000, // Some SPARQL queries really take this long.
       }
     )
-  ) {}
+  ) {
+    super();
+  }
 
   public static async fromFile(filename: string) {
     return new SparqlQueryAnalyzer(

@@ -6,7 +6,8 @@ import {Analyzer} from './analyzer.js';
 import {DatasetCore} from '@rdfjs/types';
 import prettyMilliseconds from 'pretty-ms';
 import chalk from 'chalk';
-import ora from 'ora';
+import ora, {Ora} from 'ora';
+import {pino, Logger} from 'pino';
 
 export class Success {
   constructor(public readonly data: DatasetCore) {}
@@ -22,6 +23,8 @@ export class Failure {
 export class NotSupported {
   constructor(public readonly message: string) {}
 }
+
+const logger = pino();
 
 export class Pipeline {
   constructor(
@@ -50,7 +53,7 @@ export class Pipeline {
         const startTime = performance.now();
         const progress = ora({discardStdin: false}).start();
         progress.text = `Analyzer ${chalk.bold(step.name)}`;
-        const result = await step.execute(dataset);
+        const result = await step.execute(dataset, {progress, logger});
         progress.suffixText = `took ${chalk.bold(prettyMilliseconds(performance.now() - startTime))}`;
         if (result instanceof NotSupported) {
           progress.suffixText = `skipped: ${chalk.red('not supported')}`;
@@ -70,6 +73,15 @@ export class Pipeline {
           await writer.write(dataset, store);
         }
       }
+
+      for (const step of this.config.analyzers) {
+        await step.finish({logger});
+      }
     }
   }
+}
+
+export interface Context {
+  readonly progress: Ora;
+  readonly logger: Logger;
 }

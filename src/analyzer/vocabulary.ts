@@ -1,7 +1,7 @@
-import {Analyzer} from '../analyzer.js';
+import {Analyzer, BaseAnalyzer} from '../analyzer.js';
 import {Dataset} from '../dataset.js';
 import {DataFactory} from 'n3';
-import {Failure, NotSupported, Success} from '../pipeline.js';
+import {Context, Failure, NotSupported, Success} from '../pipeline.js';
 const {namedNode} = DataFactory;
 
 const vocabularyPrefixes = new Map([
@@ -23,12 +23,17 @@ const vocabularyPrefixes = new Map([
   ['http://xmlns.com/foaf/0.1/', 'http://xmlns.com/foaf/0.1/'],
 ]);
 
-export class VocabularyAnalyzer implements Analyzer {
+export class VocabularyAnalyzer extends BaseAnalyzer {
   public readonly name = 'vocabulary';
-  constructor(private readonly decorated: Analyzer) {}
+  constructor(private readonly decorated: Analyzer) {
+    super();
+  }
 
-  async execute(dataset: Dataset): Promise<Success | NotSupported | Failure> {
-    const result = await this.decorated.execute(dataset);
+  async execute(
+    dataset: Dataset,
+    context?: Context
+  ): Promise<Success | NotSupported | Failure> {
+    const result = await this.decorated.execute(dataset, context);
     if (result instanceof NotSupported || result instanceof Failure) {
       return result;
     }

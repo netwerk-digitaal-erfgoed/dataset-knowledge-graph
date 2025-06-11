@@ -1,6 +1,7 @@
 build/
 coverage/
 data/
+imports/*
 node_modules/
 output/*
 .idea/
