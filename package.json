@@ -12,7 +12,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node --experimental-specifier-resolution=node build/main.js",
+    "start": "node build/main.js",
     "dev": "tsc-watch --onSuccess 'npm run start'",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest ${1}",
     "lint": "gts lint",
