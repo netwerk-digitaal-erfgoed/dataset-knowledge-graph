@@ -8,6 +8,7 @@ on:
 jobs:
   publish:
     uses: netwerk-digitaal-erfgoed/workflows/.github/workflows/publish.yml@main
+    secrets: inherit
 
   deploy:
     runs-on: ubuntu-latest
