@@ -5,7 +5,7 @@ const queryEngine = new QueryEngine();
 
 export async function waitForSparqlEndpointAvailable(
   url: string,
-  options: {retries: number} = {retries: 5}
+  options: {retries: number} = {retries: 5},
 ) {
   const query = 'SELECT * WHERE { ?s ?p ?o } LIMIT 1';
   let results;
@@ -30,6 +30,6 @@ export async function waitForSparqlEndpointAvailable(
         throw new Error(`No data loaded (based on query ${query})`);
       }
     },
-    {retries: options.retries}
+    {retries: options.retries},
   );
 }

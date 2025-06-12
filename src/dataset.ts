@@ -5,35 +5,35 @@ export class Dataset {
 
     // On the level of the dataset instead of the distribution because distribution may not have a URI, so cannot be
     // referenced from supplemental.ttl.
-    public subjectFilter?: string
+    public subjectFilter?: string,
   ) {}
 
   public getSparqlDistribution(): Distribution | null {
     return (
       this.distributions.filter(
-        distribution => distribution.isSparql() && distribution.isValid
+        distribution => distribution.isSparql() && distribution.isValid,
       )[0] ?? null
     );
   }
 
   public getDownloadDistributions(): Distribution[] {
     const validDistributions = this.distributions.filter(
-      distribution => distribution.isValid
+      distribution => distribution.isValid,
     );
 
     return [
       ...validDistributions.filter(distribution =>
-        distribution.mimeType?.endsWith('+gzip')
+        distribution.mimeType?.endsWith('+gzip'),
       ),
       ...validDistributions.filter(distribution =>
-        distribution.accessUrl?.endsWith('.nt.gz')
+        distribution.accessUrl?.endsWith('.nt.gz'),
       ),
       ...validDistributions.filter(
         distribution =>
           undefined !== distribution.mimeType &&
           ['application/n-triples', 'text/turtle'].includes(
-            distribution.mimeType
-          )
+            distribution.mimeType,
+          ),
       ),
     ];
   }

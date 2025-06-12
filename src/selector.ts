@@ -23,12 +23,12 @@ export class SparqlQuerySelector implements Selector {
       query: string;
       endpoint: SparqlEndpoint | RdfFile;
     },
-    private readonly queryEngine: QueryEngine
+    private readonly queryEngine: QueryEngine,
   ) {}
   async select(): Promise<Set<Dataset>> {
     const {data} = await rdfDereferencer.dereference(
       resolve('queries/selection/supplemental.ttl'),
-      {localFiles: true}
+      {localFiles: true},
     );
     const supplementalStore = await factory.dataset().import(data);
 
@@ -61,14 +61,14 @@ export class SparqlQuerySelector implements Selector {
             ...supplementalStore.match(
               quad.subject,
               DataFactory.namedNode(
-                'https://data.netwerkdigitaalerfgoed.nl/def/subjectFilter'
-              )
+                'https://data.netwerkdigitaalerfgoed.nl/def/subjectFilter',
+              ),
             ),
           ][0]?.object.value;
           dataset = new Dataset(
             quad.subject.value,
             [],
-            subjectFilter ? subjectFilter + '.' : undefined
+            subjectFilter ? subjectFilter + '.' : undefined,
           );
           datasets.add(dataset);
         }

@@ -5,7 +5,7 @@ import {Logger} from 'pino';
 export interface Importer {
   import(
     dataset: Dataset,
-    context?: Context
+    context?: Context,
   ): Promise<NotSupported | ImportSuccessful | ImportFailed | void>;
   finish(context?: {logger: Logger}): Promise<void>;
 }
@@ -14,7 +14,7 @@ export class SparqlImporter implements Importer {
   constructor(private readonly sparqlClient: SparqlClient) {}
 
   async import(
-    dataset: Dataset
+    dataset: Dataset,
   ): Promise<NotSupported | ImportSuccessful | ImportFailed> {
     const downloads = dataset.getDownloadDistributions();
     if (downloads.length === 0) {
@@ -38,20 +38,20 @@ export class SparqlImporter implements Importer {
 export interface SparqlClient {
   import(
     dataset: Dataset,
-    distributionUrl: string
+    distributionUrl: string,
   ): Promise<ImportSuccessful | ImportFailed>;
 }
 
 export class ImportSuccessful {
   constructor(
     public readonly endpoint: string,
-    public readonly identifier?: string
+    public readonly identifier?: string,
   ) {}
 }
 
 export class ImportFailed {
   constructor(
     public readonly downloadUrl: string,
-    public readonly error: string
+    public readonly error: string,
   ) {}
 }

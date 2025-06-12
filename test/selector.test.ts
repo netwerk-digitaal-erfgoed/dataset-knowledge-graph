@@ -22,12 +22,12 @@ describe('SparqlQuerySelector', () => {
         {
           query: (
             await readFile(
-              resolve('queries/selection/dataset-with-rdf-distribution.rq')
+              resolve('queries/selection/dataset-with-rdf-distribution.rq'),
             )
           ).toString(),
           endpoint: new SparqlEndpoint('http://localhost:3002/sparql'),
         },
-        new QueryEngine()
+        new QueryEngine(),
       );
 
       const datasets = await selector.select();
@@ -46,7 +46,7 @@ describe('SparqlQuerySelector', () => {
           query: 'CONSTRUCT WHERE { ?s ?p ?o }',
           endpoint: new RdfFile(resolve('test/fixtures/registry.ttl')),
         },
-        new QueryEngine()
+        new QueryEngine(),
       );
 
       const datasets = await selector.select();

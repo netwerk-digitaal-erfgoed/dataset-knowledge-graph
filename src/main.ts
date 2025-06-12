@@ -20,14 +20,14 @@ await new Pipeline({
     {
       query: (
         await readFile(
-          resolve('queries/selection/dataset-with-rdf-distribution.rq')
+          resolve('queries/selection/dataset-with-rdf-distribution.rq'),
         )
       ).toString(),
       endpoint: new SparqlEndpoint(
-        'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry'
+        'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry',
       ),
     },
-    queryEngine
+    queryEngine,
   ),
   analyzers: [
     new DistributionAnalyzer(
@@ -38,7 +38,7 @@ await new Pipeline({
           mountDir: resolve('imports'),
           port: config.QLEVER_PORT as number,
         }),
-      })
+      }),
     ),
     await SparqlQueryAnalyzer.fromFile('class-partition.rq'),
     await SparqlQueryAnalyzer.fromFile('object-literals.rq'),
@@ -49,10 +49,10 @@ await new Pipeline({
     await SparqlQueryAnalyzer.fromFile('class-properties.rq'),
     await SparqlQueryAnalyzer.fromFile('licenses.rq'),
     new UriSpaceAnalyzer(
-      await SparqlQueryAnalyzer.fromFile('object-uri-space.rq')
+      await SparqlQueryAnalyzer.fromFile('object-uri-space.rq'),
     ),
     new VocabularyAnalyzer(
-      await SparqlQueryAnalyzer.fromFile('entity-properties.rq')
+      await SparqlQueryAnalyzer.fromFile('entity-properties.rq'),
     ),
   ],
   writers: [
@@ -63,7 +63,7 @@ await new Pipeline({
         username: config.GRAPHDB_USERNAME as string,
         password: config.GRAPHDB_PASSWORD as string,
         repository: config.GRAPHDB_REPOSITORY as string,
-      })
+      }),
     ),
   ],
 }).run();

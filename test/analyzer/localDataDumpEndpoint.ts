@@ -11,7 +11,7 @@ export const teardownDataDumpEndpoint = async () => {
 let servers: SpawndChildProcess[];
 export async function startLocalDataDumpEndpoint(
   port: number,
-  fixture: string
+  fixture: string,
 ): Promise<void> {
   servers = await setup({
     command: `npx http-server ${__dirname}/${fixture} -p ${port}`,

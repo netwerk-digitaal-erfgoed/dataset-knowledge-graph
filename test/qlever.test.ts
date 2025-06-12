@@ -16,7 +16,7 @@ const dumpPort = 8083;
 
 describe('QleverImporter', () => {
   beforeAll(
-    async () => await startLocalDataDumpEndpoint(dumpPort, '../fixtures')
+    async () => await startLocalDataDumpEndpoint(dumpPort, '../fixtures'),
   );
 
   afterAll(async () => await teardownDataDumpEndpoint());
@@ -54,7 +54,7 @@ describe('QleverImporter', () => {
               value: (sparqlEndpoint as ImportSuccessful).endpoint,
             },
           ],
-        }
+        },
       );
       const queryResult = await bindingsStream.toArray();
       expect(queryResult.length).toBe(1);

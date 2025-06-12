@@ -17,7 +17,7 @@ export class UriSpaceAnalyzer extends BaseAnalyzer {
 
   async execute(
     dataset: Dataset,
-    context?: Context
+    context?: Context,
   ): Promise<Success | NotSupported | Failure> {
     const result = await this.decorated.execute(dataset, context);
     if (result instanceof NotSupported || result instanceof Failure) {
@@ -42,7 +42,7 @@ export class UriSpaceAnalyzer extends BaseAnalyzer {
       ) {
         resultMap.set(
           uriSpace,
-          (resultMap.get(uriSpace) ?? 0) + parseInt(quad.object.value)
+          (resultMap.get(uriSpace) ?? 0) + parseInt(quad.object.value),
         );
       }
     }
@@ -54,32 +54,32 @@ export class UriSpaceAnalyzer extends BaseAnalyzer {
           quad(
             linkset,
             namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-            namedNode('http://rdfs.org/ns/void#Linkset')
-          )
+            namedNode('http://rdfs.org/ns/void#Linkset'),
+          ),
         );
         store.add(
           quad(
             linkset,
             namedNode('http://rdfs.org/ns/void#subjectsTarget'),
-            namedNode(dataset.iri)
-          )
+            namedNode(dataset.iri),
+          ),
         );
         store.add(
           quad(
             linkset,
             namedNode('http://rdfs.org/ns/void#objectsTarget'),
-            namedNode(k.toString())
-          )
+            namedNode(k.toString()),
+          ),
         );
         store.add(
           quad(
             linkset,
             namedNode('http://rdfs.org/ns/void#triples'),
-            literal(v)
-          )
+            literal(v),
+          ),
         );
         return store;
-      }, new Store())
+      }, new Store()),
     );
   }
 }

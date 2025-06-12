@@ -22,8 +22,8 @@ describe('withProvenance', () => {
     const types = objects(
       dataset.match(
         factory.namedNode(iri),
-        factory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
-      )
+        factory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+      ),
     );
 
     expect(types).toContain('http://www.w3.org/ns/prov#Entity');
@@ -31,8 +31,8 @@ describe('withProvenance', () => {
     const activities = objects(
       dataset.match(
         factory.namedNode(iri),
-        factory.namedNode('http://www.w3.org/ns/prov#wasGeneratedBy')
-      )
+        factory.namedNode('http://www.w3.org/ns/prov#wasGeneratedBy'),
+      ),
     );
 
     expect(activities.length).toBe(1);
@@ -42,24 +42,24 @@ describe('withProvenance', () => {
     const activityType = objects(
       dataset.match(
         factory.blankNode(activity),
-        factory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type')
-      )
+        factory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
+      ),
     );
     expect(activityType).toContain('http://www.w3.org/ns/prov#Activity');
 
     const startTime = objects(
       dataset.match(
         factory.blankNode(activity),
-        factory.namedNode('http://www.w3.org/ns/prov#startedAtTime')
-      )
+        factory.namedNode('http://www.w3.org/ns/prov#startedAtTime'),
+      ),
     );
     expect(startTime).toContain(start.toISOString());
 
     const endTime = objects(
       dataset.match(
         factory.blankNode(activity),
-        factory.namedNode('http://www.w3.org/ns/prov#endedAtTime')
-      )
+        factory.namedNode('http://www.w3.org/ns/prov#endedAtTime'),
+      ),
     );
     expect(endTime).toContain(end.toISOString());
   });

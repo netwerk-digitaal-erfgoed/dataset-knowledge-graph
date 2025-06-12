@@ -5,7 +5,7 @@ describe('Dataset', () => {
     it('should return a sparql distribution if available', () => {
       const distribution1 = Distribution.sparql(
         'http://example.org/sparql',
-        'http://example.org/namedGraph'
+        'http://example.org/namedGraph',
       );
       const distribution2 = new Distribution();
 

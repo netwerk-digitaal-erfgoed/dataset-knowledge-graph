@@ -58,14 +58,14 @@ describe('Downloader', () => {
     it('throws an error if file is unavailable', async () => {
       nock('https://example.com').get('/file.nt').reply(500);
       await expect(downloader.download(distribution, context)).rejects.toThrow(
-        'Failed to download https://example.com/file.nt: Internal Server Error'
+        'Failed to download https://example.com/file.nt: Internal Server Error',
       );
     });
 
     it('throws an error if file is empty', async () => {
       nock('https://example.com').get('/file.nt').reply(200, '');
       await expect(downloader.download(distribution, context)).rejects.toThrow(
-        'data dump is empty'
+        'data dump is empty',
       );
     });
   });

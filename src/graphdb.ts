@@ -22,7 +22,7 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
   }) {
     this.endpoint = config.url + '/repositories/' + config.repository;
     const graphdbConfig = new graphdb.repository.RepositoryClientConfig(
-      config.url
+      config.url,
     )
       .useGdbTokenAuthentication(config.username, config.password)
       .setEndpoints([this.endpoint])
@@ -35,20 +35,20 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
       await this.repository.putQuads(
         [...summary],
         dataset.iri,
-        `<${dataset.iri}>`
+        `<${dataset.iri}>`,
       );
     } catch (e) {
       console.error(
         'Write to GraphDB failed for dataset ' + dataset.iri,
         (e as AxiosError).message,
-        (e as AxiosError).response?.data
+        (e as AxiosError).response?.data,
       );
     }
   }
 
   async import(
     dataset: Dataset,
-    distributionUrl: string
+    distributionUrl: string,
   ): Promise<ImportSuccessful | ImportFailed> {
     console.info(`  Importing ${distributionUrl}`);
 
@@ -57,20 +57,20 @@ export class GraphDBClient implements WriterSparqlClient, ImporterSparqlClient {
       await this.repository.update(
         new graphdb.query.UpdateQueryPayload()
           .setQuery(
-            `CLEAR GRAPH <${namedGraph}>; LOAD <${distributionUrl}> INTO GRAPH <${namedGraph}>`
+            `CLEAR GRAPH <${namedGraph}>; LOAD <${distributionUrl}> INTO GRAPH <${namedGraph}>`,
           )
-          .setInference(false)
+          .setInference(false),
       );
     } catch (e) {
       const error = e as AxiosError;
       console.error(
         `Import to GraphDB failed for dataset ${dataset.iri} with distribution URL ${distributionUrl}`,
         error.message,
-        error.response?.data
+        error.response?.data,
       );
       return new ImportFailed(
         distributionUrl,
-        (error.response?.data as string) ?? error.message
+        (error.response?.data as string) ?? error.message,
       );
     }
     return new ImportSuccessful(this.endpoint, namedGraph);
