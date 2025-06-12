@@ -9,7 +9,7 @@
   "version": "0.0.0-semantically-released",
   "description": "A pipeline for the NDE Dataset Knowledge Graph",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "start": "node build/main.js",
@@ -55,6 +55,7 @@
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@rdfjs/types": "^2.0.1",
+    "@swc/jest": "^0.2.38",
     "@types/jest": "^29.5.14",
     "@types/n3": "^1.16.4",
     "@types/node": "^22.13.14",
@@ -68,7 +69,6 @@
     "nock": "^14.0.5",
     "spawnd": "^11.0.0",
     "testcontainers": "^11.0.0",
-    "ts-jest": "^29.2.5",
     "tsc-watch": "^6.2.1",
     "typescript": "^5.8.3"
   }

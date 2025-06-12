@@ -1,6 +1,8 @@
 export default {
-  preset: 'ts-jest/presets/default-esm',
   extensionsToTreatAsEsm: ['.ts'],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
   testTimeout: 10000,
   collectCoverage: true,
   collectCoverageFrom: [
@@ -10,21 +12,13 @@ export default {
   coverageReporters: ['json-summary', 'text'],
   coverageThreshold: {
     global: {
-      lines: 71.89,
-      statements: 71.89,
+      lines: 75,
+      statements: 75.12,
       branches: 59.56,
-      functions: 73.62,
+      functions: 74.41,
     },
   },
   transform: {
-    '^.+\\.ts$': [
-      'ts-jest',
-      {
-        useESM: true,
-      },
-    ],
-  },
-  moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^.+\\.ts$': '@swc/jest',
   },
 };

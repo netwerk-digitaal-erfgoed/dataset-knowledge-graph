@@ -3,9 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {Dataset, Distribution} from './dataset.js';
 import {Context, Failure, NotSupported, Success} from './pipeline.js';
-import {Stream} from '@rdfjs/types';
 import {SparqlEndpointFetcher} from 'fetch-sparql-endpoint';
-import type {Readable} from 'node:stream';
 import {Logger} from 'pino';
 
 export interface Analyzer {
@@ -70,10 +68,7 @@ export class SparqlQueryAnalyzer extends BaseAnalyzer {
     return new Success(store);
   }
 
-  private async executeQuery(
-    distribution: Distribution,
-    dataset: Dataset
-  ): Promise<Readable & Stream> {
+  private async executeQuery(distribution: Distribution, dataset: Dataset) {
     const query = this.query
       .replace('#subjectFilter#', dataset.subjectFilter ?? '')
       .replace('?dataset', `<${dataset.iri}>`)
