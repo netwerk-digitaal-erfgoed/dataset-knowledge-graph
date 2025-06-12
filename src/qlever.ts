@@ -30,7 +30,7 @@ export class QleverImporter implements Importer {
   }
   async import(
     dataset: Dataset,
-    context: Context
+    context: Context,
   ): Promise<NotSupported | ImportSuccessful | ImportFailed | void> {
     const downloadDistributions = dataset.getDownloadDistributions();
     if (downloadDistributions.length === 0) {
@@ -53,7 +53,7 @@ export class QleverImporter implements Importer {
         }
         result = new ImportFailed(
           downloadDistribution.accessUrl!,
-          errorMessage
+          errorMessage,
         );
       }
     }
@@ -63,14 +63,14 @@ export class QleverImporter implements Importer {
 
   async doImport(
     distribution: Distribution,
-    context: Context
+    context: Context,
   ): Promise<ImportSuccessful | ImportFailed> {
     context.progress.suffixText = `downloading ${distribution.accessUrl}`;
     const localFile = await this.downloader.download(distribution, context);
     context.progress.suffixText = `indexing ${distribution.accessUrl}`;
     await this.index(
       localFile,
-      this.fileFormatFromMimeType(distribution.mimeType!)
+      this.fileFormatFromMimeType(distribution.mimeType!),
     );
 
     const sparqlEndpoint = `http://localhost:${this.options.port}/sparql`;
@@ -103,18 +103,18 @@ export class QleverImporter implements Importer {
       JSON.stringify({
         'ascii-prefixes-only': true,
         'num-triples-per-batch': 100000,
-      })
+      }),
     );
 
     // TODO: write index to named volume instead of bind mount for better performance.
 
     const indexTask = await this.options.taskRunner.run(
-      `(zcat '${basename(file)}' 2>/dev/null || cat '${basename(file)}') | IndexBuilderMain -i ${this.options.indexName} -s ${settingsFile} -F ${format} -f -`
+      `(zcat '${basename(file)}' 2>/dev/null || cat '${basename(file)}') | IndexBuilderMain -i ${this.options.indexName} -s ${settingsFile} -F ${format} -f -`,
     );
     await this.options.taskRunner.wait(indexTask);
 
     this.serverTask = await this.options.taskRunner.run(
-      `ServerMain --index-basename ${this.options.indexName} --memory-max-size 6G --port ${this.options.port}`
+      `ServerMain --index-basename ${this.options.indexName} --memory-max-size 6G --port ${this.options.port}`,
     );
   }
 

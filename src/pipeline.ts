@@ -16,7 +16,7 @@ export class Success {
 export class Failure {
   constructor(
     public readonly url: string,
-    public readonly message?: string
+    public readonly message?: string,
   ) {}
 }
 
@@ -32,7 +32,7 @@ export class Pipeline {
       selector: Selector;
       analyzers: Analyzer[];
       writers: SummaryWriter[];
-    }
+    },
   ) {}
 
   public async run(): Promise<void> {
@@ -43,7 +43,7 @@ export class Pipeline {
     }).start();
     const datasets = await this.config.selector.select();
     selectionProgress.succeed(
-      `Selected ${chalk.bold(datasets.size)} datasets in ${chalk.bold(prettyMilliseconds(performance.now() - pipelineStart))}`
+      `Selected ${chalk.bold(datasets.size)} datasets in ${chalk.bold(prettyMilliseconds(performance.now() - pipelineStart))}`,
     );
     for (const dataset of datasets) {
       console.info(`\nAnalyzing dataset ${chalk.bold(dataset.iri)}`);

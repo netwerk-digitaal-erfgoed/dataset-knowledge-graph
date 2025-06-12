@@ -13,14 +13,14 @@ describe('Pipeline', () => {
         {
           query: (
             await readFile(
-              resolve('queries/selection/dataset-with-rdf-distribution.rq')
+              resolve('queries/selection/dataset-with-rdf-distribution.rq'),
             )
           ).toString(),
           endpoint: new SparqlEndpoint(
-            'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry'
+            'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry',
           ),
         },
-        queryEngine
+        queryEngine,
       ),
       analyzers: [],
       writers: [new FileWriter()],

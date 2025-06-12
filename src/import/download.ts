@@ -11,7 +11,7 @@ export class Downloader {
 
   public async download(
     distribution: Distribution,
-    context: Context
+    context: Context,
   ): Promise<string> {
     const downloadUrl = distribution.accessUrl!;
     const filename = filenamify(downloadUrl.toString());
@@ -19,7 +19,7 @@ export class Downloader {
 
     if (await this.localFileIsUpToDate(filePath, distribution.lastModified)) {
       context.logger.debug(
-        `File ${filePath} is up to date, skipping download.`
+        `File ${filePath} is up to date, skipping download.`,
       );
       return filePath;
     }
@@ -27,7 +27,7 @@ export class Downloader {
     const downloadResponse = await fetch(downloadUrl);
     if (!downloadResponse.ok || !downloadResponse.body) {
       throw new Error(
-        `Failed to download ${downloadUrl}: ${downloadResponse.statusText}`
+        `Failed to download ${downloadUrl}: ${downloadResponse.statusText}`,
       );
     }
 
@@ -48,7 +48,7 @@ export class Downloader {
 
   private async localFileIsUpToDate(
     filePath: string,
-    lastModified?: Date
+    lastModified?: Date,
   ): Promise<boolean> {
     if (undefined === lastModified) {
       return false;

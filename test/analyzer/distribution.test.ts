@@ -23,7 +23,7 @@ describe('DistributionAnalyzer', () => {
   beforeAll(async () => {
     await startLocalSparqlEndpoint(
       port,
-      'analyzer/fixtures/distributionAnalysisTargetSparql.ttl'
+      'analyzer/fixtures/distributionAnalysisTargetSparql.ttl',
     );
 
     await startLocalDataDumpEndpoint(dumpPort, 'fixtures/');
@@ -45,7 +45,7 @@ describe('DistributionAnalyzer', () => {
 
       const distribution = Distribution.sparql(
         `http://localhost:${port}/sparql`,
-        'http://foo.org/id/graph/foo'
+        'http://foo.org/id/graph/foo',
       );
       const dataset = new Dataset('http://foo.org/id/dataset/foo', [
         distribution,
@@ -60,29 +60,29 @@ describe('DistributionAnalyzer', () => {
         data.match(
           null,
           factory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-          factory.namedNode('https://schema.org/Action')
-        ).size
+          factory.namedNode('https://schema.org/Action'),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           null,
           factory.namedNode('https://schema.org/result'),
-          factory.namedNode('http://localhost:3003/sparql')
-        ).size
+          factory.namedNode('http://localhost:3003/sparql'),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           null,
           factory.namedNode('https://schema.org/target'),
-          factory.namedNode('http://localhost:3003/sparql')
-        ).size
+          factory.namedNode('http://localhost:3003/sparql'),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           factory.namedNode('http://foo.org/id/dataset/foo'),
           factory.namedNode('http://rdfs.org/ns/void#sparqlEndpoint'),
-          factory.namedNode('http://localhost:3003/sparql')
-        ).size
+          factory.namedNode('http://localhost:3003/sparql'),
+        ).size,
       ).toBe(1);
     });
 
@@ -112,56 +112,56 @@ describe('DistributionAnalyzer', () => {
         data.match(
           null,
           factory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-          factory.namedNode('https://schema.org/Action')
-        ).size
+          factory.namedNode('https://schema.org/Action'),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           null,
           factory.namedNode('https://schema.org/target'),
           factory.namedNode(
-            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`
-          )
-        ).size
+            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`,
+          ),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           null,
           factory.namedNode('https://schema.org/result'),
           factory.namedNode(
-            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`
-          )
-        ).size
+            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`,
+          ),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           factory.namedNode(
-            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`
+            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`,
           ),
           factory.namedNode('https://schema.org/dateModified'),
-          null
-        ).size
+          null,
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           factory.namedNode(
-            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`
+            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`,
           ),
           factory.namedNode('https://schema.org/contentSize'),
           factory.literal(
             '377',
-            factory.namedNode('http://www.w3.org/2001/XMLSchema#integer')
-          )
-        ).size
+            factory.namedNode('http://www.w3.org/2001/XMLSchema#integer'),
+          ),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           factory.namedNode('http://foo.org/id/dataset/foo'),
           factory.namedNode('http://rdfs.org/ns/void#dataDump'),
           factory.namedNode(
-            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`
-          )
-        ).size
+            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`,
+          ),
+        ).size,
       ).toBe(1);
     });
 
@@ -190,22 +190,22 @@ describe('DistributionAnalyzer', () => {
         data.match(
           null,
           factory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-          factory.namedNode('https://schema.org/Action')
-        ).size
+          factory.namedNode('https://schema.org/Action'),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           null,
           factory.namedNode('https://schema.org/target'),
-          factory.namedNode('foo.nt.gz')
-        ).size
+          factory.namedNode('foo.nt.gz'),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           null,
           factory.namedNode('https://schema.org/error'),
-          factory.literal('TypeError: Invalid URL')
-        ).size
+          factory.literal('TypeError: Invalid URL'),
+        ).size,
       ).toBe(1);
     });
 
@@ -234,22 +234,22 @@ describe('DistributionAnalyzer', () => {
         data.match(
           null,
           factory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-          factory.namedNode('https://schema.org/Action')
-        ).size
+          factory.namedNode('https://schema.org/Action'),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           null,
           factory.namedNode('https://schema.org/target'),
-          factory.namedNode('http://foo.org/foo.nt.gz')
-        ).size
+          factory.namedNode('http://foo.org/foo.nt.gz'),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           null,
           factory.namedNode('https://schema.org/error'),
-          factory.literal('Error: getaddrinfo ENOTFOUND foo.org')
-        ).size
+          factory.literal('Error: getaddrinfo ENOTFOUND foo.org'),
+        ).size,
       ).toBe(1);
     });
   });

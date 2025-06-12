@@ -13,7 +13,7 @@ describe('UriSpaceAnalyzer', () => {
   beforeAll(async () => {
     await startLocalSparqlEndpoint(
       port,
-      'analyzer/fixtures/uriSpaceAnalysisTarget.trig'
+      'analyzer/fixtures/uriSpaceAnalysisTarget.trig',
     );
   }, 120000);
 
@@ -24,12 +24,12 @@ describe('UriSpaceAnalyzer', () => {
   describe('execute', () => {
     it('should analyze uri space', async () => {
       const analyzer = new UriSpaceAnalyzer(
-        await SparqlQueryAnalyzer.fromFile('object-uri-space.rq')
+        await SparqlQueryAnalyzer.fromFile('object-uri-space.rq'),
       );
 
       const distribution = Distribution.sparql(
         `http://localhost:${port}/sparql`,
-        'http://foo.org/id/graph/foo'
+        'http://foo.org/id/graph/foo',
       );
       const dataset = new Dataset('http://foo.org/id/dataset/foo', [
         distribution,
@@ -45,7 +45,7 @@ describe('UriSpaceAnalyzer', () => {
       const linksets = data.match(
         null,
         factory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-        factory.namedNode('http://rdfs.org/ns/void#Linkset')
+        factory.namedNode('http://rdfs.org/ns/void#Linkset'),
       );
       expect(linksets.size).toBe(1);
       const linkset = [...linksets][0];
@@ -53,15 +53,15 @@ describe('UriSpaceAnalyzer', () => {
         data.match(
           linkset.subject,
           factory.namedNode('http://rdfs.org/ns/void#subjectsTarget'),
-          factory.namedNode('http://foo.org/id/dataset/foo')
-        ).size
+          factory.namedNode('http://foo.org/id/dataset/foo'),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
           linkset.subject,
           factory.namedNode('http://rdfs.org/ns/void#objectsTarget'),
-          factory.namedNode('http://vocab.getty.edu/aat')
-        ).size
+          factory.namedNode('http://vocab.getty.edu/aat'),
+        ).size,
       ).toBe(1);
       expect(
         data.match(
@@ -69,9 +69,9 @@ describe('UriSpaceAnalyzer', () => {
           factory.namedNode('http://rdfs.org/ns/void#triples'),
           factory.literal(
             '1',
-            factory.namedNode('http://www.w3.org/2001/XMLSchema#integer')
-          )
-        ).size
+            factory.namedNode('http://www.w3.org/2001/XMLSchema#integer'),
+          ),
+        ).size,
       ).toBe(1);
     });
   });

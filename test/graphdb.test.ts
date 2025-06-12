@@ -12,7 +12,7 @@ import {fileURLToPath} from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const graphDb = new GenericContainer(
-  'ontotext/graphdb:10.5.1'
+  'ontotext/graphdb:10.5.1',
 ).withExposedPorts(7200);
 let startedGraphDb: StartedTestContainer;
 
@@ -29,8 +29,8 @@ describe('GraphDBClient', () => {
     formData.append(
       'config',
       fs.createReadStream(
-        path.join(__dirname, './fixtures/graphdb-repo-config.ttl')
-      )
+        path.join(__dirname, './fixtures/graphdb-repo-config.ttl'),
+      ),
     );
 
     await axios.post(`${host(startedGraphDb)}/rest/repositories`, formData, {
@@ -61,8 +61,8 @@ describe('GraphDBClient', () => {
           factory.namedNode('http://example.com/dataset'),
           factory.namedNode('http://example.com/predicate'),
           factory.namedNode('http://example.com/object'),
-          factory.namedNode('http://example.com/dataset')
-        )
+          factory.namedNode('http://example.com/dataset'),
+        ),
       );
 
       await client.store(dataset, summary);
@@ -80,7 +80,7 @@ describe('GraphDBClient', () => {
               value: `${host(startedGraphDb)}/repositories/test-repo`,
             },
           ],
-        }
+        },
       );
 
       const bindings = await queryResult.toArray();

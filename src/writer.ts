@@ -21,8 +21,8 @@ export class FileWriter implements SummaryWriter {
       async (_error, result) =>
         await writeFile(
           `output/${filenamifyUrl(dataset.iri, {replacement: '-'})}.ttl`,
-          result
-        )
+          result,
+        ),
     );
   }
 }

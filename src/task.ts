@@ -12,7 +12,7 @@ export interface TaskRunner<Task> {
 
 export function createTaskRunner(
   mode: 'docker' | 'native',
-  options?: DockerTaskRunnerOptions
+  options?: DockerTaskRunnerOptions,
 ): TaskRunner<Container | ChildProcess> {
   if (mode === 'docker' && undefined !== options) {
     return new DockerTaskRunner(options);
@@ -53,7 +53,7 @@ export class DockerTaskRunner implements TaskRunner<Container> {
 
     if (result.StatusCode !== 0) {
       throw new Error(
-        `Task failed with status code ${result.StatusCode}: ${logs})`
+        `Task failed with status code ${result.StatusCode}: ${logs})`,
       );
     }
 
@@ -73,7 +73,7 @@ export class DockerTaskRunner implements TaskRunner<Container> {
 
     const pull = await this.options.docker.pull(this.options.image);
     const err = await new Promise<Error | null>(resolve =>
-      this.options.docker.modem.followProgress(pull, resolve)
+      this.options.docker.modem.followProgress(pull, resolve),
     );
     if (err) {
       throw err;
@@ -166,14 +166,14 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
     task.stdout.on('data', data => {
       this.stdout.set(
         task.pid!,
-        this.stdout.get(task.pid!) ?? '' + data.toString()
+        this.stdout.get(task.pid!) ?? '' + data.toString(),
       );
     });
 
     task.stderr.on('data', data => {
       this.stderr.set(
         task.pid!,
-        this.stderr.get(task.pid!) ?? '' + data.toString()
+        this.stderr.get(task.pid!) ?? '' + data.toString(),
       );
     });
 

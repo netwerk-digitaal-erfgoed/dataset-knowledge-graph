@@ -10,7 +10,7 @@ export interface Analyzer {
   readonly name: string;
   execute(
     dataset: Dataset,
-    context?: Context
+    context?: Context,
   ): Promise<Success | Failure | NotSupported>;
   finish(context?: {logger: Logger}): Promise<void>;
 }
@@ -19,7 +19,7 @@ export abstract class BaseAnalyzer implements Analyzer {
   abstract readonly name: string;
   abstract execute(
     dataset: Dataset,
-    context?: Context
+    context?: Context,
   ): Promise<Success | Failure | NotSupported>;
   public async finish() {}
 }
@@ -31,8 +31,8 @@ export class SparqlQueryAnalyzer extends BaseAnalyzer {
     private readonly fetcher: SparqlEndpointFetcher = new SparqlEndpointFetcher(
       {
         timeout: 300_000, // Some SPARQL queries really take this long.
-      }
-    )
+      },
+    ),
   ) {
     super();
   }
@@ -40,12 +40,12 @@ export class SparqlQueryAnalyzer extends BaseAnalyzer {
   public static async fromFile(filename: string) {
     return new SparqlQueryAnalyzer(
       filename,
-      await fromFile('queries/analysis/' + filename)
+      await fromFile('queries/analysis/' + filename),
     );
   }
 
   public async execute(
-    dataset: Dataset
+    dataset: Dataset,
   ): Promise<Success | Failure | NotSupported> {
     const sparqlDistribution = dataset.getSparqlDistribution();
     if (null === sparqlDistribution) {
@@ -61,7 +61,7 @@ export class SparqlQueryAnalyzer extends BaseAnalyzer {
     } catch (e) {
       return new Failure(
         sparqlDistribution.accessUrl!,
-        e instanceof Error ? e.message : undefined
+        e instanceof Error ? e.message : undefined,
       );
     }
 
@@ -74,7 +74,7 @@ export class SparqlQueryAnalyzer extends BaseAnalyzer {
       .replace('?dataset', `<${dataset.iri}>`)
       .replace(
         '#namedGraph#',
-        distribution.namedGraph ? `FROM <${distribution.namedGraph}>` : ''
+        distribution.namedGraph ? `FROM <${distribution.namedGraph}>` : '',
       );
 
     return await this.fetcher.fetchTriples(distribution.accessUrl!, query);

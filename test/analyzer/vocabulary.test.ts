@@ -18,7 +18,7 @@ describe('VocabularyAnalyzer', () => {
   beforeAll(async () => {
     await startLocalSparqlEndpoint(
       port,
-      'analyzer/fixtures/vocabularyAnalysisTarget.trig'
+      'analyzer/fixtures/vocabularyAnalysisTarget.trig',
     );
   }, 60000);
 
@@ -29,12 +29,12 @@ describe('VocabularyAnalyzer', () => {
   describe('execute', () => {
     it('should analyze vocabulary', async () => {
       const analyzer = new VocabularyAnalyzer(
-        await SparqlQueryAnalyzer.fromFile('entity-properties.rq')
+        await SparqlQueryAnalyzer.fromFile('entity-properties.rq'),
       );
 
       const distribution = Distribution.sparql(
         `http://localhost:${port}/sparql`,
-        'http://foo.org/id/graph/foo'
+        'http://foo.org/id/graph/foo',
       );
       const dataset = new Dataset('http://foo.org/id/dataset/foo', [
         distribution,
@@ -50,51 +50,51 @@ describe('VocabularyAnalyzer', () => {
         data.match(
           null,
           factory.namedNode('http://rdfs.org/ns/void#propertyPartition'),
-          null
-        ).size
+          null,
+        ).size,
       ).toBe(4);
 
       assertPartition(
         data,
         factory.namedNode('http://schema.org/name'),
         factory.namedNode('http://rdfs.org/ns/void#entities'),
-        1
+        1,
       );
       assertPartition(
         data,
         factory.namedNode('http://schema.org/name'),
         factory.namedNode('http://rdfs.org/ns/void#distinctObjects'),
-        1
+        1,
       );
       assertPartition(
         data,
         factory.namedNode('http://example.org/foo'),
         factory.namedNode('http://rdfs.org/ns/void#entities'),
-        1
+        1,
       );
       assertPartition(
         data,
         factory.namedNode('http://example.org/foo'),
         factory.namedNode('http://rdfs.org/ns/void#distinctObjects'),
-        1
+        1,
       );
       assertPartition(
         data,
         factory.namedNode('http://example.org/bar'),
         factory.namedNode('http://rdfs.org/ns/void#entities'),
-        1
+        1,
       );
       assertPartition(
         data,
         factory.namedNode('http://example.org/bar'),
         factory.namedNode('http://rdfs.org/ns/void#distinctObjects'),
-        1
+        1,
       );
       assertPartition(
         data,
         factory.namedNode('http://example.org/baz'),
         factory.namedNode('http://rdfs.org/ns/void#entities'),
-        1
+        1,
       );
       // TODO: This test fails due to https://github.com/comunica/comunica/issues/1312
       // assertPartition(
@@ -107,8 +107,8 @@ describe('VocabularyAnalyzer', () => {
         data.match(
           factory.namedNode('http://foo.org/id/dataset/foo'),
           factory.namedNode('http://rdfs.org/ns/void#vocabulary'),
-          factory.namedNode('http://schema.org')
-        ).size
+          factory.namedNode('http://schema.org'),
+        ).size,
       ).toBe(1);
     });
   });
@@ -118,15 +118,15 @@ const assertPartition = (
   data: DatasetCore,
   property: NamedNodeExt,
   partition: NamedNodeExt,
-  entities: Number
+  entities: Number,
 ) => {
   const fooPartition = data.match(
     null,
     factory.namedNode('http://rdfs.org/ns/void#property'),
-    property
+    property,
   );
   expect(fooPartition.size).toBe(1);
   expect(data.match(subject(fooPartition), partition, null).size).toBe(
-    entities
+    entities,
   );
 };

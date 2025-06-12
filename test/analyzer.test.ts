@@ -51,11 +51,11 @@ describe('SparqlQueryAnalyzer', () => {
         WHERE {
           #subjectFilter# ?p ?o .
         }`,
-        fetcher
+        fetcher,
       );
       const distribution = Distribution.sparql(
         `http://localhost:${port}/sparql`,
-        'http://foo.org/id/graph/foo'
+        'http://foo.org/id/graph/foo',
       );
 
       const datasetIri = 'http://foo.org/id/dataset/foo';
@@ -73,7 +73,7 @@ describe('SparqlQueryAnalyzer', () => {
         }`;
       expect(querySpy).toBeCalledWith(
         expect.any(String),
-        expect.stringContaining(expectedQuery)
+        expect.stringContaining(expectedQuery),
       );
     });
 
@@ -88,11 +88,11 @@ describe('SparqlQueryAnalyzer', () => {
         #namedGraph#
         WHERE {
           <${datasetIri}> ?p ?o .
-        }`
+        }`,
       );
       const distribution = Distribution.sparql(
         `http://localhost:${port}/sparql`,
-        'http://foo.org/id/graph/foo'
+        'http://foo.org/id/graph/foo',
       );
       const dataset = new Dataset(datasetIri, [distribution]);
 

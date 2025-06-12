@@ -11,7 +11,7 @@ export const teardownSparqlEndpoint = async () => {
 let servers: SpawndChildProcess[];
 export async function startLocalSparqlEndpoint(
   port: number,
-  fixture: string
+  fixture: string,
 ): Promise<void> {
   servers = await setup({
     command: `npx comunica-sparql-file-http ${__dirname}/${fixture} -p ${port}`,

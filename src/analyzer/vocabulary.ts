@@ -31,7 +31,7 @@ export class VocabularyAnalyzer extends BaseAnalyzer {
 
   async execute(
     dataset: Dataset,
-    context?: Context
+    context?: Context,
   ): Promise<Success | NotSupported | Failure> {
     const result = await this.decorated.execute(dataset, context);
     if (result instanceof NotSupported || result instanceof Failure) {
@@ -41,7 +41,7 @@ export class VocabularyAnalyzer extends BaseAnalyzer {
     for (const quad of result.data) {
       if ('http://rdfs.org/ns/void#property' === quad.predicate.value) {
         const match = [...vocabularyPrefixes].find(([prefix]) =>
-          quad.object.value.startsWith(prefix)
+          quad.object.value.startsWith(prefix),
         );
         if (match) {
           const [, vocabulary] = match;
@@ -49,8 +49,8 @@ export class VocabularyAnalyzer extends BaseAnalyzer {
             DataFactory.quad(
               namedNode(dataset.iri),
               namedNode('http://rdfs.org/ns/void#vocabulary'),
-              namedNode(vocabulary)
-            )
+              namedNode(vocabulary),
+            ),
           );
         }
       }

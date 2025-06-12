@@ -10,7 +10,7 @@ const {quad, namedNode, blankNode, literal} = DataFactory;
 class NetworkError {
   constructor(
     public readonly url: string,
-    public readonly message: string
+    public readonly message: string,
   ) {}
 }
 
@@ -22,7 +22,7 @@ abstract class RdfResult {
 
   constructor(
     public readonly url: string,
-    response: Response
+    response: Response,
   ) {
     this.statusCode = response.status;
     this.statusText = response.statusText;
@@ -62,7 +62,7 @@ class DataDumpProbeResult extends RdfResult {
 }
 
 async function probe(
-  distribution: Distribution
+  distribution: Distribution,
 ): Promise<SparqlProbeResult | DataDumpProbeResult | NetworkError> {
   try {
     if (distribution.isSparql()) {
@@ -89,13 +89,13 @@ async function probe(
   } catch (e) {
     return new NetworkError(
       distribution.accessUrl!,
-      (e as Error).cause as string
+      (e as Error).cause as string,
     );
   }
 }
 
 async function probeDistribution(
-  distribution: Distribution
+  distribution: Distribution,
 ): Promise<Response> {
   const response = await fetch(distribution.accessUrl!, {
     signal: AbortSignal.timeout(5000),
@@ -124,10 +124,12 @@ export class DistributionAnalyzer implements Analyzer {
 
   async execute(
     dataset: Dataset,
-    context?: Context
+    context?: Context,
   ): Promise<Success | NotSupported | Failure> {
     const results = await Promise.all(
-      dataset.distributions.map(async distribution => await probe(distribution))
+      dataset.distributions.map(
+        async distribution => await probe(distribution),
+      ),
     );
 
     const store = new Store();
@@ -137,12 +139,12 @@ export class DistributionAnalyzer implements Analyzer {
         quad(
           action,
           namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-          namedNode('https://schema.org/Action')
+          namedNode('https://schema.org/Action'),
         ),
         quad(
           action,
           namedNode('https://schema.org/target'),
-          namedNode(result.url)
+          namedNode(result.url),
         ),
       ]);
 
@@ -151,8 +153,8 @@ export class DistributionAnalyzer implements Analyzer {
           quad(
             action,
             namedNode('https://schema.org/error'),
-            literal(result.message) // TODO: find a URI for this, for example TimeoutError.
-          )
+            literal(result.message), // TODO: find a URI for this, for example TimeoutError.
+          ),
         );
       } else if (result.isSuccess()) {
         const distributionUrl = namedNode(result.url);
@@ -167,9 +169,9 @@ export class DistributionAnalyzer implements Analyzer {
               namedNode('https://schema.org/dateModified'),
               literal(
                 result.lastModified.toISOString(),
-                namedNode('http://www.w3.org/2001/XMLSchema#dateTime')
-              )
-            )
+                namedNode('http://www.w3.org/2001/XMLSchema#dateTime'),
+              ),
+            ),
           );
         }
 
@@ -178,7 +180,7 @@ export class DistributionAnalyzer implements Analyzer {
             quad(
               namedNode(dataset.iri.toString()),
               namedNode('http://rdfs.org/ns/void#sparqlEndpoint'),
-              distributionUrl
+              distributionUrl,
             ),
           ]);
         } else {
@@ -186,7 +188,7 @@ export class DistributionAnalyzer implements Analyzer {
             quad(
               namedNode(dataset.iri.toString()),
               namedNode('http://rdfs.org/ns/void#dataDump'),
-              distributionUrl
+              distributionUrl,
             ),
           ]);
 
@@ -195,8 +197,8 @@ export class DistributionAnalyzer implements Analyzer {
               quad(
                 distributionUrl,
                 namedNode('https://schema.org/contentSize'),
-                literal(result.contentSize)
-              )
+                literal(result.contentSize),
+              ),
             );
           }
         }
@@ -208,9 +210,9 @@ export class DistributionAnalyzer implements Analyzer {
             namedNode(
               `https://www.w3.org/2011/http-statusCodes#${result.statusText.replace(
                 / /g,
-                ''
-              )}`
-            )
+                '',
+              )}`,
+            ),
           ),
         ]);
       }
@@ -224,7 +226,7 @@ export class DistributionAnalyzer implements Analyzer {
         // Add imported SPARQL distribution to dataset so next analyzers can use it.
         const distribution = Distribution.sparql(
           importResult.endpoint,
-          importResult.identifier
+          importResult.identifier,
         );
         dataset.distributions.push(distribution);
       } else if (importResult instanceof ImportFailed) {
@@ -232,14 +234,14 @@ export class DistributionAnalyzer implements Analyzer {
           ...store.match(
             null,
             namedNode('https://schema.org/target'),
-            namedNode(importResult.downloadUrl)
+            namedNode(importResult.downloadUrl),
           ),
         ][0];
         store.addQuads([
           quad(
             actionBlankNode.subject,
             namedNode('https://schema.org/error'),
-            literal(importResult.error)
+            literal(importResult.error),
           ),
         ]);
         error = importResult.error;
