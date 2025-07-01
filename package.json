@@ -48,7 +48,7 @@
     "p-retry": "^6.2.1",
     "pino": "^9.5.0",
     "pretty-ms": "^9.2.0",
-    "rdf-data-factory": "^1.1.2",
+    "rdf-data-factory": "^2.0.2",
     "rdf-dereference": "^4.0.0",
     "rdf-ext": "^2.5.0"
   },
