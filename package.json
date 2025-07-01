@@ -53,7 +53,7 @@
     "rdf-ext": "^2.5.0"
   },
   "devDependencies": {
-    "@jest/globals": "^29.7.0",
+    "@jest/globals": "^30.0.3",
     "@rdfjs/types": "^2.0.1",
     "@swc/jest": "^0.2.38",
     "@types/jest": "^29.5.14",
