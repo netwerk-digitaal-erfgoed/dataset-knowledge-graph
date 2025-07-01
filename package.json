@@ -68,7 +68,7 @@
     "jest-dev-server": "^10.1.4",
     "nock": "^14.0.5",
     "spawnd": "^11.0.0",
-    "testcontainers": "^11.0.0",
+    "testcontainers": "^11.0.3",
     "tsc-watch": "^6.2.1",
     "typescript": "^5.8.3"
   }
