@@ -13,7 +13,8 @@ CONSTRUCT {
         dct:modified ?distribution_modified .
 } WHERE {
     ?dataset a dcat:Dataset ;
-        dcat:distribution ?distribution .
+        dcat:distribution ?distribution ;
+        schema:subjectOf ?registrationUrl .
 
     ?distribution dcat:accessURL ?distribution_url ;
         dcat:mediaType ?distribution_mediaType .
@@ -34,7 +35,6 @@ CONSTRUCT {
 
     # Exclude dataset descriptions that are no longer valid.
     FILTER(NOT EXISTS {
-        ?dataset schema:subjectOf ?registrationUrl .
         ?registrationUrl schema:validUntil [] .
     })
 
