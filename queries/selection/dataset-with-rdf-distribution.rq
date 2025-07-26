@@ -20,10 +20,8 @@ CONSTRUCT {
 
     OPTIONAL { ?distribution dcat:byteSize ?distribution_size . }
     OPTIONAL { ?distribution dct:modified ?distribution_modified . }
-    FILTER(
-        ?distribution_mediaType = "application/sparql-query"
-        || ?distribution_mediaType = "application/sparql-results+json"
-        || ?distribution_mediaType = "application/sparql-results+xml"
+    OPTIONAL { ?distribution dct:conformsTo ?conformsTo. }
+    FILTER(?conformsTo = <https://www.w3.org/TR/sparql11-protocol/>
         || ?distribution_mediaType = "application/ld+json"
         || ?distribution_mediaType = "application/ld+json+gzip"
         || ?distribution_mediaType = "application/n-quads"
