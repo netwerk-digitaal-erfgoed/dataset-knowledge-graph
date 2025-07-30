@@ -25,7 +25,7 @@ describe('QleverImporter', () => {
     it('imports data dump', async () => {
       const importer = new QleverImporter({
         taskRunner: new DockerTaskRunner({
-          image: 'adfreiburg/qlever',
+          image: 'adfreiburg/qlever:commit-45b05e1',
           containerName: 'dkg-qlever-test',
           mountDir: path.resolve('imports'),
           port: 7001,
