@@ -3,11 +3,12 @@ PREFIX nde: <https://www.netwerkdigitaalerfgoed.nl/def#>
 
 CONSTRUCT {
     ?dataset a void:Dataset ;
-        nde:distinctObjectsURI ?total .
+        nde:objectsURI ?objectsUri ;
+        nde:distinctObjectsURI ?distinctObjectsUri .
 }
 #namedGraph#
 WHERE {
-    SELECT (COUNT(?o) as ?total) {
+    SELECT (COUNT(?o) AS ?objectsUri) (COUNT(DISTINCT ?o) AS ?distinctObjectsUri) {
         #subjectFilter#
         ?s ?p ?o .
         FILTER(ISIRI(?o))

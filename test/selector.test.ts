@@ -1,9 +1,9 @@
-import {RdfFile, SparqlEndpoint, SparqlQuerySelector} from '../src/selector';
+import {RdfFile, SparqlEndpoint, SparqlQuerySelector} from '../src/selector.js';
 import {QueryEngine} from '@comunica/query-sparql-file';
 import {
   startLocalSparqlEndpoint,
   teardownSparqlEndpoint,
-} from './localSparqlEndpoint';
+} from './localSparqlEndpoint.js';
 import {readFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 
