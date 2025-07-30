@@ -1,5 +1,6 @@
 @prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix dct: <http://purl.org/dc/terms/> .
+PREFIX schema: <http://schema.org/>
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 <http://foo.org/id/dataset/foo> a dcat:Dataset ;
@@ -7,10 +8,12 @@
     a dcat:Distribution ;
     dcat:accessURL <http://foo.org/sparql> ;
     dcat:mediaType "application/sparql-query" ;
+    dct:conformsTo <https://www.w3.org/TR/sparql11-protocol/> ;
     dct:modified "2022-12-03T10:26"^^xsd:dateTime ;
   ] , [
     a dcat:Distribution ;
     dcat:accessURL <http://foo.org/files/foo.ttl.gz> ;
     dcat:mediaType "text/turtle" ;
     dcat:byteSize "87654321" ;
-  ] .
+  ] ;
+  schema:subjectOf <http://foo.org/id/dataset/foo> .
