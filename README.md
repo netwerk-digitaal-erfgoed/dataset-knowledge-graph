@@ -64,7 +64,9 @@ The overall size of the dataset: the number of unique subjects, predicates and l
     void:triples 6119677;
     void:distinctSubjects 53434; 
     void:properties 943;
+    nde:objectsLiteral 3911;
     nde:distinctObjectsLiteral 2125;
+    nde:objectsURI 32323;
     nde:distinctObjectsURI 32323.
 ```
 
