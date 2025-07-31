@@ -1,11 +1,12 @@
 @prefix ex: <http://example.org/> .
 @prefix schema: <http://schema.org/> .
 @prefix aat: <http://vocab.getty.edu/aat/> .
+@prefix gn: <https://sws.geonames.org/> .
 
 <http://foo.org/id/graph/foo> {
   <http://foo.org/id/object/foo>
     schema:name "foo" ;
     ex:foo ex:Foo ;
-    ex:art aat:300015050 ;
+    ex:art aat:300015050 , gn:123 ;
     ex:baz "baz1", "baz2", "baz3" .
 }

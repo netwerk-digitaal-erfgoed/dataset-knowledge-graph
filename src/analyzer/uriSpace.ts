@@ -29,8 +29,7 @@ export class UriSpaceAnalyzer extends BaseAnalyzer {
     for (const quad of result.data) {
       if ('http://rdfs.org/ns/void#objectsTarget' === quad.predicate.value) {
         try {
-          const iri = new IRI(quad.object.value);
-          uriSpace = catalog.getDatasetByTermIri(iri)?.iri;
+          uriSpace = catalog.getDatasetByTermIri(quad.object.value)?.iri;
         } catch (e) {
           // Ignore invalid HTTP IRI.
         }
