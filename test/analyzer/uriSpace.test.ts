@@ -40,14 +40,14 @@ describe('UriSpaceAnalyzer', () => {
       expect(result).toBeInstanceOf(Success);
 
       const data = (result as Success).data;
-      expect(data.size).toBe(4);
+      expect(data.size).toBe(8);
 
       const linksets = data.match(
         null,
         factory.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
         factory.namedNode('http://rdfs.org/ns/void#Linkset'),
       );
-      expect(linksets.size).toBe(1);
+      expect(linksets.size).toBe(2);
       const linkset = [...linksets][0];
       expect(
         data.match(
@@ -71,6 +71,15 @@ describe('UriSpaceAnalyzer', () => {
             '1',
             factory.namedNode('http://www.w3.org/2001/XMLSchema#integer'),
           ),
+        ).size,
+      ).toBe(1);
+
+      const linkset2 = [...linksets][1];
+      expect(
+        data.match(
+          linkset2.subject,
+          factory.namedNode('http://rdfs.org/ns/void#objectsTarget'),
+          factory.namedNode('https://www.geonames.org'),
         ).size,
       ).toBe(1);
     });
