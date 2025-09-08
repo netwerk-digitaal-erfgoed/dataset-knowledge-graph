@@ -24,7 +24,7 @@ await new Pipeline({
         )
       ).toString(),
       endpoint: new SparqlEndpoint(
-        'https://triplestore.netwerkdigitaalerfgoed.nl/repositories/registry',
+        'https://datasetregister.netwerkdigitaalerfgoed.nl/sparql',
       ),
     },
     queryEngine,

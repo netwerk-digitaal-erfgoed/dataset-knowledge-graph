@@ -19,7 +19,7 @@ CONSTRUCT {
     ?distribution dcat:accessURL ?distribution_url ;
         dcat:mediaType ?distribution_mediaType .
 
-    OPTIONAL { ?distribution dcat:byteSize ?distribution_size . }
+#    OPTIONAL { ?distribution dcat:byteSize ?distribution_size . }
     OPTIONAL { ?distribution dct:modified ?distribution_modified . }
     OPTIONAL { ?distribution dct:conformsTo ?conformsTo. }
     FILTER(?conformsTo = <https://www.w3.org/TR/sparql11-protocol/>
