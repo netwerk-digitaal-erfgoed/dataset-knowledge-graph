@@ -46,7 +46,7 @@ export class SparqlQuerySelector implements Selector {
             },
       ],
     });
-    const datasets: Set<Dataset> = new Set();
+    const datasets: Map<string, Dataset> = new Map();
 
     let dataset: Dataset;
     let distribution: Distribution;
@@ -57,20 +57,25 @@ export class SparqlQuerySelector implements Selector {
             quad.predicate.value &&
           'http://www.w3.org/ns/dcat#Dataset' === quad.object.value
         ) {
-          const subjectFilter = [
-            ...supplementalStore.match(
-              quad.subject,
-              DataFactory.namedNode(
-                'https://data.netwerkdigitaalerfgoed.nl/def/subjectFilter',
+          const iri = quad.subject.value;
+          if (!datasets.has(iri)) {
+            const subjectFilter = [
+              ...supplementalStore.match(
+                quad.subject,
+                DataFactory.namedNode(
+                  'https://data.netwerkdigitaalerfgoed.nl/def/subjectFilter',
+                ),
               ),
-            ),
-          ][0]?.object.value;
-          dataset = new Dataset(
-            quad.subject.value,
-            [],
-            subjectFilter ? subjectFilter + '.' : undefined,
-          );
-          datasets.add(dataset);
+            ][0]?.object.value;
+            dataset = new Dataset(
+              iri,
+              [],
+              subjectFilter ? subjectFilter + '.' : undefined,
+            );
+            datasets.set(iri, dataset);
+          } else {
+            dataset = datasets.get(iri)!;
+          }
         }
 
         if (
@@ -99,7 +104,7 @@ export class SparqlQuerySelector implements Selector {
         }
       });
       quadStream.on('end', () => {
-        resolve(datasets);
+        resolve(new Set(datasets.values()));
       });
     });
   }

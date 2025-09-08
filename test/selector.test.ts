@@ -32,11 +32,9 @@ describe('SparqlQuerySelector', () => {
 
       const datasets = await selector.select();
 
-      // TODO: should be 1 dataset with 2 distributions
-      // see: https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/64
-      expect(datasets.size).toBe(2);
+      expect(datasets.size).toBe(1);
       for (const dataset of datasets) {
-        expect(dataset.distributions).toHaveLength(1);
+        expect(dataset.distributions).toHaveLength(2);
       }
     });
 
