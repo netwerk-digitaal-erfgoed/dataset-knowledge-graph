@@ -52,6 +52,9 @@ CONSTRUCT {
         || ?datasetLastRead >= ?registrationUrlLastRead
     )
 
+    # Exclude incremental updates download for dc4eu to get the snapshot download instead.
+    FILTER(!CONTAINS(STR(?distribution_url), "/updates/"))
+
     # Skip unreliable endpoints.
     FILTER(!STRSTARTS(STR(?distribution_url), "https://cat.apis.beeldengeluid.nl/sparql"))
 } ORDER BY ?dataset ?distribution
