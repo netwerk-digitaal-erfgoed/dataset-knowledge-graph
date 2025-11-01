@@ -47,7 +47,7 @@
     "ora": "^8.2.0",
     "p-retry": "^6.2.1",
     "pino": "^9.5.0",
-    "pretty-ms": "^9.2.0",
+    "pretty-ms": "^9.3.0",
     "rdf-data-factory": "^1.1.2",
     "rdf-dereference": "^4.0.0",
     "rdf-ext": "^2.5.0"
