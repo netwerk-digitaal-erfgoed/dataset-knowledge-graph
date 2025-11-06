@@ -78,11 +78,8 @@ export class SparqlQuerySelector implements Selector {
           }
         }
 
-        if (
-          'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' ===
-            quad.predicate.value &&
-          'http://www.w3.org/ns/dcat#Distribution' === quad.object.value
-        ) {
+        if ('http://www.w3.org/ns/dcat#distribution' === quad.predicate.value) {
+          dataset = datasets.get(quad.subject.value)!;
           distribution = new Distribution();
           dataset.distributions.push(distribution);
         }
