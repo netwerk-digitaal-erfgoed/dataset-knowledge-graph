@@ -67,6 +67,11 @@ describe('Dataset', () => {
 
       const downloadDistributions = dataset.getDownloadDistributions();
       expect(downloadDistributions.length).toBe(3);
+
+      // Distributions must be ordered: NT first.
+      expect(downloadDistributions[0].accessUrl).toBe('foo.nt.gz');
+      expect(downloadDistributions[1].mimeType).toBe('foo+gzip');
+      expect(downloadDistributions[2].mimeType).toBe('text/turtle');
     });
   });
 });

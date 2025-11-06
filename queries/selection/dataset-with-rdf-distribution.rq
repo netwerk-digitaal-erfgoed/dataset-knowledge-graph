@@ -29,6 +29,7 @@ CONSTRUCT {
         || ?distribution_mediaType = "application/n-quads+gzip"
         || ?distribution_mediaType = "application/n-triples"
         || ?distribution_mediaType = "application/n-triples+gzip"
+        || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/n-triples>
         || ?distribution_mediaType = "text/turtle"
         || ?distribution_mediaType = "text/turtle+gzip"
     )

@@ -17,25 +17,15 @@ export class Dataset {
   }
 
   public getDownloadDistributions(): Distribution[] {
-    const validDistributions = this.distributions.filter(
-      distribution => distribution.isValid,
-    );
-
-    return [
-      ...validDistributions.filter(distribution =>
-        distribution.mimeType?.endsWith('+gzip'),
-      ),
-      ...validDistributions.filter(distribution =>
-        distribution.accessUrl?.endsWith('.nt.gz'),
-      ),
-      ...validDistributions.filter(
-        distribution =>
-          undefined !== distribution.mimeType &&
-          ['application/n-triples', 'text/turtle'].includes(
-            distribution.mimeType,
-          ),
-      ),
-    ];
+    return this.distributions
+      .filter(d => d.isValid)
+      .map(distribution => ({
+        distribution,
+        priority: getDownloadDistributionPriority(distribution),
+      }))
+      .filter(item => item.priority !== null)
+      .sort((a, b) => a.priority! - b.priority!)
+      .map(item => item.distribution);
   }
 }
 
@@ -64,4 +54,32 @@ export class Distribution {
 
     return distribution;
   }
+}
+
+/**
+ * Prefer streaming formats (NT) over non-streaming ones (Turtle) because the former can be processed in parallel by indexers.
+ */
+function getDownloadDistributionPriority(distribution: Distribution) {
+  if (
+    distribution.mimeType === 'application/n-triples' ||
+    distribution.mimeType === 'application/n-triples+gzip' ||
+    distribution.mimeType ===
+      'https://www.iana.org/assignments/media-types/application/n-triples'
+  ) {
+    return 1;
+  }
+
+  if (distribution.accessUrl?.endsWith('.nt.gz')) {
+    return 2;
+  }
+
+  if (distribution.mimeType?.endsWith('+gzip')) {
+    return 3;
+  }
+
+  if (distribution.mimeType === 'text/turtle') {
+    return 4;
+  }
+
+  return null;
 }
