@@ -40,7 +40,7 @@ describe('UriSpaceAnalyzer', () => {
       expect(result).toBeInstanceOf(Success);
 
       const data = (result as Success).data;
-      expect(data.size).toBe(8);
+      expect(data.size).toBe(12);
 
       const linksets = data.match(
         null,
@@ -73,6 +73,12 @@ describe('UriSpaceAnalyzer', () => {
           ),
         ).size,
       ).toBe(1);
+      expect(
+        data.match(
+          factory.namedNode('http://vocab.getty.edu/aat'),
+          factory.namedNode('http://purl.org/dc/terms/title'),
+        ).size,
+      ).toBe(2);
 
       const linkset2 = [...linksets][1];
       expect(

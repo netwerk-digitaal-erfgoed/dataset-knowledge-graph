@@ -1,9 +1,13 @@
 import {Analyzer, BaseAnalyzer} from '../analyzer.js';
 import {getCatalog} from '@netwerk-digitaal-erfgoed/network-of-terms-catalog';
-import {IRI} from '@netwerk-digitaal-erfgoed/network-of-terms-query';
+import {
+  Dataset as TerminologySource,
+  IRI,
+} from '@netwerk-digitaal-erfgoed/network-of-terms-query';
 import {Dataset} from '../dataset.js';
 import {DataFactory, Store} from 'n3';
 import {Context, Failure, NotSupported, Success} from '../pipeline.js';
+import type {Quad} from '@rdfjs/types';
 
 const {quad, namedNode, blankNode, literal} = DataFactory;
 
@@ -11,6 +15,8 @@ const catalog = await getCatalog();
 
 export class UriSpaceAnalyzer extends BaseAnalyzer {
   public readonly name = 'uri-space';
+  private terminologyMetadata = new Store(); // Store for default graph metadata
+
   constructor(private readonly decorated: Analyzer) {
     super();
   }
@@ -67,7 +73,7 @@ export class UriSpaceAnalyzer extends BaseAnalyzer {
           quad(
             linkset,
             namedNode('http://rdfs.org/ns/void#objectsTarget'),
-            namedNode(k.toString()),
+            namedNode(k),
           ),
         );
         store.add(
@@ -77,8 +83,23 @@ export class UriSpaceAnalyzer extends BaseAnalyzer {
             literal(v),
           ),
         );
+        // Collect multilingual names for default graph
+        const terminologySource = catalog.getDatasetByIri(k);
+        if (terminologySource) {
+          store.addQuads(createNameQuads(terminologySource));
+        }
         return store;
       }, new Store()),
     );
   }
+}
+
+function createNameQuads(terminologySource: TerminologySource): Quad[] {
+  return Object.entries(terminologySource.name).map(([lang, name]) =>
+    quad(
+      namedNode(terminologySource.iri),
+      namedNode('http://purl.org/dc/terms/title'),
+      literal(name, lang),
+    ),
+  );
 }
