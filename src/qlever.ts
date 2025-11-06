@@ -108,8 +108,10 @@ export class QleverImporter implements Importer {
 
     // TODO: write index to named volume instead of bind mount for better performance.
 
+    // Escape single quotes for shell safety - use single quotes to avoid ! expansion.
+    const escapedFilename = basename(file).replace(/'/g, "'\\''");
     const indexTask = await this.options.taskRunner.run(
-      `(zcat '${basename(file)}' 2>/dev/null || cat '${basename(file)}') | IndexBuilderMain -i ${this.options.indexName} -s ${settingsFile} -F ${format} -f -`,
+      `(zcat '${escapedFilename}' 2>/dev/null || cat '${escapedFilename}') | IndexBuilderMain -i ${this.options.indexName} -s ${settingsFile} -F ${format} -f -`,
     );
     await this.options.taskRunner.wait(indexTask);
 
