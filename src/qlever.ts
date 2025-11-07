@@ -102,7 +102,7 @@ export class QleverImporter implements Importer {
       `${workingDir}/${settingsFile}`,
       JSON.stringify({
         'ascii-prefixes-only': true,
-        'num-triples-per-batch': 100000,
+        'num-triples-per-batch': 10000,
       }),
     );
 
