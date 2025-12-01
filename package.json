@@ -58,7 +58,7 @@
     "@swc/jest": "^0.2.38",
     "@types/jest": "^29.5.14",
     "@types/n3": "^1.16.4",
-    "@types/node": "^22.13.14",
+    "@types/node": "^24.10.1",
     "@types/rdf-ext": "^2.2.5",
     "form-data": "^4.0.5",
     "gts": "^6.0.2",
