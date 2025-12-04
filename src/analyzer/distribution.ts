@@ -100,7 +100,10 @@ async function probeDistribution(
   const response = await fetch(distribution.accessUrl!, {
     signal: AbortSignal.timeout(5000),
     method: 'HEAD',
-    headers: {Accept: distribution.mimeType!},
+    headers: {
+      Accept: distribution.mimeType!,
+      'Accept-Encoding': 'identity', // Return uncompressed responses.
+    },
   });
 
   const contentLength = response.headers.get('Content-Length');
