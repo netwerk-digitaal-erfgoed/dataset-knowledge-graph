@@ -97,13 +97,17 @@ async function probe(
 async function probeDistribution(
   distribution: Distribution,
 ): Promise<Response> {
-  const response = await fetch(distribution.accessUrl!, {
+  const requestOptions = {
     signal: AbortSignal.timeout(5000),
-    method: 'HEAD',
     headers: {
       Accept: distribution.mimeType!,
       'Accept-Encoding': 'identity', // Return uncompressed responses.
     },
+  };
+
+  const response = await fetch(distribution.accessUrl!, {
+    method: 'HEAD',
+    ...requestOptions,
   });
 
   const contentLength = response.headers.get('Content-Length');
@@ -115,9 +119,8 @@ async function probeDistribution(
   // which *should* be the size of the response body when issuing a GET, not that of
   // the response to a HEAD request, which is intentionally 0.
   return await fetch(distribution.accessUrl!, {
-    signal: AbortSignal.timeout(5000),
     method: 'GET',
-    headers: {Accept: distribution.mimeType!},
+    ...requestOptions,
   });
 }
 

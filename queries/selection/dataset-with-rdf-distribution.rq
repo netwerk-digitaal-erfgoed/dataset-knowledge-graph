@@ -17,7 +17,10 @@ CONSTRUCT {
         schema:subjectOf ?registrationUrl .
 
     ?distribution dcat:accessURL ?distribution_url ;
-        dcat:mediaType ?distribution_mediaType .
+        dcat:mediaType ?distribution_mediaType_raw .
+
+    # Remove DCAT AP 3.0-compliant IANA URI prefix.
+    BIND(REPLACE(STR(?distribution_mediaType_raw), "https://www.iana.org/assignments/media-types/", "") AS ?distribution_mediaType)
 
 #    OPTIONAL { ?distribution dcat:byteSize ?distribution_size . }
     OPTIONAL { ?distribution dct:modified ?distribution_modified . }
@@ -29,7 +32,6 @@ CONSTRUCT {
         || ?distribution_mediaType = "application/n-quads+gzip"
         || ?distribution_mediaType = "application/n-triples"
         || ?distribution_mediaType = "application/n-triples+gzip"
-        || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/n-triples>
         || ?distribution_mediaType = "text/turtle"
         || ?distribution_mediaType = "text/turtle+gzip"
     )
