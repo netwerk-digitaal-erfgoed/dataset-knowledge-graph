@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish:
-    uses: netwerk-digitaal-erfgoed/workflows/.github/workflows/publish.yml@main
+    uses: netwerk-digitaal-erfgoed/workflows/.github/workflows/deploy.yml@main
     secrets: inherit
 
   deploy:
