@@ -40,6 +40,7 @@ await new Pipeline({
         }),
       }),
     ),
+    await SparqlQueryAnalyzer.fromFile('subject-uri-space.rq'),
     await SparqlQueryAnalyzer.fromFile('class-partition.rq'),
     await SparqlQueryAnalyzer.fromFile('object-literals.rq'),
     await SparqlQueryAnalyzer.fromFile('object-uris.rq'),
