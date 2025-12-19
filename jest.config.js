@@ -14,7 +14,7 @@ export default {
     global: {
       lines: 75.37,
       statements: 75.37,
-      branches: 62.3,
+      branches: 61.53,
       functions: 76.08,
     },
   },

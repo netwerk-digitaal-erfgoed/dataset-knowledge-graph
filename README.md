@@ -161,6 +161,22 @@ modelled as `void:Linkset`s:
 Uses a list of fixed URI prefixes to match against, from the Network of Terms and in addition a custom list in the
 pipeline itself.
 
+### Subject URI spaces
+
+The most common URI namespaces used for subject resources in the dataset:
+
+```ttl
+<https://example.org/dataset> a void:Dataset;
+    void:subset [
+        void:uriSpace "https://n2t.net/ark:/70115/";
+        void:entities 312000;
+    ],
+    [
+        void:uriSpace "https://data.example.org/subjects/";
+        void:entities 53434;
+    ].
+```
+
 ### Vocabularies
 
 The vocabularies that the dataset’s predicates refer to:
