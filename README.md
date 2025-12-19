@@ -158,7 +158,7 @@ modelled as `void:Linkset`s:
     void:triples 9402.
 ```
 
-Uses a list of fixed URI prefixes to match against, from the Network of Terms and in addition a custom list in the
+Uses a list of fixed URI prefixes to match against from the Network of Terms and in addition a custom list in the
 pipeline itself.
 
 ### Vocabularies
@@ -232,6 +232,32 @@ If a distribution is invalid, a `schema:error` triple will indicate the HTTP sta
 <http://data.bibliotheken.nl/id/dataset/rise-alba> a void:Dataset;
     void:exampleResource <http://data.bibliotheken.nl/doc/alba/p418213178>, 
         <http://data.bibliotheken.nl/doc/alba/p416673600>.
+```
+
+### Provenance
+
+Provenance about the generation of the summaries is provided in [PROV-O](https://www.w3.org/TR/prov-o/),
+with a prov:Activity for each analysis:
+
+```ttl
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix void: <http://rdfs.org/ns/void#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://example.org/dataset> a void:Dataset, prov:Entity;
+	    prov:wasGeneratedBy _:b1, _:b2, _:bn.
+	    
+_:b1 a prov:Activity;
+  prov:startedAtTime "2025-12-19T08:37:27.617Z"^^xsd:dateTime;
+  prov:endedAtTime "2025-12-19T08:37:27.680Z"^^xsd:dateTime. 	    
+
+_:b1 a prov:Activity;
+  prov:startedAtTime "2025-12-19T08:37:27.617Z"^^xsd:dateTime;
+  prov:endedAtTime "2025-12-19T08:37:27.680Z"^^xsd:dateTime. 	    
+
+_:bn a prov:Activity;
+  prov:startedAtTime "2025-12-19T08:37:27.617Z"^^xsd:dateTime;
+  prov:endedAtTime "2025-12-19T08:37:27.680Z"^^xsd:dateTime. 	    
 ```
 
 ## Run the pipeline
