@@ -142,6 +142,28 @@ Nest a `void:propertyPartition` in `void:classPartition`:
     ].
 ```
 
+### Property domain and range
+
+The domain (subject class) and range (object class) of properties, showing how classes are connected:
+
+```ttl
+<https://example.org/dataset> a void:Dataset;
+    void:subset <#property-domain-range-a1b2c3...> .
+
+<#property-domain-range-a1b2c3...> a void:Linkset ;
+    void:linkPredicate schema:author ;
+    void:subjectsTarget [
+        void:class schema:Book ;
+        void:entities 1200 ;
+    ] ;
+    void:objectsTarget [
+        void:class schema:Person ;
+        void:entities 450 ;
+    ] .
+```
+
+This shows that 1200 `schema:Book` resources use `schema:author` to link to 450 `schema:Person` resources.
+
 ### Outgoing links to terminology sources
 
 Outgoing links to terminology sources in the [Network of Terms](https://termennetwerk.netwerkdigitaalerfgoed.nl),

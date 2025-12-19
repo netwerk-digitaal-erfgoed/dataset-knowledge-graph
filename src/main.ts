@@ -33,7 +33,7 @@ await new Pipeline({
     new DistributionAnalyzer(
       new QleverImporter({
         taskRunner: createTaskRunner(config.QLEVER_ENV as 'docker' | 'native', {
-          image: 'adfreiburg/qlever',
+          image: 'adfreiburg/qlever:commit-dbce463',
           containerName: 'dkg-qlever',
           mountDir: resolve('imports'),
           port: config.QLEVER_PORT as number,
@@ -45,6 +45,7 @@ await new Pipeline({
     await SparqlQueryAnalyzer.fromFile('object-literals.rq'),
     await SparqlQueryAnalyzer.fromFile('object-uris.rq'),
     await SparqlQueryAnalyzer.fromFile('properties.rq'),
+    await SparqlQueryAnalyzer.fromFile('properties-domains-ranges.rq'),
     await SparqlQueryAnalyzer.fromFile('subjects.rq'),
     await SparqlQueryAnalyzer.fromFile('triples.rq'),
     await SparqlQueryAnalyzer.fromFile('class-properties.rq'),

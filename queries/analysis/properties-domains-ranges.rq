@@ -1,0 +1,31 @@
+PREFIX void: <http://rdfs.org/ns/void#>
+
+CONSTRUCT {
+    ?dataset void:subset ?linkset .
+    ?linkset a void:Linkset ;
+        void:linkPredicate ?p ;
+        void:subjectsTarget [
+            void:class ?subjectType ;
+            void:entities ?subjects ;
+        ] ;
+        void:objectsTarget [
+            void:class ?objectType ;
+            void:entities ?objects ;
+        ] .
+}
+#namedGraph#
+WHERE {
+    {
+        SELECT ?subjectType ?p ?objectType (COUNT(DISTINCT ?s) AS ?subjects) (COUNT(DISTINCT ?o) AS ?objects) {
+            #subjectFilter#
+            ?s ?p ?o .
+            ?s a ?subjectType .
+            ?o a ?objectType .
+        }
+        GROUP BY ?subjectType ?p ?objectType
+        ORDER BY DESC(?subjects)
+        LIMIT 1000
+    }
+    FILTER(?subjects > 1)
+    BIND(URI(CONCAT("#property-domain-range-", MD5(CONCAT(STR(?subjectType), STR(?p), STR(?objectType))))) AS ?linkset)
+}
