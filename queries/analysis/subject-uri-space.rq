@@ -9,10 +9,15 @@ CONSTRUCT {
 #namedGraph#
 WHERE {
     {
-        SELECT ?uriSpace (COUNT(DISTINCT ?s) AS ?count) {
-            #subjectFilter#
-            ?s ?p ?o .
-            FILTER(ISIRI(?s))
+        # Pre-group distinct subjects before computing namespace to avoid regex on every triple.
+        SELECT ?uriSpace (COUNT(*) AS ?count) {
+            {
+                SELECT DISTINCT ?s {
+                    #subjectFilter#
+                    ?s ?p ?o .
+                    FILTER(ISIRI(?s))
+                }
+            }
             # Extract namespace by removing the local name (everything after the last / or #)
             BIND(REPLACE(STR(?s), "[^/#]*$", "") AS ?uriSpace)
         }
