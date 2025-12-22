@@ -4,22 +4,31 @@ CONSTRUCT {
     ?dataset a void:Dataset ;
         void:classPartition ?classPartition .
     ?classPartition void:class ?type ;
-        void:propertyPartition [
-            void:property ?p ;
-            void:entities ?subjects ;
-            void:distinctObjects ?objects ;
-        ] .
+        void:propertyPartition ?propertyPartition .
+    ?propertyPartition void:property ?p ;
+        void:entities ?subjects ;
+        void:distinctObjects ?objects .
 }
 #namedGraph#
 WHERE {
+    # Split subject and object counts into separate subqueries to avoid memory issues
+    # from the Cartesian product of types × properties × objects.
     {
-        SELECT ?type ?p (COUNT(DISTINCT ?s) AS ?subjects) (COUNT(DISTINCT ?o) AS ?objects) {
+        SELECT ?type ?p (COUNT(DISTINCT ?s) AS ?subjects) {
             #subjectFilter#
-            ?s a ?type ;
-                ?p ?o .
+            ?s a ?type ; ?p [] .
         }
         GROUP BY ?type ?p
     }
-    BIND(URI(CONCAT("#class-", MD5(STR(?type)))) as ?classPartition)
+    OPTIONAL {
+        SELECT ?type ?p (COUNT(DISTINCT ?o) AS ?objects) {
+            #subjectFilter#
+            ?s a ?type ; ?p ?o .
+            FILTER(ISIRI(?o))
+        }
+        GROUP BY ?type ?p
+    }
+    BIND(URI(CONCAT("#class-", MD5(STR(?type)))) AS ?classPartition)
+    BIND(URI(CONCAT("#class-property-", MD5(CONCAT(STR(?type), STR(?p))))) AS ?propertyPartition)
 }
 LIMIT 100000
