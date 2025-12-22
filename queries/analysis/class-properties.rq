@@ -12,11 +12,19 @@ CONSTRUCT {
 }
 #namedGraph#
 WHERE {
+    # Split subject and object counts into separate subqueries to avoid memory issues
+    # from the Cartesian product of types × properties × objects.
     {
-        SELECT ?type ?p (COUNT(DISTINCT ?s) AS ?subjects) (COUNT(DISTINCT ?o) AS ?objects) {
+        SELECT ?type ?p (COUNT(DISTINCT ?s) AS ?subjects) {
             #subjectFilter#
-            ?s a ?type ;
-                ?p ?o .
+            ?s a ?type ; ?p [] .
+        }
+        GROUP BY ?type ?p
+    }
+    {
+        SELECT ?type ?p (COUNT(DISTINCT ?o) AS ?objects) {
+            #subjectFilter#
+            ?s a ?type ; ?p ?o .
         }
         GROUP BY ?type ?p
     }
