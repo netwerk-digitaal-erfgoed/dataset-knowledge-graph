@@ -48,7 +48,8 @@ await new Pipeline({
     await SparqlQueryAnalyzer.fromFile('properties-domains-ranges.rq'),
     await SparqlQueryAnalyzer.fromFile('subjects.rq'),
     await SparqlQueryAnalyzer.fromFile('triples.rq'),
-    await SparqlQueryAnalyzer.fromFile('class-properties.rq'),
+    await SparqlQueryAnalyzer.fromFile('class-properties-subjects.rq'),
+    await SparqlQueryAnalyzer.fromFile('class-properties-objects.rq'),
     await SparqlQueryAnalyzer.fromFile('licenses.rq'),
     new UriSpaceAnalyzer(
       await SparqlQueryAnalyzer.fromFile('object-uri-space.rq'),
