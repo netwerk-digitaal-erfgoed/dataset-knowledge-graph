@@ -1,0 +1,12 @@
+@prefix ex: <http://example.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://foo.org/id/graph/foo> {
+    ex:item1 a ex:Thing ;
+        ex:name "foo" ;
+        ex:count 42 ;
+        ex:date "2024-01-01"^^xsd:date .
+    ex:item2 a ex:Thing ;
+        ex:name "bar" ;
+        ex:count 100 .
+}

@@ -1,0 +1,26 @@
+PREFIX void: <http://rdfs.org/ns/void#>
+PREFIX void-ext: <http://ldf.fi/void-ext#>
+
+CONSTRUCT {
+    ?dataset void:propertyPartition ?propertyPartition .
+    ?propertyPartition void:property ?p ;
+        void-ext:datatypePartition [
+            void-ext:datatype ?datatype ;
+            void:triples ?count ;
+        ] .
+}
+#namedGraph#
+WHERE {
+    # Scope by property only (not class+property) for performance.
+    # Class-scoped datatype partitions would require joining 20M+ literals to types.
+    {
+        SELECT ?p ?datatype (COUNT(*) AS ?count) {
+            #subjectFilter#
+            ?s ?p ?o .
+            FILTER(ISLITERAL(?o))
+            BIND(DATATYPE(?o) AS ?datatype)
+        }
+        GROUP BY ?p ?datatype
+    }
+    BIND(URI(CONCAT("#property-", MD5(STR(?p)))) AS ?propertyPartition)
+}

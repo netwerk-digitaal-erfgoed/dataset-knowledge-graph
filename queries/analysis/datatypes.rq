@@ -1,0 +1,16 @@
+PREFIX void: <http://rdfs.org/ns/void#>
+PREFIX void-ext: <http://ldf.fi/void-ext#>
+
+CONSTRUCT {
+    ?dataset a void:Dataset ;
+        void-ext:datatypes ?count .
+}
+#namedGraph#
+WHERE {
+    SELECT (COUNT(DISTINCT ?datatype) AS ?count) {
+        #subjectFilter#
+        ?s ?p ?o .
+        FILTER(ISLITERAL(?o))
+        BIND(DATATYPE(?o) AS ?datatype)
+    }
+}
