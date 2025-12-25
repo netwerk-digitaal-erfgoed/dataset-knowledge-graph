@@ -1,4 +1,4 @@
-import {SparqlQueryAnalyzer} from '../../src/analyzer.js';
+import {DatatypeAnalyzer} from '../../src/analyzer/datatype.js';
 import {Dataset, Distribution} from '../../src/dataset.js';
 import {Success} from '../../src/pipeline.js';
 import {
@@ -20,11 +20,9 @@ describe('Datatype analyzers', () => {
     await teardownSparqlEndpoint();
   });
 
-  describe('property-datatypes.rq', () => {
-    it('should produce datatype partitions for each property/datatype combination', async () => {
-      const analyzer = await SparqlQueryAnalyzer.fromFile(
-        'property-datatypes.rq',
-      );
+  describe('DatatypeAnalyzer', () => {
+    it('should produce datatype partitions for each class/property/datatype combination', async () => {
+      const analyzer = await DatatypeAnalyzer.create();
 
       const distribution = Distribution.sparql(
         `http://localhost:${port}/sparql`,
@@ -90,28 +88,8 @@ describe('Datatype analyzers', () => {
           factory.namedNode('http://www.w3.org/2001/XMLSchema#date'),
         ).size,
       ).toBeGreaterThan(0);
-    });
-  });
 
-  describe('datatypes.rq', () => {
-    it('should count distinct datatypes in the dataset', async () => {
-      const analyzer = await SparqlQueryAnalyzer.fromFile('datatypes.rq');
-
-      const distribution = Distribution.sparql(
-        `http://localhost:${port}/sparql`,
-        'http://foo.org/id/graph/foo',
-      );
-      const dataset = new Dataset('http://foo.org/id/dataset/foo', [
-        distribution,
-      ]);
-
-      const result = await analyzer.execute(dataset);
-
-      expect(result).toBeInstanceOf(Success);
-
-      const data = (result as Success).data;
-
-      // Should have void-ext:datatypes count
+      // Should have void-ext:datatypes count at dataset level
       const datatypesCount = data.match(
         factory.namedNode('http://foo.org/id/dataset/foo'),
         factory.namedNode('http://ldf.fi/void-ext#datatypes'),
@@ -124,5 +102,4 @@ describe('Datatype analyzers', () => {
       expect(parseInt(countQuad.object.value)).toBe(3);
     });
   });
-
 });
