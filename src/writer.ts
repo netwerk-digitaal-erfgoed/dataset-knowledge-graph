@@ -13,6 +13,7 @@ export class FileWriter implements SummaryWriter {
     const writer = new Writer({
       prefixes: {
         void: 'http://rdfs.org/ns/void#',
+        'void-ext': 'http://ldf.fi/void-ext#',
         prov: 'http://www.w3.org/ns/prov#',
       },
     });

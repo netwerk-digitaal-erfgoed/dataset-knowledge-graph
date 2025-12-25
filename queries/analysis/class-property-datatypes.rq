@@ -2,22 +2,28 @@ PREFIX void: <http://rdfs.org/ns/void#>
 PREFIX void-ext: <http://ldf.fi/void-ext#>
 
 CONSTRUCT {
-    ?propertyPartition void-ext:datatypePartition [
+  ?propertyPartition void-ext:datatypePartition
+      [
         void-ext:datatype ?dt ;
         void:triples ?count ;
-    ] .
+      ] .
 }
 #namedGraph#
 WHERE {
-    {
-        SELECT ?p ?dt (COUNT(*) AS ?count) {
-            #subjectFilter#
-            ?s a <#class#> ; ?p ?o .
-            FILTER(ISLITERAL(?o))
-            BIND(DATATYPE(?o) AS ?dt)
+  {
+    SELECT ?p ?dt (COUNT(*) AS ?count) {
+      {
+        SELECT ?p ?o {
+          #subjectFilter#
+          ?s a <#class#> ;
+            ?p ?o .
+          FILTER (ISLITERAL(?o))
         }
-        GROUP BY ?p ?dt
+      }
+      BIND(DATATYPE(?o) AS ?dt)
     }
-    BIND(URI(CONCAT("#class-property-", MD5(CONCAT(STR(<#class#>), STR(?p))))) AS ?propertyPartition)
+    GROUP BY ?p ?dt
+  }
+  BIND(URI(CONCAT("#class-property-", MD5(CONCAT(STR(<#class#>), STR(?p))))) AS ?propertyPartition)
 }
 LIMIT 100000

@@ -89,17 +89,7 @@ describe('Datatype analyzers', () => {
         ).size,
       ).toBeGreaterThan(0);
 
-      // Should have void-ext:datatypes count at dataset level
-      const datatypesCount = data.match(
-        factory.namedNode('http://foo.org/id/dataset/foo'),
-        factory.namedNode('http://ldf.fi/void-ext#datatypes'),
-        null,
-      );
-      expect(datatypesCount.size).toBe(1);
-
-      // Should be 3 distinct datatypes: xsd:string, xsd:integer, xsd:date
-      const countQuad = datatypesCount[Symbol.iterator]().next().value;
-      expect(parseInt(countQuad.object.value)).toBe(3);
+      // Dataset-level datatypes are now handled by datatypes.rq
     });
   });
 });

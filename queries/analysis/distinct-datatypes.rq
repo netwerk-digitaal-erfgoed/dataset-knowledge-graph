@@ -1,8 +1,0 @@
-SELECT DISTINCT ?datatype
-#namedGraph#
-WHERE {
-    #subjectFilter#
-    ?s ?p ?o .
-    FILTER(ISLITERAL(?o))
-    BIND(DATATYPE(?o) AS ?datatype)
-}

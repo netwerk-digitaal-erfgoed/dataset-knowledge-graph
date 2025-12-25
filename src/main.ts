@@ -51,6 +51,7 @@ await new Pipeline({
     await SparqlQueryAnalyzer.fromFile('triples.rq'),
     await SparqlQueryAnalyzer.fromFile('class-properties-subjects.rq'),
     await SparqlQueryAnalyzer.fromFile('class-properties-objects.rq'),
+    await SparqlQueryAnalyzer.fromFile('datatypes.rq'),
     await DatatypeAnalyzer.create(),
     await SparqlQueryAnalyzer.fromFile('licenses.rq'),
     new UriSpaceAnalyzer(
