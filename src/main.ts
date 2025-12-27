@@ -12,6 +12,7 @@ import {config} from './config.js';
 import {GraphDBClient} from './graphdb.js';
 import {VocabularyAnalyzer} from './analyzer/vocabulary.js';
 import {DatatypeAnalyzer} from './analyzer/datatype.js';
+import {ObjectClassAnalyzer} from './analyzer/objectClass.js';
 import {QleverImporter} from './qlever.js';
 import {createTaskRunner} from './task.js';
 
@@ -46,7 +47,7 @@ await new Pipeline({
     await SparqlQueryAnalyzer.fromFile('object-literals.rq'),
     await SparqlQueryAnalyzer.fromFile('object-uris.rq'),
     await SparqlQueryAnalyzer.fromFile('properties.rq'),
-    await SparqlQueryAnalyzer.fromFile('class-to-class-links.rq'),
+    await ObjectClassAnalyzer.create(),
     await SparqlQueryAnalyzer.fromFile('subjects.rq'),
     await SparqlQueryAnalyzer.fromFile('triples.rq'),
     await SparqlQueryAnalyzer.fromFile('class-properties-subjects.rq'),

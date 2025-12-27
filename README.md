@@ -179,27 +179,35 @@ The datatypes used for literal values, broken down by subject class and property
     ].
 ```
 
-### Property domain and range
+### Object classes per class and property
 
-The domain (subject class) and range (object class) of properties, showing how classes are connected:
+The classes of object resources, broken down by subject class and property. This shows how classes are connected through properties:
 
 ```ttl
-<https://example.org/dataset> a void:Dataset;
-    void:subset <#property-domain-range-a1b2c3...> .
+@prefix void: <http://rdfs.org/ns/void#> .
+@prefix void-ext: <http://ldf.fi/void-ext#> .
+@prefix schema: <https://schema.org/> .
 
-<#property-domain-range-a1b2c3...> a void:Linkset ;
-    void:linkPredicate schema:author ;
-    void:subjectsTarget [
-        void:class schema:Book ;
-        void:entities 1200 ;
-    ] ;
-    void:objectsTarget [
-        void:class schema:Person ;
-        void:entities 450 ;
-    ] .
+<https://example.org/dataset> a void:Dataset;
+    void:classPartition [
+        void:class schema:Book;
+        void:propertyPartition [
+            void:property schema:author;
+            void:entities 1200;
+            void:distinctObjects 450;
+            void-ext:objectClassPartition [
+                void:class schema:Person;       # Objects are of class schema:Person.
+                void:triples 1350;              # 1350 triples link Books to Persons.
+            ],
+            [
+                void:class schema:Organization;
+                void:triples 50;                # 50 triples link Books to Organizations.
+            ]
+        ]
+    ].
 ```
 
-This shows that 1200 `schema:Book` resources use `schema:author` to link to 450 `schema:Person` resources.
+This shows that 1200 `schema:Book` resources use `schema:author` to link to `schema:Person` (1350 triples) and `schema:Organization` (50 triples) resources.
 
 ### Outgoing links to terminology sources
 

@@ -1,0 +1,13 @@
+@prefix ex: <http://example.org/> .
+
+<http://foo.org/id/graph/foo> {
+    ex:book1 a ex:Book ;
+        ex:author ex:person1 ;
+        ex:publisher ex:org1 .
+    ex:book2 a ex:Book ;
+        ex:author ex:person2 ;
+        ex:author ex:person1 .
+    ex:person1 a ex:Person .
+    ex:person2 a ex:Person .
+    ex:org1 a ex:Organization .
+}
