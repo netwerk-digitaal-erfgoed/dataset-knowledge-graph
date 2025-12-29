@@ -142,6 +142,73 @@ Nest a `void:propertyPartition` in `void:classPartition`:
     ].
 ```
 
+### Datatypes per class and property
+
+The datatypes used for literal values, broken down by subject class and property:
+
+```ttl
+@prefix void: <http://rdfs.org/ns/void#> .
+@prefix void-ext: <http://ldf.fi/void-ext#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix schema: <https://schema.org/> .
+
+<https://example.org/dataset> a void:Dataset;
+    void-ext:datatypes 5;                              # 5 distinct datatypes in the dataset.
+    void-ext:datatype xsd:string, xsd:date, xsd:integer, xsd:boolean, rdf:langString;
+    void:classPartition [
+        void:class schema:Person;
+        void:propertyPartition [
+            void:property schema:name;
+            void-ext:datatypePartition [
+                void-ext:datatype xsd:string;
+                void:triples 155;                      # 155 triples with xsd:string values.
+            ],
+            [
+                void-ext:datatype rdf:langString;
+                void:triples 42;                       # 42 triples with language-tagged strings.
+            ]
+        ],
+        [
+            void:property schema:birthDate;
+            void-ext:datatypePartition [
+                void-ext:datatype xsd:date;
+                void:triples 76;
+            ]
+        ]
+    ].
+```
+
+### Object classes per class and property
+
+The classes of object resources, broken down by subject class and property. This shows how classes are connected through properties:
+
+```ttl
+@prefix void: <http://rdfs.org/ns/void#> .
+@prefix void-ext: <http://ldf.fi/void-ext#> .
+@prefix schema: <https://schema.org/> .
+
+<https://example.org/dataset> a void:Dataset;
+    void:classPartition [
+        void:class schema:Book;
+        void:propertyPartition [
+            void:property schema:author;
+            void:entities 1200;
+            void:distinctObjects 450;
+            void-ext:objectClassPartition [
+                void:class schema:Person;       # Objects are of class schema:Person.
+                void:triples 1350;              # 1350 triples link Books to Persons.
+            ],
+            [
+                void:class schema:Organization;
+                void:triples 50;                # 50 triples link Books to Organizations.
+            ]
+        ]
+    ].
+```
+
+This shows that 1200 `schema:Book` resources use `schema:author` to link to `schema:Person` (1350 triples) and `schema:Organization` (50 triples) resources.
+
 ### Outgoing links to terminology sources
 
 Outgoing links to terminology sources in the [Network of Terms](https://termennetwerk.netwerkdigitaalerfgoed.nl),
@@ -160,6 +227,22 @@ modelled as `void:Linkset`s:
 
 Uses a list of fixed URI prefixes to match against from the Network of Terms and in addition a custom list in the
 pipeline itself.
+
+### Subject URI spaces
+
+The most common URI namespaces used for subject resources in the dataset:
+
+```ttl
+<https://example.org/dataset> a void:Dataset;
+    void:subset [
+        void:uriSpace "https://n2t.net/ark:/70115/";
+        void:entities 312000;
+    ],
+    [
+        void:uriSpace "https://data.example.org/subjects/";
+        void:entities 53434;
+    ].
+```
 
 ### Vocabularies
 

@@ -107,7 +107,7 @@ describe('DistributionAnalyzer', () => {
       expect(result).toBeInstanceOf(Success);
       const data = (result as Success).data;
 
-      expect(data.size).toBe(6);
+      expect(data.size).toBe(7);
       expect(
         data.match(
           null,
@@ -152,6 +152,15 @@ describe('DistributionAnalyzer', () => {
             '377',
             factory.namedNode('http://www.w3.org/2001/XMLSchema#integer'),
           ),
+        ).size,
+      ).toBe(1);
+      expect(
+        data.match(
+          factory.namedNode(
+            `http://localhost:${dumpPort}/distributionAnalysisTargetDump.ttl`,
+          ),
+          factory.namedNode('https://schema.org/encodingFormat'),
+          factory.literal('text/turtle; charset=UTF-8'),
         ).size,
       ).toBe(1);
       expect(

@@ -207,6 +207,16 @@ export class DistributionAnalyzer implements Analyzer {
               ),
             );
           }
+
+          if (result.contentType) {
+            store.addQuad(
+              quad(
+                distributionUrl,
+                namedNode('https://schema.org/encodingFormat'),
+                literal(result.contentType),
+              ),
+            );
+          }
         }
       } else {
         store.addQuads([

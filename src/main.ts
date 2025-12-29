@@ -11,6 +11,8 @@ import {SparqlWriter} from './writer/sparql.js';
 import {config} from './config.js';
 import {GraphDBClient} from './graphdb.js';
 import {VocabularyAnalyzer} from './analyzer/vocabulary.js';
+import {DatatypeAnalyzer} from './analyzer/datatype.js';
+import {ObjectClassAnalyzer} from './analyzer/objectClass.js';
 import {QleverImporter} from './qlever.js';
 import {createTaskRunner} from './task.js';
 
@@ -33,20 +35,25 @@ await new Pipeline({
     new DistributionAnalyzer(
       new QleverImporter({
         taskRunner: createTaskRunner(config.QLEVER_ENV as 'docker' | 'native', {
-          image: 'adfreiburg/qlever',
+          image: 'adfreiburg/qlever:commit-dbce463',
           containerName: 'dkg-qlever',
           mountDir: resolve('imports'),
           port: config.QLEVER_PORT as number,
         }),
       }),
     ),
+    await SparqlQueryAnalyzer.fromFile('subject-uri-space.rq'),
     await SparqlQueryAnalyzer.fromFile('class-partition.rq'),
     await SparqlQueryAnalyzer.fromFile('object-literals.rq'),
     await SparqlQueryAnalyzer.fromFile('object-uris.rq'),
     await SparqlQueryAnalyzer.fromFile('properties.rq'),
+    await ObjectClassAnalyzer.create(),
     await SparqlQueryAnalyzer.fromFile('subjects.rq'),
     await SparqlQueryAnalyzer.fromFile('triples.rq'),
-    await SparqlQueryAnalyzer.fromFile('class-properties.rq'),
+    await SparqlQueryAnalyzer.fromFile('class-properties-subjects.rq'),
+    await SparqlQueryAnalyzer.fromFile('class-properties-objects.rq'),
+    await SparqlQueryAnalyzer.fromFile('datatypes.rq'),
+    await DatatypeAnalyzer.create(),
     await SparqlQueryAnalyzer.fromFile('licenses.rq'),
     new UriSpaceAnalyzer(
       await SparqlQueryAnalyzer.fromFile('object-uri-space.rq'),

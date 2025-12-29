@@ -8,10 +8,15 @@ CONSTRUCT {
 }
 #namedGraph#
 WHERE {
-    SELECT DISTINCT ?prefix (COUNT(?prefix) AS ?count) {
-        #subjectFilter#
-        ?s ?p ?o .
-        FILTER(ISIRI(?o))
+    SELECT ?prefix (SUM(?ocount) AS ?count) {
+        {
+            SELECT ?o (COUNT(*) AS ?ocount) {
+                #subjectFilter#
+                ?s ?p ?o .
+                FILTER(ISIRI(?o))
+            }
+            GROUP BY ?o
+        }
         BIND(REPLACE(STR(?o), "([^/]+$)", "") AS ?prefix)
     }
     GROUP BY ?prefix ORDER BY DESC(?count) LIMIT 1000
