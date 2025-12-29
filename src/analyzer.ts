@@ -71,7 +71,7 @@ export class SparqlQueryAnalyzer extends BaseAnalyzer {
   private async executeQuery(distribution: Distribution, dataset: Dataset) {
     const query = this.query
       .replace('#subjectFilter#', dataset.subjectFilter ?? '')
-      .replace('?dataset', `<${dataset.iri}>`)
+      .replaceAll('?dataset', `<${dataset.iri}>`)
       .replace(
         '#namedGraph#',
         distribution.namedGraph ? `FROM <${distribution.namedGraph}>` : '',
