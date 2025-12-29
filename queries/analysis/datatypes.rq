@@ -7,27 +7,32 @@ CONSTRUCT {
 #namedGraph#
 WHERE {
   {
+    # Count distinct datatypes
     SELECT (COUNT(DISTINCT ?dt) AS ?count) WHERE {
       {
-        SELECT ?o WHERE {
+        # Pre-filter to distinct literals to minimize DATATYPE calls
+        SELECT DISTINCT ?o WHERE {
           #subjectFilter#
           ?s ?p ?o .
-          FILTER (ISLITERAL(?o))
+          FILTER(ISLITERAL(?o))
         }
       }
       BIND(DATATYPE(?o) AS ?dt)
     }
   }
   {
+    # Get distinct datatypes
     SELECT DISTINCT ?datatype WHERE {
       {
-        SELECT ?o WHERE {
+        # Pre-filter to distinct literals to minimize DATATYPE calls
+        SELECT DISTINCT ?o WHERE {
           #subjectFilter#
           ?s ?p ?o .
-          FILTER (ISLITERAL(?o))
+          FILTER(ISLITERAL(?o))
         }
       }
       BIND(DATATYPE(?o) AS ?datatype)
     }
   }
 }
+LIMIT 1000
