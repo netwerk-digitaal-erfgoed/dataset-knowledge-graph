@@ -13,6 +13,6 @@ WHERE {
         }
         GROUP BY ?type ?p
     }
-    BIND(URI(CONCAT("#class-property-", MD5(CONCAT(STR(?type), STR(?p))))) AS ?propertyPartition)
+    BIND(URI(CONCAT(STR(?dataset), "/.well-known/void#class-property-", MD5(CONCAT(STR(?type), STR(?p))))) AS ?propertyPartition)
 }
 LIMIT 100000
