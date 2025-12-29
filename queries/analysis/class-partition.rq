@@ -15,6 +15,6 @@ WHERE {
         }
         GROUP BY ?type
     }
-    BIND(URI(CONCAT("#class-", MD5(STR(?type)))) AS ?classPartition)
+    BIND(URI(CONCAT(STR(?dataset), "/.well-known/void#class-", MD5(STR(?type)))) AS ?classPartition)
 }
 LIMIT 10000

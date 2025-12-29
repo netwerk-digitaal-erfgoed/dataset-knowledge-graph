@@ -26,6 +26,6 @@ WHERE {
         LIMIT 10
     }
     FILTER(?count > 1)  # Only include namespaces with more than 1 entity
-    BIND(URI(CONCAT("#subject-uri-space-", MD5(?uriSpace))) AS ?subset)
+    BIND(URI(CONCAT(STR(?dataset), "/.well-known/void#subject-uri-space-", MD5(?uriSpace))) AS ?subset)
 }
 
