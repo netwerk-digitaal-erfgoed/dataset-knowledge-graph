@@ -19,7 +19,7 @@ WHERE {
                 }
             }
             # Extract namespace by removing the local name (everything after the last / or #)
-            BIND(REPLACE(STR(?s), "[^/#]*$", "") AS ?uriSpace)
+            BIND(REPLACE(STR(?s), "[^/#]+$", "") AS ?uriSpace)
         }
         GROUP BY ?uriSpace
         ORDER BY DESC(?count)
