@@ -317,6 +317,22 @@ If a distribution is invalid, a `schema:error` triple will indicate the HTTP sta
         <http://data.bibliotheken.nl/doc/alba/p416673600>.
 ```
 
+### Partition URIs
+
+Partition resources (class partitions, property partitions, etc.) use well-known URIs based on the dataset URI:
+
+```
+{dataset-uri}/.well-known/void#{partition-type}-{hash}
+```
+
+For example, a class partition for `schema:Person` in dataset `https://example.org/dataset` would have the URI:
+
+```
+https://example.org/dataset/.well-known/void#class-5f4d3c2b1a...
+```
+
+The hash is an MD5 of the class or property URI, ensuring stable and unique identifiers.
+
 ## Run the pipeline
 
 To run the pipeline yourself, start by cloning this repository. Then execute:
