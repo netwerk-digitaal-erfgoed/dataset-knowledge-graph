@@ -197,13 +197,35 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
   }
 
   async stop(task: ChildProcess): Promise<string | null> {
+    // Process already exited
+    if (task.exitCode !== null || task.killed) {
+      return this.taskOutput(task);
+    }
+
     return new Promise(resolve => {
-      task.on('close', () => {
+      const killTimeout = setTimeout(() => {
+        // SIGKILL as fallback after 5 seconds
+        try {
+          process.kill(-task.pid!, 'SIGKILL');
+        } catch {
+          // Process group may already be dead
+        }
+      }, 5000);
+
+      task.once('close', () => {
+        clearTimeout(killTimeout);
         resolve(this.taskOutput(task));
       });
+
       // Negative PID to kill whole process group: the {shell: true} argument
       // to spawn splits off a separate process.
-      process.kill(-task.pid!, 'SIGTERM');
+      try {
+        process.kill(-task.pid!, 'SIGTERM');
+      } catch {
+        // Process group may already be dead
+        clearTimeout(killTimeout);
+        resolve(this.taskOutput(task));
+      }
     });
   }
 
