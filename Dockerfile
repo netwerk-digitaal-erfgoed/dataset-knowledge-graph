@@ -11,7 +11,7 @@ LABEL org.opencontainers.image.source="https://github.com/netwerk-digitaal-erfgo
 USER root
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get update \
-    && apt-get install -y nodejs \
+    && apt-get install -y nodejs tini \
     && rm -rf /var/lib/apt/lists/*
 RUN node --version && npm --version
 
@@ -29,5 +29,5 @@ COPY --from=build /app/queries /app/queries
 RUN mkdir /app/output /app/imports && \
     chown node /app/output /app/imports
 USER node
-ENTRYPOINT []
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["npm", "start"]
