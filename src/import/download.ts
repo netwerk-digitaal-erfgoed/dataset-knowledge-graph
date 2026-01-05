@@ -17,7 +17,7 @@ export class Downloader {
     const filename = filenamify(downloadUrl.toString());
     const filePath = resolve(join(this.path, filename));
 
-    if (await this.localFileIsUpToDate(filePath, distribution.lastModified)) {
+    if (await this.localFileIsUpToDate(filePath, distribution)) {
       context.logger.debug(
         `File ${filePath} is up to date, skipping download.`,
       );
@@ -48,9 +48,9 @@ export class Downloader {
 
   private async localFileIsUpToDate(
     filePath: string,
-    lastModified?: Date,
+    distribution: Distribution,
   ): Promise<boolean> {
-    if (undefined === lastModified) {
+    if (undefined === distribution.lastModified) {
       return false;
     }
 
@@ -60,8 +60,15 @@ export class Downloader {
       return false;
     }
     const stats = await stat(filePath);
-    const fileDate = stats.mtime;
 
-    return fileDate >= lastModified;
+    // Check if file size matches expected size to detect incomplete downloads.
+    if (
+      distribution.byteSize !== undefined &&
+      stats.size !== distribution.byteSize
+    ) {
+      return false;
+    }
+
+    return stats.mtime >= distribution.lastModified;
   }
 }

@@ -85,6 +85,7 @@ async function probe(
     const result = new DataDumpProbeResult(distribution.accessUrl!, response);
     distribution.isValid = result.isSuccess();
     distribution.lastModified ??= result.lastModified ?? undefined;
+    distribution.byteSize ??= result.contentSize ?? undefined;
     return result;
   } catch (e) {
     return new NetworkError(

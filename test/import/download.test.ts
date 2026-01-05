@@ -68,5 +68,22 @@ describe('Downloader', () => {
         'data dump is empty',
       );
     });
+
+    it('re-downloads file if local file size does not match byteSize', async () => {
+      // First download creates incomplete file.
+      nock('https://example.com').get('/file.nt').reply(200, 'partial');
+      await downloader.download(distribution, context);
+
+      // Set distribution metadata indicating file should be larger.
+      distribution.lastModified = new Date('2001-01-01');
+      distribution.byteSize = 100;
+
+      // Second download should re-fetch because size doesn't match.
+      nock('https://example.com').get('/file.nt').reply(200, 'complete file');
+      await downloader.download(distribution, context);
+
+      const fileContent = readFileSync(localFile, 'utf8');
+      expect(fileContent).toBe('complete file');
+    });
   });
 });
