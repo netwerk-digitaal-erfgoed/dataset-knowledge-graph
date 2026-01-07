@@ -64,7 +64,11 @@ function getDownloadDistributionPriority(distribution: Distribution) {
     distribution.mimeType === 'application/n-triples' ||
     distribution.mimeType === 'application/n-triples+gzip' ||
     distribution.mimeType ===
-      'https://www.iana.org/assignments/media-types/application/n-triples'
+      'https://www.iana.org/assignments/media-types/application/n-triples' ||
+    distribution.mimeType === 'application/n-quads' ||
+    distribution.mimeType === 'application/n-quads+gzip' ||
+    distribution.mimeType ===
+      'https://www.iana.org/assignments/media-types/application/n-quads'
   ) {
     return 1;
   }
