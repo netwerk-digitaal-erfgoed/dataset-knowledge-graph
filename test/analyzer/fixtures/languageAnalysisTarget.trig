@@ -1,0 +1,13 @@
+@prefix ex: <http://example.org/> .
+
+<http://foo.org/id/graph/foo> {
+    ex:item1 a ex:Thing ;
+        ex:name "Hello"@en ;
+        ex:description "A greeting"@en .
+    ex:item2 a ex:Thing ;
+        ex:name "Hallo"@nl ;
+        ex:name "Bonjour"@fr ;
+        ex:description "Een begroeting"@nl .
+    ex:item3 a ex:Thing ;
+        ex:name "Plain string without language" .
+}
