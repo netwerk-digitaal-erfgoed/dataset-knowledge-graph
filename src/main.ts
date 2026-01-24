@@ -36,7 +36,7 @@ await new Pipeline({
     new DistributionAnalyzer(
       new QleverImporter({
         taskRunner: createTaskRunner(config.QLEVER_ENV as 'docker' | 'native', {
-          image: 'adfreiburg/qlever:commit-dbce463',
+          image: config.QLEVER_IMAGE as string,
           containerName: 'dkg-qlever',
           mountDir: resolve('imports'),
           port: config.QLEVER_PORT as number,

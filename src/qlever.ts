@@ -111,12 +111,12 @@ export class QleverImporter implements Importer {
     // Escape single quotes for shell safety - use single quotes to avoid ! expansion.
     const escapedFilename = basename(file).replace(/'/g, "'\\''");
     const indexTask = await this.options.taskRunner.run(
-      `(zcat '${escapedFilename}' 2>/dev/null || cat '${escapedFilename}') | IndexBuilderMain -i ${this.options.indexName} -s ${settingsFile} -F ${format} -f -`,
+      `(zcat '${escapedFilename}' 2>/dev/null || cat '${escapedFilename}') | qlever-index -i ${this.options.indexName} -s ${settingsFile} -F ${format} -f -`,
     );
     await this.options.taskRunner.wait(indexTask);
 
     this.serverTask = await this.options.taskRunner.run(
-      `ServerMain --index-basename ${this.options.indexName} --memory-max-size 6G --port ${this.options.port}`,
+      `qlever-server --index-basename ${this.options.indexName} --memory-max-size 6G --port ${this.options.port}`,
     );
   }
 

@@ -5,7 +5,8 @@ RUN npm ci
 COPY . .
 RUN NODE_ENV=production npm run compile
 
-FROM adfreiburg/qlever
+ARG QLEVER_IMAGE
+FROM ${QLEVER_IMAGE}
 LABEL org.opencontainers.image.source="https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph"
 
 USER root

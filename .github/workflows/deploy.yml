@@ -6,6 +6,20 @@ on:
       - main
 
 jobs:
+  env:
+    runs-on: ubuntu-latest
+    outputs:
+      qlever-image: ${{ steps.dotenv.outputs.qlever-image }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: dotenv
+        run: |
+          source .env
+          echo "qlever-image=$QLEVER_IMAGE" >> "$GITHUB_OUTPUT"
+
   publish:
+    needs: env
     uses: netwerk-digitaal-erfgoed/workflows/.github/workflows/deploy.yml@main
+    with:
+      build-args: QLEVER_IMAGE=${{ needs.env.outputs.qlever-image }}
     secrets: inherit
