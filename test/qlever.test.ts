@@ -7,9 +7,10 @@ import {ImportSuccessful} from '../src/importer.js';
 import {
   startLocalDataDumpEndpoint,
   teardownDataDumpEndpoint,
-} from './analyzer/localDataDumpEndpoint';
+} from './analyzer/localDataDumpEndpoint.js';
 import path from 'node:path';
 import {pino} from 'pino';
+import {config} from '../src/config.js';
 
 const queryEngine = new QueryEngine();
 const dumpPort = 8083;
@@ -25,7 +26,7 @@ describe('QleverImporter', () => {
     it('imports data dump', async () => {
       const importer = new QleverImporter({
         taskRunner: new DockerTaskRunner({
-          image: 'adfreiburg/qlever:commit-45b05e1',
+          image: config.QLEVER_IMAGE as string,
           containerName: 'dkg-qlever-test',
           mountDir: path.resolve('imports'),
           port: 7001,

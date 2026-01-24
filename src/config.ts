@@ -44,9 +44,13 @@ const schema = {
       type: 'number',
       default: 7001,
     },
+    QLEVER_IMAGE: {
+      type: 'string',
+    },
   },
 };
 
 export const config = envSchema({
   schema,
+  dotenv: {quiet: true},
 });
