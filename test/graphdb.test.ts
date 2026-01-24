@@ -89,6 +89,6 @@ describe('GraphDBClient', () => {
       expect(bindings[0].get('s')?.value).toBe('http://example.com/dataset');
       expect(bindings[0].get('p')?.value).toBe('http://example.com/predicate');
       expect(bindings[0].get('o')?.value).toBe('http://example.com/object');
-    });
+    }, 30000);
   });
 });

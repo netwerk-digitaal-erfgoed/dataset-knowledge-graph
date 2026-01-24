@@ -179,6 +179,39 @@ The datatypes used for literal values, broken down by subject class and property
     ].
 ```
 
+### Languages per class and property
+
+The language tags used for literal values, broken down by subject class and property:
+
+```ttl
+@prefix void: <http://rdfs.org/ns/void#> .
+@prefix void-ext: <http://ldf.fi/void-ext#> .
+@prefix schema: <https://schema.org/> .
+
+<https://example.org/dataset> a void:Dataset;
+    void:classPartition [
+        void:class schema:Person;
+        void:propertyPartition [
+            void:property schema:name;
+            void-ext:languagePartition [
+                void-ext:language "en";
+                void:triples 1200;                     # 1200 triples with English names.
+            ],
+            [
+                void-ext:language "nl";
+                void:triples 850;                      # 850 triples with Dutch names.
+            ]
+        ],
+        [
+            void:property schema:description;
+            void-ext:languagePartition [
+                void-ext:language "en";
+                void:triples 500;
+            ]
+        ]
+    ].
+```
+
 ### Object classes per class and property
 
 The classes of object resources, broken down by subject class and property. This shows how classes are connected through properties:

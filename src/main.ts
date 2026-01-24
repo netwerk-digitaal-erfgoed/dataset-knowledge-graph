@@ -12,6 +12,7 @@ import {config} from './config.js';
 import {GraphDBClient} from './graphdb.js';
 import {VocabularyAnalyzer} from './analyzer/vocabulary.js';
 import {DatatypeAnalyzer} from './analyzer/datatype.js';
+import {LanguageAnalyzer} from './analyzer/language.js';
 import {ObjectClassAnalyzer} from './analyzer/objectClass.js';
 import {QleverImporter} from './qlever.js';
 import {createTaskRunner} from './task.js';
@@ -54,6 +55,7 @@ await new Pipeline({
     await SparqlQueryAnalyzer.fromFile('class-properties-objects.rq'),
     await SparqlQueryAnalyzer.fromFile('datatypes.rq'),
     await DatatypeAnalyzer.create(),
+    await LanguageAnalyzer.create(),
     await SparqlQueryAnalyzer.fromFile('licenses.rq'),
     new UriSpaceAnalyzer(
       await SparqlQueryAnalyzer.fromFile('object-uri-space.rq'),

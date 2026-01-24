@@ -123,7 +123,7 @@ WHERE {
         distribution.namedGraph ? `FROM <${distribution.namedGraph}>` : '',
       )
       .replace(/#class#/g, classIri)
-      .replace('?dataset', `<${dataset.iri}>`);
+      .replaceAll('?dataset', `<${dataset.iri}>`);
 
     const store = new Store();
     const stream = await this.fetcher.fetchTriples(
