@@ -36,7 +36,7 @@
     "@comunica/query-sparql-file": "^4.3.0",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.15.1",
     "@netwerk-digitaal-erfgoed/network-of-terms-query": "^6.2.8",
-    "axios": "^1.13.1",
+    "axios": "^1.13.4",
     "chalk": "^5.4.1",
     "dockerode": "^4.0.6",
     "env-schema": "^6.0.1",
