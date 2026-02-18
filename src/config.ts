@@ -19,22 +19,6 @@ const schema = {
       type: 'string',
       default: 'dataset-knowledge-graph',
     },
-    GRAPHDB_IMPORTS_URL: {
-      type: 'string',
-      default: 'http://localhost:7200',
-    },
-    GRAPHDB_IMPORTS_USERNAME: {
-      type: 'string',
-      default: 'admin',
-    },
-    GRAPHDB_IMPORTS_PASSWORD: {
-      type: 'string',
-      default: 'root',
-    },
-    GRAPHDB_IMPORTS_REPOSITORY: {
-      type: 'string',
-      default: 'dataset-knowledge-graph-imports',
-    },
     QLEVER_ENV: {
       type: 'string',
       enum: ['docker', 'native'],
@@ -48,9 +32,19 @@ const schema = {
       type: 'string',
     },
   },
-};
+} as const;
+
+interface Config {
+  GRAPHDB_URL: string;
+  GRAPHDB_USERNAME: string;
+  GRAPHDB_PASSWORD: string;
+  GRAPHDB_REPOSITORY: string;
+  QLEVER_ENV: 'docker' | 'native';
+  QLEVER_PORT: number;
+  QLEVER_IMAGE?: string;
+}
 
 export const config = envSchema({
   schema,
   dotenv: {quiet: true},
-});
+}) as unknown as Config;

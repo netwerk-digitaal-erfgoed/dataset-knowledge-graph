@@ -1,78 +1,81 @@
-import {Pipeline} from './pipeline.js';
-import {SparqlEndpoint, SparqlQuerySelector} from './selector.js';
-import {QueryEngine} from '@comunica/query-sparql-file';
-import {FileWriter} from './writer.js';
-import {readFile} from 'node:fs/promises';
-import {resolve} from 'node:path';
-import {SparqlQueryAnalyzer} from './analyzer.js';
-import {UriSpaceAnalyzer} from './analyzer/uriSpace.js';
-import {DistributionAnalyzer} from './analyzer/distribution.js';
-import {SparqlWriter} from './writer/sparql.js';
+import {
+  Pipeline,
+  ImportResolver,
+  SparqlDistributionResolver,
+  SparqlUpdateWriter,
+  FileWriter,
+  provenancePlugin,
+} from '@lde/pipeline';
+import {
+  createSubjectUriSpaceStage,
+  createClassPartitionStage,
+  createObjectLiteralsStage,
+  createObjectUrisStage,
+  createPropertiesStage,
+  createSubjectsStage,
+  createTriplesStage,
+  createClassPropertiesSubjectsStage,
+  createClassPropertiesObjectsStage,
+  createDatatypesStage,
+  createLicensesStage,
+  createPerClassObjectClassStage,
+  createPerClassDatatypeStage,
+  createPerClassLanguageStage,
+  createUriSpaceStage,
+  createVocabularyStage,
+} from '@lde/pipeline-void';
+import {Importer, Server} from '@lde/sparql-qlever';
 import {config} from './config.js';
-import {GraphDBClient} from './graphdb.js';
-import {VocabularyAnalyzer} from './analyzer/vocabulary.js';
-import {DatatypeAnalyzer} from './analyzer/datatype.js';
-import {LanguageAnalyzer} from './analyzer/language.js';
-import {ObjectClassAnalyzer} from './analyzer/objectClass.js';
-import {QleverImporter} from './qlever.js';
+import {createSubjectFilterSelector} from './subjectFilters.js';
+import {buildUriSpacesMap} from './uriSpaces.js';
+import {ConsoleReporter} from './reporter.js';
 import {createTaskRunner} from './task.js';
 
-const queryEngine = new QueryEngine();
+const uriSpaces = await buildUriSpacesMap();
+const taskRunner = createTaskRunner(config);
+
+const voidStages = await Promise.all([
+  createSubjectUriSpaceStage(),
+  createClassPartitionStage(),
+  createObjectLiteralsStage(),
+  createObjectUrisStage(),
+  createPropertiesStage(),
+  createPerClassObjectClassStage(),
+  createSubjectsStage(),
+  createTriplesStage(),
+  createClassPropertiesSubjectsStage(),
+  createClassPropertiesObjectsStage(),
+  createDatatypesStage(),
+  createPerClassDatatypeStage(),
+  createPerClassLanguageStage(),
+  createLicensesStage(),
+  createUriSpaceStage(uriSpaces),
+  createVocabularyStage(),
+]);
+
 await new Pipeline({
-  selector: new SparqlQuerySelector(
+  datasetSelector: await createSubjectFilterSelector(),
+  distributionResolver: new ImportResolver(
+    new SparqlDistributionResolver(),
     {
-      query: (
-        await readFile(
-          resolve('queries/selection/dataset-with-rdf-distribution.rq'),
-        )
-      ).toString(),
-      endpoint: new SparqlEndpoint(
-        'https://datasetregister.netwerkdigitaalerfgoed.nl/sparql',
-      ),
+      importer: new Importer({taskRunner}),
+      server: new Server({
+        taskRunner,
+        indexName: 'data',
+        port: config.QLEVER_PORT as number,
+      }),
     },
-    queryEngine,
   ),
-  analyzers: [
-    new DistributionAnalyzer(
-      new QleverImporter({
-        taskRunner: createTaskRunner(config.QLEVER_ENV as 'docker' | 'native', {
-          image: config.QLEVER_IMAGE as string,
-          containerName: 'dkg-qlever',
-          mountDir: resolve('imports'),
-          port: config.QLEVER_PORT as number,
-        }),
-      }),
-    ),
-    await SparqlQueryAnalyzer.fromFile('subject-uri-space.rq'),
-    await SparqlQueryAnalyzer.fromFile('class-partition.rq'),
-    await SparqlQueryAnalyzer.fromFile('object-literals.rq'),
-    await SparqlQueryAnalyzer.fromFile('object-uris.rq'),
-    await SparqlQueryAnalyzer.fromFile('properties.rq'),
-    await ObjectClassAnalyzer.create(),
-    await SparqlQueryAnalyzer.fromFile('subjects.rq'),
-    await SparqlQueryAnalyzer.fromFile('triples.rq'),
-    await SparqlQueryAnalyzer.fromFile('class-properties-subjects.rq'),
-    await SparqlQueryAnalyzer.fromFile('class-properties-objects.rq'),
-    await SparqlQueryAnalyzer.fromFile('datatypes.rq'),
-    await DatatypeAnalyzer.create(),
-    await LanguageAnalyzer.create(),
-    await SparqlQueryAnalyzer.fromFile('licenses.rq'),
-    new UriSpaceAnalyzer(
-      await SparqlQueryAnalyzer.fromFile('object-uri-space.rq'),
-    ),
-    new VocabularyAnalyzer(
-      await SparqlQueryAnalyzer.fromFile('entity-properties.rq'),
-    ),
-  ],
+  stages: voidStages,
+  plugins: [provenancePlugin()],
   writers: [
-    new FileWriter(),
-    new SparqlWriter(
-      new GraphDBClient({
-        url: config.GRAPHDB_URL as string,
-        username: config.GRAPHDB_USERNAME as string,
-        password: config.GRAPHDB_PASSWORD as string,
-        repository: config.GRAPHDB_REPOSITORY as string,
-      }),
-    ),
+    new FileWriter({outputDir: 'output'}),
+    new SparqlUpdateWriter({
+      endpoint: new URL(
+        `${config.GRAPHDB_URL}/repositories/${config.GRAPHDB_REPOSITORY}/statements`,
+      ),
+      auth: `Basic ${Buffer.from(`${config.GRAPHDB_USERNAME}:${config.GRAPHDB_PASSWORD}`).toString('base64')}`,
+    }),
   ],
+  reporter: new ConsoleReporter(),
 }).run();

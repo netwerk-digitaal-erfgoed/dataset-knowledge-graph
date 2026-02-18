@@ -1,29 +1,31 @@
-import Docker, {Container, ContainerCreateOptions} from 'dockerode';
+import Docker, {type Container, type ContainerCreateOptions} from 'dockerode';
 import process from 'node:process';
-import {ChildProcess, spawn} from 'node:child_process';
+import {type ChildProcess, spawn} from 'node:child_process';
+import {resolve} from 'node:path';
+import type {TaskRunner} from '@lde/task-runner';
 
 export type Task = Container | ChildProcess;
 
-export interface TaskRunner<Task> {
-  run(command: string): Promise<Task>;
-  wait(task: Task): Promise<string>;
-  stop(container: Task): Promise<string | null>;
-}
-
-export function createTaskRunner(
-  mode: 'docker' | 'native',
-  options?: DockerTaskRunnerOptions,
-): TaskRunner<Container | ChildProcess> {
-  if (mode === 'docker' && undefined !== options) {
-    return new DockerTaskRunner(options);
-  } else if (mode === 'native') {
+export function createTaskRunner(config: {
+  QLEVER_ENV: string;
+  QLEVER_IMAGE?: string;
+  QLEVER_PORT?: number;
+}): TaskRunner<Task> {
+  if (config.QLEVER_ENV === 'docker' && config.QLEVER_IMAGE) {
+    return new DockerTaskRunner({
+      image: config.QLEVER_IMAGE,
+      containerName: 'dkg-qlever',
+      mountDir: resolve('imports'),
+      port: config.QLEVER_PORT ?? 7001,
+    });
+  } else if (config.QLEVER_ENV === 'native') {
     return new NativeTaskRunner();
   } else {
-    throw new Error(`Unknown task runner mode: ${mode}`);
+    throw new Error(`Unknown task runner mode: ${config.QLEVER_ENV}`);
   }
 }
 
-export interface DockerTaskRunnerOptions {
+interface DockerTaskRunnerOptions {
   image: string;
   containerName?: string;
   port?: number;
@@ -31,7 +33,7 @@ export interface DockerTaskRunnerOptions {
   docker?: Docker;
 }
 
-export class DockerTaskRunner implements TaskRunner<Container> {
+class DockerTaskRunner implements TaskRunner<Container> {
   private readonly options;
 
   constructor(options: DockerTaskRunnerOptions) {
@@ -66,7 +68,7 @@ export class DockerTaskRunner implements TaskRunner<Container> {
         await this.options.docker
           .getContainer(this.options.containerName)
           .remove({force: true});
-      } catch (e) {
+      } catch {
         // Ignore if the container does not exist yet.
       }
     }
@@ -140,7 +142,7 @@ export class DockerTaskRunner implements TaskRunner<Container> {
   }
 }
 
-export class NativeTaskRunner implements TaskRunner<ChildProcess> {
+class NativeTaskRunner implements TaskRunner<ChildProcess> {
   private stdout: Map<number, string> = new Map();
   private stderr: Map<number, string> = new Map();
   private shell = true;
@@ -149,13 +151,12 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
     const task = spawn(command, {
       detached: true,
       shell: this.shell,
-      cwd: 'imports', // TODO: don't hard-code
+      cwd: 'imports',
     });
     task.on('close', (code: number) => {
       /** code is null when the process was killed, which is expected when
        * {@link stop} is called. */
       if (code !== null && code !== 0) {
-        // Throw to detect errors in the command arguments.
         throw new Error(this.taskOutput(task));
       }
     });
@@ -182,8 +183,6 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
 
   async wait(task: ChildProcess): Promise<string> {
     return new Promise((resolve, reject) => {
-      // When waiting for a task, reject on error instead of crashing the
-      // process, as we do on purpose in the close listener above.
       task.removeAllListeners('close');
       task.on('close', (code: number) => {
         const output = this.taskOutput(task);
@@ -197,18 +196,15 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
   }
 
   async stop(task: ChildProcess): Promise<string | null> {
-    // Process already exited
     if (task.exitCode !== null) {
       return this.taskOutput(task);
     }
 
     return new Promise(resolve => {
-      // Absolute timeout: resolve no matter what after 10 seconds
       const absoluteTimeout = setTimeout(() => {
         resolve(this.taskOutput(task));
       }, 10000);
 
-      // Escalate to SIGKILL after 5 seconds
       const killTimeout = setTimeout(() => {
         try {
           process.kill(-task.pid!, 'SIGKILL');
@@ -223,12 +219,9 @@ export class NativeTaskRunner implements TaskRunner<ChildProcess> {
         resolve(this.taskOutput(task));
       });
 
-      // Negative PID to kill whole process group: the {shell: true} argument
-      // to spawn splits off a separate process.
       try {
         process.kill(-task.pid!, 'SIGTERM');
       } catch {
-        // Process group may already be dead
         clearTimeout(killTimeout);
         clearTimeout(absoluteTimeout);
         resolve(this.taskOutput(task));
