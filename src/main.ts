@@ -24,15 +24,22 @@ import {
   createUriSpaceStage,
   createVocabularyStage,
 } from '@lde/pipeline-void';
-import {Importer, Server} from '@lde/sparql-qlever';
+import {createQlever} from '@lde/sparql-qlever';
 import {config} from './config.js';
 import {createSubjectFilterSelector} from './subjectFilters.js';
 import {buildUriSpacesMap} from './uriSpaces.js';
 import {ConsoleReporter} from './reporter.js';
-import {createTaskRunner} from './task.js';
+import {resolve} from 'node:path';
 
 const uriSpaces = await buildUriSpacesMap();
-const taskRunner = createTaskRunner(config);
+const {importer, server} = createQlever({
+  mode: config.QLEVER_ENV,
+  image: config.QLEVER_IMAGE ?? '',
+  mountDir: resolve('imports'),
+  containerName: 'dkg-qlever',
+  port: config.QLEVER_PORT,
+  indexName: 'data',
+});
 
 const voidStages = await Promise.all([
   createSubjectUriSpaceStage(),
@@ -56,12 +63,8 @@ const voidStages = await Promise.all([
 await new Pipeline({
   datasetSelector: await createSubjectFilterSelector(),
   distributionResolver: new ImportResolver(new SparqlDistributionResolver(), {
-    importer: new Importer({taskRunner}),
-    server: new Server({
-      taskRunner,
-      indexName: 'data',
-      port: config.QLEVER_PORT as number,
-    }),
+    importer,
+    server,
   }),
   stages: voidStages,
   plugins: [provenancePlugin()],
