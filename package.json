@@ -14,12 +14,10 @@
   "scripts": {
     "start": "node build/src/main.js",
     "dev": "tsc-watch --onSuccess 'npm run start'",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest ${1}",
     "lint": "gts lint",
     "clean": "gts clean",
     "compile": "tsc",
-    "fix": "gts fix",
-    "posttest": "jest-coverage-thresholds-bumper --silent"
+    "fix": "gts fix"
   },
   "repository": {
     "type": "git",
