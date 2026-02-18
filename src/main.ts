@@ -55,17 +55,14 @@ const voidStages = await Promise.all([
 
 await new Pipeline({
   datasetSelector: await createSubjectFilterSelector(),
-  distributionResolver: new ImportResolver(
-    new SparqlDistributionResolver(),
-    {
-      importer: new Importer({taskRunner}),
-      server: new Server({
-        taskRunner,
-        indexName: 'data',
-        port: config.QLEVER_PORT as number,
-      }),
-    },
-  ),
+  distributionResolver: new ImportResolver(new SparqlDistributionResolver(), {
+    importer: new Importer({taskRunner}),
+    server: new Server({
+      taskRunner,
+      indexName: 'data',
+      port: config.QLEVER_PORT as number,
+    }),
+  }),
   stages: voidStages,
   plugins: [provenancePlugin()],
   writers: [

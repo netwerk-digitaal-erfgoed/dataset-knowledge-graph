@@ -7,7 +7,10 @@ export class ConsoleReporter implements ProgressReporter {
   private spinner?: Ora;
 
   pipelineStart(_name: string): void {
-    this.spinner = ora({discardStdin: false, text: 'Selecting datasets'}).start();
+    this.spinner = ora({
+      discardStdin: false,
+      text: 'Selecting datasets',
+    }).start();
   }
 
   datasetStart(dataset: string): void {
