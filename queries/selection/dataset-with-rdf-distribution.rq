@@ -11,6 +11,7 @@ CONSTRUCT {
         dcat:accessURL ?distribution_url ;
         dcat:mediaType ?distribution_mediaType ;
         dcat:byteSize ?distribution_size ;
+        dct:conformsTo ?conformsTo ;
         dct:modified ?distribution_modified .
 } WHERE {
     ?dataset a dcat:Dataset ;

@@ -2,10 +2,10 @@ import {
   Pipeline,
   ImportResolver,
   SparqlDistributionResolver,
-  SparqlUpdateWriter,
   FileWriter,
   provenancePlugin,
 } from '@lde/pipeline';
+import {GraphDbWriter} from './graphDbWriter.js';
 import {
   subjectUriSpaces,
   classPartitions,
@@ -30,6 +30,7 @@ import {createSubjectFilterSelector} from './subjectFilters.js';
 import {buildUriSpacesMap} from './uriSpaces.js';
 import {ConsoleReporter} from './reporter.js';
 import {resolve} from 'node:path';
+import type {DatasetSelector} from '@lde/pipeline';
 
 const uriSpaceMap = await buildUriSpacesMap();
 const {importer, server} = createQlever({
@@ -60,8 +61,18 @@ const voidStages = await Promise.all([
   detectVocabularies(),
 ]);
 
+const reporter = new ConsoleReporter();
+
+const datasetSelector: DatasetSelector = {
+  async select() {
+    const paginator = await (await createSubjectFilterSelector()).select();
+    reporter.datasetsSelected((paginator as {total: number}).total);
+    return paginator;
+  },
+};
+
 await new Pipeline({
-  datasetSelector: await createSubjectFilterSelector(),
+  datasetSelector,
   distributionResolver: new ImportResolver(new SparqlDistributionResolver(), {
     importer,
     server,
@@ -70,12 +81,12 @@ await new Pipeline({
   plugins: [provenancePlugin()],
   writers: [
     new FileWriter({outputDir: 'output'}),
-    new SparqlUpdateWriter({
+    new GraphDbWriter({
       endpoint: new URL(
         `${config.GRAPHDB_URL}/repositories/${config.GRAPHDB_REPOSITORY}/statements`,
       ),
       auth: `Basic ${Buffer.from(`${config.GRAPHDB_USERNAME}:${config.GRAPHDB_PASSWORD}`).toString('base64')}`,
     }),
   ],
-  reporter: new ConsoleReporter(),
+  reporter,
 }).run();
