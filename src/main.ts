@@ -3,9 +3,9 @@ import {
   ImportResolver,
   SparqlDistributionResolver,
   FileWriter,
+  SparqlUpdateWriter,
   provenancePlugin,
 } from '@lde/pipeline';
-import {GraphDbWriter} from './graphDbWriter.js';
 import {
   subjectUriSpaces,
   classPartitions,
@@ -80,8 +80,8 @@ await new Pipeline({
   stages: voidStages,
   plugins: [provenancePlugin()],
   writers: [
-    new FileWriter({outputDir: 'output'}),
-    new GraphDbWriter({
+    new FileWriter({outputDir: 'output', format: 'n-triples'}),
+    new SparqlUpdateWriter({
       endpoint: new URL(
         `${config.GRAPHDB_URL}/repositories/${config.GRAPHDB_REPOSITORY}/statements`,
       ),
