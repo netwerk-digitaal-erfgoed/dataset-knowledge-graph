@@ -7,22 +7,22 @@ import {
   provenancePlugin,
 } from '@lde/pipeline';
 import {
-  createSubjectUriSpaceStage,
-  createClassPartitionStage,
-  createObjectLiteralsStage,
-  createObjectUrisStage,
-  createPropertiesStage,
-  createSubjectsStage,
-  createTriplesStage,
-  createClassPropertiesSubjectsStage,
-  createClassPropertiesObjectsStage,
-  createDatatypesStage,
-  createLicensesStage,
-  createPerClassObjectClassStage,
-  createPerClassDatatypeStage,
-  createPerClassLanguageStage,
-  createUriSpaceStage,
-  createVocabularyStage,
+  subjectUriSpaces,
+  classPartitions,
+  countObjectLiterals,
+  countObjectUris,
+  countProperties,
+  countSubjects,
+  countTriples,
+  classPropertySubjects,
+  classPropertyObjects,
+  countDatatypes,
+  detectLicenses,
+  perClassObjectClasses,
+  perClassDatatypes,
+  perClassLanguages,
+  uriSpaces,
+  detectVocabularies,
 } from '@lde/pipeline-void';
 import {createQlever} from '@lde/sparql-qlever';
 import {config} from './config.js';
@@ -31,7 +31,7 @@ import {buildUriSpacesMap} from './uriSpaces.js';
 import {ConsoleReporter} from './reporter.js';
 import {resolve} from 'node:path';
 
-const uriSpaces = await buildUriSpacesMap();
+const uriSpaceMap = await buildUriSpacesMap();
 const {importer, server} = createQlever({
   mode: config.QLEVER_ENV,
   image: config.QLEVER_IMAGE ?? '',
@@ -42,22 +42,22 @@ const {importer, server} = createQlever({
 });
 
 const voidStages = await Promise.all([
-  createSubjectUriSpaceStage(),
-  createClassPartitionStage(),
-  createObjectLiteralsStage(),
-  createObjectUrisStage(),
-  createPropertiesStage(),
-  createPerClassObjectClassStage(),
-  createSubjectsStage(),
-  createTriplesStage(),
-  createClassPropertiesSubjectsStage(),
-  createClassPropertiesObjectsStage(),
-  createDatatypesStage(),
-  createPerClassDatatypeStage(),
-  createPerClassLanguageStage(),
-  createLicensesStage(),
-  createUriSpaceStage(uriSpaces),
-  createVocabularyStage(),
+  subjectUriSpaces(),
+  classPartitions(),
+  countObjectLiterals(),
+  countObjectUris(),
+  countProperties(),
+  perClassObjectClasses(),
+  countSubjects(),
+  countTriples(),
+  classPropertySubjects(),
+  classPropertyObjects(),
+  countDatatypes(),
+  perClassDatatypes(),
+  perClassLanguages(),
+  detectLicenses(),
+  uriSpaces(uriSpaceMap),
+  detectVocabularies(),
 ]);
 
 await new Pipeline({
