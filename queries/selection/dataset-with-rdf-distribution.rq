@@ -4,6 +4,7 @@ PREFIX schema: <http://schema.org/>
 
 CONSTRUCT {
     ?dataset a dcat:Dataset ;
+        dct:title ?title ;
         dcat:distribution ?distribution .
 
     ?distribution a dcat:Distribution ;
@@ -13,6 +14,7 @@ CONSTRUCT {
         dct:modified ?distribution_modified .
 } WHERE {
     ?dataset a dcat:Dataset ;
+        dct:title ?title ;
         dcat:distribution ?distribution ;
         schema:subjectOf ?registrationUrl .
 
