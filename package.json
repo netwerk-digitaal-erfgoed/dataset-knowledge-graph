@@ -34,7 +34,7 @@
     "@lde/dataset-registry-client": "^0.7.0",
     "@lde/pipeline": "^0.11.0",
     "@lde/pipeline-void": "^0.8.0",
-    "@lde/sparql-qlever": "^0.8.1",
+    "@lde/sparql-qlever": "^0.8.3",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.15.1",
     "@netwerk-digitaal-erfgoed/network-of-terms-query": "^6.2.8",
     "chalk": "^5.4.1",
