@@ -5,9 +5,6 @@ import prettyMilliseconds from 'pretty-ms';
 
 export class ConsoleReporter implements ProgressReporter {
   private spinner?: Ora;
-  // Track whether a stage was started but not yet completed or skipped,
-  // so we can surface silent errors caught by the pipeline's catch block.
-  private stageOpen = false;
 
   pipelineStart(_name: string): void {
     this.spinner = ora({
@@ -32,7 +29,6 @@ export class ConsoleReporter implements ProgressReporter {
   stageStart(stage: string): void {
     this.spinner = ora({discardStdin: false}).start();
     this.spinner.text = `Stage ${chalk.bold(stage)}`;
-    this.stageOpen = true;
   }
 
   stageProgress(update: {
@@ -56,7 +52,13 @@ export class ConsoleReporter implements ProgressReporter {
       this.spinner.suffixText = `took ${chalk.bold(prettyMilliseconds(result.duration))}`;
       this.spinner.succeed();
     }
-    this.stageOpen = false;
+  }
+
+  stageFailed(_stage: string, error: Error): void {
+    if (this.spinner) {
+      this.spinner.suffixText = chalk.red(error.message);
+      this.spinner.fail();
+    }
   }
 
   stageSkipped(_stage: string, reason: string): void {
@@ -64,20 +66,9 @@ export class ConsoleReporter implements ProgressReporter {
       this.spinner.suffixText = `skipped: ${chalk.red(reason)}`;
       this.spinner.fail();
     }
-    this.stageOpen = false;
   }
 
-  datasetComplete(_dataset: string): void {
-    // The pipeline silently catches stage errors and calls datasetComplete anyway.
-    // If a stage was started but never completed or skipped, surface the failure.
-    if (this.stageOpen && this.spinner) {
-      this.spinner.suffixText = chalk.red('failed');
-      this.spinner.fail();
-      this.stageOpen = false;
-      // Reset so the next datasetStart's succeed() doesn't re-render this spinner.
-      this.spinner = undefined;
-    }
-  }
+  datasetComplete(_dataset: string): void {}
 
   datasetSkipped(_dataset: string, reason: string): void {
     if (this.spinner) {
