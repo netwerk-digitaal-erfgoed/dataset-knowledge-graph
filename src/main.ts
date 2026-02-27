@@ -5,6 +5,7 @@ import {
   FileWriter,
   SparqlUpdateWriter,
   provenancePlugin,
+  type Writer,
 } from '@lde/pipeline';
 import {
   subjectUriSpaces,
@@ -71,6 +72,18 @@ const datasetSelector: DatasetSelector = {
   },
 };
 
+const writers: Writer[] = [
+  new FileWriter({outputDir: 'output', format: 'n-triples'}),
+];
+if (config.SPARQL_UPDATE_URL) {
+  writers.push(
+    new SparqlUpdateWriter({
+      endpoint: new URL(config.SPARQL_UPDATE_URL),
+      auth: config.SPARQL_UPDATE_AUTHORIZATION,
+    }),
+  );
+}
+
 await new Pipeline({
   datasetSelector,
   distributionResolver: new ImportResolver(new SparqlDistributionResolver(), {
@@ -79,14 +92,6 @@ await new Pipeline({
   }),
   stages: voidStages,
   plugins: [provenancePlugin()],
-  writers: [
-    new FileWriter({outputDir: 'output', format: 'n-triples'}),
-    new SparqlUpdateWriter({
-      endpoint: new URL(
-        `${config.GRAPHDB_URL}/repositories/${config.GRAPHDB_REPOSITORY}/statements`,
-      ),
-      auth: `Basic ${Buffer.from(`${config.GRAPHDB_USERNAME}:${config.GRAPHDB_PASSWORD}`).toString('base64')}`,
-    }),
-  ],
+  writers,
   reporter,
 }).run();
