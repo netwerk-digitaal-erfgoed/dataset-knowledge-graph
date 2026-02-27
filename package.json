@@ -32,8 +32,8 @@
   "dependencies": {
     "@lde/dataset": "^0.6.10",
     "@lde/dataset-registry-client": "^0.6.17",
-    "@lde/pipeline": "^0.7.1",
-    "@lde/pipeline-void": "^0.4.1",
+    "@lde/pipeline": "^0.8.1",
+    "@lde/pipeline-void": "^0.5.1",
     "@lde/sparql-qlever": "^0.7.0",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.15.1",
     "@netwerk-digitaal-erfgoed/network-of-terms-query": "^6.2.8",
