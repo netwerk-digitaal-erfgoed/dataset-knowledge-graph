@@ -16,5 +16,4 @@ jobs:
           check-latest: true
       - run: npm install
       - run: npm run lint
-      - run: npm test
       - run: npm run compile

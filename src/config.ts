@@ -3,37 +3,11 @@ import {envSchema} from 'env-schema';
 const schema = {
   type: 'object',
   properties: {
-    GRAPHDB_URL: {
+    SPARQL_UPDATE_URL: {
       type: 'string',
-      default: 'http://localhost:7200',
     },
-    GRAPHDB_USERNAME: {
+    SPARQL_UPDATE_AUTHORIZATION: {
       type: 'string',
-      default: 'admin',
-    },
-    GRAPHDB_PASSWORD: {
-      type: 'string',
-      default: 'root',
-    },
-    GRAPHDB_REPOSITORY: {
-      type: 'string',
-      default: 'dataset-knowledge-graph',
-    },
-    GRAPHDB_IMPORTS_URL: {
-      type: 'string',
-      default: 'http://localhost:7200',
-    },
-    GRAPHDB_IMPORTS_USERNAME: {
-      type: 'string',
-      default: 'admin',
-    },
-    GRAPHDB_IMPORTS_PASSWORD: {
-      type: 'string',
-      default: 'root',
-    },
-    GRAPHDB_IMPORTS_REPOSITORY: {
-      type: 'string',
-      default: 'dataset-knowledge-graph-imports',
     },
     QLEVER_ENV: {
       type: 'string',
@@ -48,9 +22,17 @@ const schema = {
       type: 'string',
     },
   },
-};
+} as const;
+
+interface Config {
+  SPARQL_UPDATE_URL?: string;
+  SPARQL_UPDATE_AUTHORIZATION?: string;
+  QLEVER_ENV: 'docker' | 'native';
+  QLEVER_PORT: number;
+  QLEVER_IMAGE?: string;
+}
 
 export const config = envSchema({
   schema,
   dotenv: {quiet: true},
-});
+}) as unknown as Config;
