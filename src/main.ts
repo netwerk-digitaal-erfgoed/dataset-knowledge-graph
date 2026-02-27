@@ -73,7 +73,7 @@ const datasetSelector: DatasetSelector = {
 };
 
 const writers: Writer[] = [
-  new FileWriter({outputDir: 'output', format: 'n-triples'}),
+  new FileWriter({outputDir: 'output', format: 'turtle'}),
 ];
 if (config.SPARQL_UPDATE_URL) {
   writers.push(
