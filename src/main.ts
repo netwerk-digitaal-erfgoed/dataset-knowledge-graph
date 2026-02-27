@@ -44,22 +44,22 @@ const {importer, server} = createQlever({
 });
 
 const voidStages = await Promise.all([
-  subjectUriSpaces(),
-  classPartitions(),
+  countSubjects(),
+  countProperties(),
   countObjectLiterals(),
   countObjectUris(),
-  countProperties(),
-  perClassObjectClasses(),
-  countSubjects(),
+  countDatatypes(),
   countTriples(),
+  classPartitions(),
   classPropertySubjects(),
   classPropertyObjects(),
-  countDatatypes(),
   perClassDatatypes(),
+  perClassObjectClasses(),
   perClassLanguages(),
   detectLicenses(),
-  uriSpaces(uriSpaceMap),
   detectVocabularies(),
+  subjectUriSpaces(),
+  uriSpaces(uriSpaceMap),
 ]);
 
 const reporter = new ConsoleReporter();
