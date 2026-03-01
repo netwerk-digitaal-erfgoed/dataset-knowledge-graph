@@ -29,7 +29,7 @@ import {createQlever} from '@lde/sparql-qlever';
 import {config} from './config.js';
 import {createSubjectFilterSelector} from './subjectFilters.js';
 import {buildUriSpacesMap} from './uriSpaces.js';
-import {ConsoleReporter} from './reporter.js';
+import {ConsoleReporter} from '@lde/pipeline-console-reporter';
 import {resolve} from 'node:path';
 import type {DatasetSelector} from '@lde/pipeline';
 

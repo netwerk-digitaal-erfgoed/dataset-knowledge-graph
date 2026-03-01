@@ -32,16 +32,14 @@
   "dependencies": {
     "@lde/dataset": "^0.7.0",
     "@lde/dataset-registry-client": "^0.7.0",
-    "@lde/pipeline": "^0.11.0",
-    "@lde/pipeline-void": "^0.8.0",
+    "@lde/pipeline": "^0.13.0",
+    "@lde/pipeline-console-reporter": "^0.2.0",
+    "@lde/pipeline-void": "^0.10.0",
     "@lde/sparql-qlever": "^0.8.3",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.15.1",
     "@netwerk-digitaal-erfgoed/network-of-terms-query": "^6.3.5",
-    "chalk": "^5.4.1",
     "env-schema": "^7.0.0",
     "n3": "^2.0.1",
-    "ora": "^9.3.0",
-    "pretty-ms": "^9.3.0",
     "rdf-dereference": "^4.0.0"
   },
   "devDependencies": {
