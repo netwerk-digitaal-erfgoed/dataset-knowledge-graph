@@ -39,7 +39,7 @@
     "@netwerk-digitaal-erfgoed/network-of-terms-query": "^6.2.8",
     "chalk": "^5.4.1",
     "env-schema": "^6.0.1",
-    "n3": "^1.17.2",
+    "n3": "^2.0.1",
     "ora": "^9.3.0",
     "pretty-ms": "^9.3.0",
     "rdf-dereference": "^4.0.0"
