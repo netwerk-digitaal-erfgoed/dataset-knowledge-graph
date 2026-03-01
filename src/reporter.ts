@@ -6,7 +6,7 @@ import prettyMilliseconds from 'pretty-ms';
 export class ConsoleReporter implements ProgressReporter {
   private spinner?: Ora;
 
-  pipelineStart(_name: string): void {
+  pipelineStart(): void {
     this.spinner = ora({
       discardStdin: false,
       text: 'Selecting datasets',
@@ -68,7 +68,7 @@ export class ConsoleReporter implements ProgressReporter {
     }
   }
 
-  datasetComplete(_dataset: string): void {}
+  datasetComplete(): void {}
 
   datasetSkipped(_dataset: string, reason: string): void {
     if (this.spinner) {
