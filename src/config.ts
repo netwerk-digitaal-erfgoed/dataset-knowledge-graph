@@ -34,5 +34,5 @@ interface Config {
 
 export const config = envSchema({
   schema,
-  dotenv: {quiet: true},
+  dotenv: true,
 }) as unknown as Config;
