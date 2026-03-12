@@ -66,9 +66,7 @@ const reporter = new ConsoleReporter();
 
 const datasetSelector: DatasetSelector = {
   async select() {
-    const paginator = await (await createSubjectFilterSelector()).select();
-    reporter.datasetsSelected((paginator as {total: number}).total);
-    return paginator;
+    return (await createSubjectFilterSelector()).select();
   },
 };
 
