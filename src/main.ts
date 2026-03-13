@@ -26,7 +26,7 @@ const {importer, server} = createQlever({
   indexName: 'data',
 });
 
-const stages = await voidStages({uriSpaces});
+const stages = await voidStages({uriSpaces, batchSize: 1});
 
 const reporter = new ConsoleReporter();
 
