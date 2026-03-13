@@ -28,6 +28,30 @@ All queries ran globally (one query over all classes at once). `class-properties
 | 3           | 2                | 4/5 failed (504/503/500) | 5m 15s |
 | 5           | 3                | 2/5 failed (504/503) | 6m 19s |
 
+### Gouda Tijdmachine (`https://sparql.goudatijdmachine.nl/`, QLever, ~28 classes)
+
+| Stage | Before (`batchSize: 10`) | After (`batchSize: 1`) |
+|---|---|---|
+| subjects.rq | 4.1s | 3.3s |
+| properties.rq | 285ms | 78ms |
+| object-literals.rq | 2.6s | 2.5s |
+| object-uris.rq | 2.1s | 2.1s |
+| datatypes.rq | 6.3s | 6.4s |
+| triples.rq | 257ms | 230ms |
+| class-partition.rq | 148ms | 106ms |
+| class-properties-subjects.rq | 15.5s | 10.2s |
+| class-properties-objects.rq | 8.8s | 6.1s |
+| class-property-datatypes.rq | **failed (500)** | **21.9s** |
+| class-property-object-classes.rq | 10.8s | 4.9s |
+| class-property-languages.rq | 12.2s | 8.1s |
+| licenses.rq | 114ms | 86ms |
+| entity-properties.rq | 9.9s | failed (transient) |
+| subject-uri-space.rq | 5.9s | 6.2s |
+| object-uri-space.rq | 7.2s | 7.3s |
+| **Total** | **2m 7.4s** | **1m 23.3s** |
+
+Key improvement: `class-property-datatypes.rq` previously failed with a QLever "Waited for a result from another thread which then failed" error at `batchSize: 10`. With `batchSize: 1` it completes in 21.9s. Overall time dropped by 35%.
+
 ## Findings
 
 1. **`batchSize` is the critical parameter.** Combining even 2 classes in a single `VALUES` clause causes 504 Gateway Timeouts on this endpoint. `batchSize: 1` is the only reliable setting.
