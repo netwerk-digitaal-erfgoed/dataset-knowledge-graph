@@ -20,7 +20,7 @@ const uriSpaces = await buildUriSpacesMap();
 const {importer, server} = createQlever({
   mode: config.QLEVER_ENV,
   image: config.QLEVER_IMAGE ?? '',
-  mountDir: resolve('imports'),
+  dataDir: resolve('imports'),
   containerName: 'dkg-qlever',
   port: config.QLEVER_PORT,
   indexName: 'data',
