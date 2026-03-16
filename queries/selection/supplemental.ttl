@@ -1,6 +1,6 @@
 @prefix nde: <https://data.netwerkdigitaalerfgoed.nl/def/> .
 
-<http://data.bibliotheken.nl/id/dataset/albac> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/albac>" .
+<http://data.bibliotheken.nl/id/dataset/albac> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/albac>" .
 <http://data.bibliotheken.nl/id/dataset/brinkman> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/brinkman>" .
 <http://data.bibliotheken.nl/id/dataset/corps> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/corps>" .
 <http://data.bibliotheken.nl/id/dataset/dbnla> nde:subjectFilter "?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <http://data.bibliotheken.nl/id/dataset/dbnla>" .
