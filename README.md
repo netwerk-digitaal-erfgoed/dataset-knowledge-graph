@@ -375,6 +375,25 @@ To run the pipeline yourself, start by cloning this repository. Then execute:
 
 The [Dataset Summaries](#dataset-summaries) output will be written to the `output/` directory.
 
+### QLever
+
+The pipeline uses [QLever](https://github.com/ad-freiburg/qlever) to index and query
+RDF data dumps. It can run in **Docker** mode (default) or **native** mode.
+
+Set the mode via the `QLEVER_ENV` environment variable in `.env`:
+
+```sh
+# Docker mode (default): requires Docker and a QLever image.
+QLEVER_ENV=docker
+QLEVER_IMAGE=adfreiburg/qlever:commit-a14e0a0
+
+# Native mode: requires qlever-index and qlever-server on PATH.
+# On macOS: brew install qlever-dev/qlever/qlever
+QLEVER_ENV=native
+```
+
+Native mode is ~2x faster than Docker on macOS (see [index tuning benchmarks](docs/qlever-index-tuning.md)).
+
 ## Pipeline Steps
 
 The pipeline consists of the following steps.
