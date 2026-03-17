@@ -39,7 +39,7 @@
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.19.7",
     "env-schema": "^7.0.0",
     "n3": "^2.0.1",
-    "rdf-dereference": "^4.0.0"
+    "rdf-dereference": "^5.0.0"
   },
   "devDependencies": {
     "@rdfjs/types": "^2.0.1",
