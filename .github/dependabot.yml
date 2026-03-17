@@ -8,8 +8,8 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "daily"
     groups:
-      comunica:
+      lde:
         patterns:
-          - "@comunica/*"
+          - "@lde/*"
