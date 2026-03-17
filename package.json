@@ -1,5 +1,5 @@
 {
-  "name": "@netwerk-digitaal-erfgoed/knowledge-graph-pipeline",
+  "name": "@netwerk-digitaal-erfgoed/knowledge-graph",
   "type": "module",
   "private": true,
   "files": [
@@ -7,7 +7,7 @@
   ],
   "exports": "./build/src/main.js",
   "version": "0.0.0-semantically-released",
-  "description": "A pipeline for the NDE Dataset Knowledge Graph",
+  "description": "Pipeline that generates the NDE Dataset Knowledge Graph",
   "engines": {
     "node": ">=22"
   },
@@ -21,21 +21,21 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/netwerk-digitaal-erfgoed/kg-pipeline.git"
+    "url": "git+https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph.git"
   },
   "author": "Netwerk Digitaal Erfgoed",
   "license": "EUPL",
   "bugs": {
-    "url": "https://github.com/netwerk-digitaal-erfgoed/kg-pipeline/issues"
+    "url": "https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues"
   },
-  "homepage": "https://github.com/netwerk-digitaal-erfgoed/kg-pipeline#readme",
+  "homepage": "https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph",
   "dependencies": {
-    "@lde/dataset": "^0.7.1",
-    "@lde/dataset-registry-client": "^0.7.3",
-    "@lde/pipeline": "^0.24.2",
-    "@lde/pipeline-console-reporter": "^0.15.4",
-    "@lde/pipeline-void": "^0.22.2",
-    "@lde/sparql-qlever": "^0.9.2",
+    "@lde/dataset": "^0.7.2",
+    "@lde/dataset-registry-client": "^0.7.4",
+    "@lde/pipeline": "^0.24.4",
+    "@lde/pipeline-console-reporter": "^0.15.6",
+    "@lde/pipeline-void": "^0.22.4",
+    "@lde/sparql-qlever": "^0.10.1",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.19.7",
     "@netwerk-digitaal-erfgoed/network-of-terms-query": "^6.3.6",
     "env-schema": "^7.0.0",
