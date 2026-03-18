@@ -23,6 +23,17 @@ async function loadSubjectFilters(): Promise<Map<string, string>> {
   return filters;
 }
 
+/**
+ * Generate a subject filter for data.bibliotheken.nl datasets dynamically,
+ * so new datasets are picked up without manual supplemental.ttl entries.
+ */
+function bibliotheeknlSubjectFilter(datasetIri: string): string | undefined {
+  if (!datasetIri.startsWith('http://data.bibliotheken.nl/id/dataset/')) {
+    return undefined;
+  }
+  return `?s <http://schema.org/mainEntityOfPage>/<http://schema.org/isPartOf> <${datasetIri}>.`;
+}
+
 export async function createSubjectFilterSelector(): Promise<DatasetSelector> {
   const filters = await loadSubjectFilters();
   const query = (
@@ -44,7 +55,9 @@ export async function createSubjectFilterSelector(): Promise<DatasetSelector> {
       const datasets: Dataset[] = [];
 
       for await (const dataset of paginator) {
-        const filter = filters.get(dataset.iri.toString());
+        const datasetIri = dataset.iri.toString();
+        const filter =
+          filters.get(datasetIri) ?? bibliotheeknlSubjectFilter(datasetIri);
         if (filter) {
           for (const distribution of dataset.distributions) {
             distribution.subjectFilter = filter;
