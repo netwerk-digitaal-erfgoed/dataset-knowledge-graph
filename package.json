@@ -32,9 +32,9 @@
   "dependencies": {
     "@lde/dataset": "^0.7.2",
     "@lde/dataset-registry-client": "^0.7.4",
-    "@lde/pipeline": "^0.24.4",
-    "@lde/pipeline-console-reporter": "^0.15.7",
-    "@lde/pipeline-void": "^0.22.4",
+    "@lde/pipeline": "^0.25.0",
+    "@lde/pipeline-console-reporter": "^0.16.0",
+    "@lde/pipeline-void": "^0.23.0",
     "@lde/sparql-qlever": "^0.10.1",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.19.10",
     "env-schema": "^7.0.0",
