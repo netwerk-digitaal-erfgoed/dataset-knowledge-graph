@@ -24,6 +24,9 @@ const {importer, server} = createQlever({
   containerName: 'dkg-qlever',
   port: config.QLEVER_PORT,
   indexName: 'data',
+  qleverOptions: {
+    'only-pso-and-pos-permutations': true,
+  },
 });
 
 const stages = await voidStages({uriSpaces, batchSize: 1});
