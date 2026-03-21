@@ -24,6 +24,10 @@ const {importer, server} = createQlever({
   containerName: 'dkg-qlever',
   port: config.QLEVER_PORT,
   indexName: 'data',
+  serverOptions: {
+    'memory-max-size': '12G',
+    'default-query-timeout': '120s',
+  },
 });
 
 const stages = await voidStages({uriSpaces, batchSize: 1});
