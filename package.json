@@ -32,9 +32,9 @@
   "dependencies": {
     "@lde/dataset": "^0.7.2",
     "@lde/dataset-registry-client": "^0.7.4",
-    "@lde/pipeline": "^0.28.2",
-    "@lde/pipeline-console-reporter": "^0.19.5",
-    "@lde/pipeline-void": "^0.26.2",
+    "@lde/pipeline": "^0.28.5",
+    "@lde/pipeline-console-reporter": "^0.19.8",
+    "@lde/pipeline-void": "^0.26.5",
     "@lde/sparql-qlever": "^0.14.2",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.19.13",
     "env-schema": "^7.0.0",
@@ -42,17 +42,17 @@
     "rdf-dereference": "^5.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.27.0",
     "@rdfjs/types": "^2.0.1",
     "@types/n3": "^1.16.4",
     "@types/node": "^25.5.0",
-    "@eslint/js": "^9.27.0",
     "eslint": "^9.27.0",
     "eslint-config-prettier": "^10.1.0",
     "eslint-plugin-n": "^17.18.0",
     "eslint-plugin-prettier": "^5.4.0",
     "prettier": "^3.5.0",
-    "typescript-eslint": "^8.32.0",
     "tsc-watch": "^7.2.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.32.0"
   }
 }
