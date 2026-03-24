@@ -1,16 +1,22 @@
 {
-  "extends": "./node_modules/gts/tsconfig-google.json",
   "compilerOptions": {
     "outDir": "build/",
     "target": "es2020",
     "lib": ["esnext"],
-    "skipLibCheck": true,
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "esModuleInterop": true,
-    "declarationMap": true
+    "skipLibCheck": true,
+    "strict": true,
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noEmitOnError": true
   },
   "include": [
-    "src/**/*.ts",
+    "src/**/*.ts"
   ]
 }

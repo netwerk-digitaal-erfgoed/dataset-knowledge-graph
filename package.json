@@ -14,10 +14,10 @@
   "scripts": {
     "start": "node build/src/main.js",
     "dev": "tsc-watch --onSuccess 'npm run start'",
-    "lint": "gts lint",
-    "clean": "gts clean",
+    "lint": "eslint . && prettier --check src/",
+    "clean": "rm -rf build/",
     "compile": "tsc",
-    "fix": "gts fix"
+    "fix": "eslint --fix . && prettier --write src/"
   },
   "repository": {
     "type": "git",
@@ -45,8 +45,14 @@
     "@rdfjs/types": "^2.0.1",
     "@types/n3": "^1.16.4",
     "@types/node": "^25.5.0",
-    "gts": "^7.0.0",
+    "@eslint/js": "^9.27.0",
+    "eslint": "^9.27.0",
+    "eslint-config-prettier": "^10.1.0",
+    "eslint-plugin-n": "^17.18.0",
+    "eslint-plugin-prettier": "^5.4.0",
+    "prettier": "^3.5.0",
+    "typescript-eslint": "^8.32.0",
     "tsc-watch": "^7.2.0",
-    "typescript": "^6.0.2"
+    "typescript": "^5.8.3"
   }
 }
