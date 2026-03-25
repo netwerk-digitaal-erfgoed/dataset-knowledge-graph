@@ -42,7 +42,7 @@
     "rdf-dereference": "^5.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.27.0",
+    "@eslint/js": "^10.0.1",
     "@rdfjs/types": "^2.0.1",
     "@types/n3": "^1.16.4",
     "@types/node": "^25.5.0",
