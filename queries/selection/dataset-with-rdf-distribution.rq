@@ -19,9 +19,8 @@ CONSTRUCT {
         dcat:distribution ?distribution ;
         schema:subjectOf ?registrationUrl .
 
-    ?distribution dcat:accessURL ?distribution_url ;
-        dcat:mediaType ?distribution_mediaType .
-
+    ?distribution dcat:accessURL ?distribution_url .
+    OPTIONAL { ?distribution dcat:mediaType ?distribution_mediaType . }
 #    OPTIONAL { ?distribution dcat:byteSize ?distribution_size . }
     OPTIONAL { ?distribution dct:modified ?distribution_modified . }
     OPTIONAL { ?distribution dct:conformsTo ?conformsTo. }
