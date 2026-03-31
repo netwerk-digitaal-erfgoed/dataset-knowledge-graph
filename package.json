@@ -36,7 +36,7 @@
     "@lde/pipeline-console-reporter": "^0.19.8",
     "@lde/pipeline-void": "^0.26.5",
     "@lde/sparql-qlever": "^0.14.2",
-    "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.19.13",
+    "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.19.14",
     "env-schema": "^7.0.0",
     "n3": "^2.0.1",
     "rdf-dereference": "^5.0.0"
