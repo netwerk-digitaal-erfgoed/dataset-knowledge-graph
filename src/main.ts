@@ -35,6 +35,7 @@ const stages = await voidStages({
   vocabularies: [
     'http://www.europeana.eu/schemas/edm/',
     'https://personsincontext.org/model#',
+    'https://schema.org/',
   ],
   batchSize: 1,
 });
