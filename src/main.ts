@@ -25,12 +25,19 @@ const {importer, server} = createQlever({
   port: config.QLEVER_PORT,
   indexName: 'data',
   serverOptions: {
-    'memory-max-size': '12G',
+    'memory-max-size': '16G',
     'default-query-timeout': '120s',
   },
 });
 
-const stages = await voidStages({uriSpaces, batchSize: 1});
+const stages = await voidStages({
+  uriSpaces,
+  vocabularies: [
+    'http://www.europeana.eu/schemas/edm/',
+    'https://personsincontext.org/model#',
+  ],
+  batchSize: 1,
+});
 
 const reporter = new ConsoleReporter();
 
