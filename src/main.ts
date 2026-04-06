@@ -5,6 +5,7 @@ import {
   FileWriter,
   SparqlUpdateWriter,
   provenancePlugin,
+  schemaOrgNormalizationPlugin,
   type Writer,
 } from '@lde/pipeline';
 import {voidStages} from '@lde/pipeline-void';
@@ -67,7 +68,7 @@ await new Pipeline({
     server,
   }),
   stages,
-  plugins: [provenancePlugin()],
+  plugins: [schemaOrgNormalizationPlugin(), provenancePlugin()],
   writers,
   reporter,
 }).run();
