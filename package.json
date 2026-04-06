@@ -32,7 +32,7 @@
   "dependencies": {
     "@lde/dataset": "^0.7.2",
     "@lde/dataset-registry-client": "^0.7.4",
-    "@lde/pipeline": "^0.29.0",
+    "@lde/pipeline": "^0.28.6",
     "@lde/pipeline-console-reporter": "^0.19.8",
     "@lde/pipeline-void": "^0.26.6",
     "@lde/sparql-qlever": "^0.14.2",
