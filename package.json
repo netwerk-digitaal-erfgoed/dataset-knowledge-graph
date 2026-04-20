@@ -46,7 +46,7 @@
     "@rdfjs/types": "^2.0.1",
     "@types/n3": "^1.16.4",
     "@types/node": "^25.6.0",
-    "eslint": "^10.2.0",
+    "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.0",
     "eslint-plugin-n": "^17.18.0",
     "eslint-plugin-prettier": "^5.4.0",
