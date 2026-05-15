@@ -412,6 +412,41 @@ Apply Analyzers, either to the dataset provider’s SPARQL endpoint, or our own 
 more detailed information. 
 Analyzers output results as triples in the VoID vocabulary.
 
-### 4. Write analysis results
+### 4. Validate against SCHEMA-AP-NDE
+
+Sample a configurable number of resources per `sh:targetClass` declared in the
+[NDE Schema.org Application Profile](https://github.com/netwerk-digitaal-erfgoed/schema-profile)
+SHACL shapes and validate the samples. Per-dataset SHACL validation reports are
+written to `output/validation/<dataset>.ttl`.
+
+### 5. Quality measurements
+
+The Summary embeds DQV ([Data Quality Vocabulary](https://www.w3.org/TR/vocab-dqv/))
+measurements summarising the validation result, along with a PROV activity
+describing the validation run:
+
+```ttl
+<https://example.org/dataset> dqv:hasQualityMeasurement [
+    a dqv:QualityMeasurement ;
+    dqv:computedOn <https://example.org/dataset> ;
+    dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/schema-ap-nde-sample-conformance> ;
+    dqv:value true ;
+    dcterms:conformsTo <https://docs.nde.nl/schema-profile/> ;
+    prov:wasGeneratedBy [
+        a prov:Activity ;
+        prov:used <https://example.org/dataset>, <https://docs.nde.nl/schema-profile/> ;
+        prov:wasAssociatedWith <https://www.npmjs.com/package/@lde/pipeline-shacl-validator> ;
+    ] ;
+].
+```
+
+A non-conforming verdict is also emitted when **no** target class matched at all
+(the dataset doesn’t use any of the SCHEMA-AP-NDE classes) — see
+[`requireNonEmptyData`](https://github.com/ldelements/lde/tree/main/packages/pipeline).
+The detailed `sh:ValidationReport` with individual violations stays in
+`output/validation/<dataset>.ttl` (kept out of the SPARQL store to avoid
+bloating it on badly non-conformant datasets).
+
+### 6. Write analysis results
 
 Write the analysis results to local files and a triple store.
