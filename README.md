@@ -32,6 +32,7 @@ The Knowledge Graph contains **Dataset Summaries** that answer questions such as
 - which [URI prefixes](#outgoing-links) does the dataset link to?
 - for each of those prefixes, which match known [terminology sources](https://termennetwerk.netwerkdigitaalerfgoed.nl)?
 - for each of those sources, [how many outgoing links](#outgoing-links) to them does the dataset have?
+- does the dataset conform to [SCHEMA-AP-NDE](#schema-ap-nde-conformance)?
 - (and more)
 
 The Summaries can be consulted by users such as data platform builders to help them find relevant datasets.
@@ -350,6 +351,95 @@ If a distribution is invalid, a `schema:error` triple will indicate the HTTP sta
         <http://data.bibliotheken.nl/doc/alba/p416673600>.
 ```
 
+### SCHEMA-AP-NDE conformance
+
+The Summary embeds [DQV](https://www.w3.org/TR/vocab-dqv/) quality measurements
+summarising the dataset’s conformance to the
+[NDE Schema.org Application Profile](https://github.com/netwerk-digitaal-erfgoed/schema-profile),
+along with a [PROV](https://www.w3.org/TR/prov-o/) activity describing the
+validation run:
+
+```ttl
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dqv:     <http://www.w3.org/ns/dqv#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+
+<https://example.org/dataset>
+    dqv:hasQualityMeasurement
+        [ a dqv:QualityMeasurement ;
+          dqv:computedOn <https://example.org/dataset> ;
+          dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/schema-ap-nde-sample-conformance> ;
+          dqv:value true ;
+          dcterms:conformsTo <https://docs.nde.nl/schema-profile/> ;
+          prov:wasGeneratedBy _:validation ],
+        [ a dqv:QualityMeasurement ;
+          dqv:computedOn <https://example.org/dataset> ;
+          dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/quads-validated> ;
+          dqv:value 5234 ;
+          prov:wasGeneratedBy _:validation ],
+        [ a dqv:QualityMeasurement ;
+          dqv:computedOn <https://example.org/dataset> ;
+          dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/samples-per-class> ;
+          dqv:value 50 ;
+          prov:wasGeneratedBy _:validation ] .
+
+_:validation
+    a prov:Activity ;
+    prov:used <https://example.org/dataset>, <https://docs.nde.nl/schema-profile/> ;
+    prov:wasAssociatedWith <https://www.npmjs.com/package/@lde/pipeline-shacl-validator> .
+```
+
+Three measurements are emitted per dataset:
+
+| Metric IRI | Type | Meaning |
+|---|---|---|
+| `…/metric/schema-ap-nde-sample-conformance` | `xsd:boolean` | Whether the sampled resources conformed to SCHEMA-AP-NDE’s SHACL shapes. Carries `dcterms:conformsTo` so consumers reach the profile IRI via the DQV path alone. |
+| `…/metric/quads-validated` | `xsd:integer` | Number of quads the validator inspected — the union of the per-class sample subgraphs. Contextualises the conformance verdict by indicating coverage. |
+| `…/metric/samples-per-class` | `xsd:integer` | Configured sample cap per `sh:targetClass`. Currently 50. Same value across all datasets in a given pipeline run; included so consumers can interpret the coverage figure. |
+
+A non-conforming verdict is emitted in two cases:
+
+1. The validator found at least one violation in the sampled resources.
+2. **No** target class matched at all — the dataset doesn’t contain any
+   resource of a SCHEMA-AP-NDE `sh:targetClass`. Without this safeguard the
+   verdict would default to “conforms” (SHACL’s vacuous-truth rule); the
+   pipeline opts into a stricter reading via
+   [`requireNonEmptyData`](https://github.com/ldelements/lde/tree/main/packages/pipeline).
+
+The detailed `sh:ValidationReport` with per-resource violations stays in
+`output/validation/<dataset>.ttl`, **not** in the SPARQL store, to avoid
+bloating it on badly non-conformant datasets.
+
+#### Querying
+
+“Find datasets whose samples passed SCHEMA-AP-NDE”:
+
+```sparql
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX dqv:     <http://www.w3.org/ns/dqv#>
+
+SELECT ?dataset WHERE {
+    ?dataset dqv:hasQualityMeasurement [
+        dqv:value true ;
+        dcterms:conformsTo <https://docs.nde.nl/schema-profile/>
+    ] .
+}
+```
+
+“Find datasets where the validator inspected fewer than 100 quads” (low coverage signal):
+
+```sparql
+PREFIX dqv:  <http://www.w3.org/ns/dqv#>
+
+SELECT ?dataset ?count WHERE {
+    ?dataset dqv:hasQualityMeasurement [
+        dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/quads-validated> ;
+        dqv:value ?count
+    ] .
+    FILTER (?count < 100)
+}
+```
+
 ### Partition URIs
 
 Partition resources (class partitions, property partitions, etc.) use well-known URIs based on the dataset URI:
@@ -421,31 +511,11 @@ written to `output/validation/<dataset>.ttl`.
 
 ### 5. Quality measurements
 
-The Summary embeds DQV ([Data Quality Vocabulary](https://www.w3.org/TR/vocab-dqv/))
-measurements summarising the validation result, along with a PROV activity
-describing the validation run:
-
-```ttl
-<https://example.org/dataset> dqv:hasQualityMeasurement [
-    a dqv:QualityMeasurement ;
-    dqv:computedOn <https://example.org/dataset> ;
-    dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/schema-ap-nde-sample-conformance> ;
-    dqv:value true ;
-    dcterms:conformsTo <https://docs.nde.nl/schema-profile/> ;
-    prov:wasGeneratedBy [
-        a prov:Activity ;
-        prov:used <https://example.org/dataset>, <https://docs.nde.nl/schema-profile/> ;
-        prov:wasAssociatedWith <https://www.npmjs.com/package/@lde/pipeline-shacl-validator> ;
-    ] ;
-].
-```
-
-A non-conforming verdict is also emitted when **no** target class matched at all
-(the dataset doesn’t use any of the SCHEMA-AP-NDE classes) — see
-[`requireNonEmptyData`](https://github.com/ldelements/lde/tree/main/packages/pipeline).
-The detailed `sh:ValidationReport` with individual violations stays in
-`output/validation/<dataset>.ttl` (kept out of the SPARQL store to avoid
-bloating it on badly non-conformant datasets).
+Summarise the validation result as [DQV](https://www.w3.org/TR/vocab-dqv/)
+measurements + a [PROV](https://www.w3.org/TR/prov-o/) activity describing the
+validation run, and append them to the dataset’s Summary. See
+[SCHEMA-AP-NDE conformance](#schema-ap-nde-conformance) for the output shape
+and example queries.
 
 ### 6. Write analysis results
 
