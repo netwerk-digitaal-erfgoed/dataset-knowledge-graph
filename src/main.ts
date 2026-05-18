@@ -9,13 +9,21 @@ import {
   type Writer,
 } from '@lde/pipeline';
 import {voidStages} from '@lde/pipeline-void';
+import {shaclSampleStages} from '@lde/pipeline-shacl-sampler';
+import {ShaclValidator} from '@lde/pipeline-shacl-validator';
 import {createQlever} from '@lde/sparql-qlever';
 import {config} from './config.js';
 import {createSubjectFilterSelector} from './subjectFilters.js';
 import {buildUriSpacesMap} from './uriSpaces.js';
+import {qualityMeasurementsStage} from './qualityMeasurementsStage.js';
 import {ConsoleReporter} from '@lde/pipeline-console-reporter';
 import {resolve} from 'node:path';
 import type {DatasetSelector} from '@lde/pipeline';
+
+const SCHEMA_AP_NDE_SHAPES =
+  'https://raw.githubusercontent.com/netwerk-digitaal-erfgoed/schema-profile/main/shacl.ttl';
+const SCHEMA_AP_NDE_PROFILE = 'https://docs.nde.nl/schema-profile/';
+const SAMPLES_PER_CLASS = 50;
 
 const uriSpaces = await buildUriSpacesMap();
 const {importer, server} = createQlever({
@@ -31,7 +39,7 @@ const {importer, server} = createQlever({
   },
 });
 
-const stages = await voidStages({
+const voidStageList = await voidStages({
   uriSpaces,
   vocabularies: [
     'http://www.europeana.eu/schemas/edm/',
@@ -40,6 +48,27 @@ const stages = await voidStages({
   ],
   batchSize: 1,
 });
+
+const schemaApValidator = new ShaclValidator({
+  shapesFile: SCHEMA_AP_NDE_SHAPES,
+  reportDir: 'output/validation',
+});
+
+const sampleStages = await shaclSampleStages({
+  shapesFile: SCHEMA_AP_NDE_SHAPES,
+  samplesPerClass: SAMPLES_PER_CLASS,
+  validator: schemaApValidator,
+});
+
+const stages = [
+  ...voidStageList,
+  ...sampleStages,
+  qualityMeasurementsStage({
+    validator: schemaApValidator,
+    profile: SCHEMA_AP_NDE_PROFILE,
+    samplesPerClass: SAMPLES_PER_CLASS,
+  }),
+];
 
 const reporter = new ConsoleReporter();
 
