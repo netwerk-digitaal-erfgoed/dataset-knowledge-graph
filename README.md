@@ -397,14 +397,15 @@ Three measurements are emitted per dataset:
 | `…/metric/quads-validated` | `xsd:integer` | Number of quads the validator inspected — the union of the per-class sample subgraphs. Contextualises the conformance verdict by indicating coverage. |
 | `…/metric/samples-per-class` | `xsd:integer` | Configured sample cap per `sh:targetClass`. Currently 50. Same value across all datasets in a given pipeline run; included so consumers can interpret the coverage figure. |
 
-A non-conforming verdict is emitted in two cases:
+The conformance measurement has three observable states, distinguished by combining `dqv:value` with `quads-validated`:
 
-1. The validator found at least one violation in the sampled resources.
-2. **No** target class matched at all — the dataset doesn’t contain any
-   resource of a SCHEMA-AP-NDE `sh:targetClass`. Without this safeguard the
-   verdict would default to “conforms” (SHACL’s vacuous-truth rule); the
-   pipeline opts into a stricter reading via
-   [`requireNonEmptyData`](https://github.com/ldelements/lde/tree/main/packages/pipeline).
+| `quads-validated` | `dqv:value` (conformance) | Interpretation |
+|---|---|---|
+| > 0 | `true` | Sampled resources passed all SHACL constraints |
+| > 0 | `false` | At least one sampled resource violated a SHACL constraint |
+| 0 | `true` (vacuous) | The dataset uses no SCHEMA-AP-NDE `sh:targetClass`; the profile doesn’t apply |
+
+The third row is SHACL’s vacuous-truth rule: an empty target set is, by definition, conformant. A consumer looking for ‘tested and passed’ should always combine the conformance measurement with `quads-validated > 0`; the example queries below show how. Treating ‘not applicable’ as non-conformant would conflate datasets that use a different data model (e.g. Linked.Art, EDM-only) with datasets that try SCHEMA-AP-NDE and fail — only the latter is the interesting case.
 
 The detailed `sh:ValidationReport` with per-resource violations stays in
 `output/validation/<dataset>.ttl`, **not** in the SPARQL store, to avoid
@@ -412,7 +413,23 @@ bloating it on badly non-conformant datasets.
 
 #### Querying
 
-“Find datasets whose samples passed SCHEMA-AP-NDE”:
+“Find datasets that tried SCHEMA-AP-NDE and passed”:
+
+```sparql
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX dqv:     <http://www.w3.org/ns/dqv#>
+
+SELECT ?dataset WHERE {
+    ?dataset dqv:hasQualityMeasurement
+        [ dqv:value true ;
+          dcterms:conformsTo <https://docs.nde.nl/schema-profile/> ],
+        [ dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/quads-validated> ;
+          dqv:value ?n ] .
+    FILTER(?n > 0)
+}
+```
+
+“Find datasets that tried SCHEMA-AP-NDE and failed” (the common diagnostic query):
 
 ```sparql
 PREFIX dcterms: <http://purl.org/dc/terms/>
@@ -420,23 +437,22 @@ PREFIX dqv:     <http://www.w3.org/ns/dqv#>
 
 SELECT ?dataset WHERE {
     ?dataset dqv:hasQualityMeasurement [
-        dqv:value true ;
+        dqv:value false ;
         dcterms:conformsTo <https://docs.nde.nl/schema-profile/>
     ] .
 }
 ```
 
-“Find datasets where the validator inspected fewer than 100 quads” (low coverage signal):
+“Find datasets where the profile doesn’t apply” (`quads-validated = 0`):
 
 ```sparql
 PREFIX dqv:  <http://www.w3.org/ns/dqv#>
 
-SELECT ?dataset ?count WHERE {
+SELECT ?dataset WHERE {
     ?dataset dqv:hasQualityMeasurement [
         dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/quads-validated> ;
-        dqv:value ?count
+        dqv:value 0
     ] .
-    FILTER (?count < 100)
 }
 ```
 

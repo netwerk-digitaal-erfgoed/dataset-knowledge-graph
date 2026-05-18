@@ -5,7 +5,6 @@ import {
   FileWriter,
   SparqlUpdateWriter,
   provenancePlugin,
-  requireNonEmptyData,
   schemaOrgNormalizationPlugin,
   type Writer,
 } from '@lde/pipeline';
@@ -50,13 +49,10 @@ const voidStageList = await voidStages({
   batchSize: 1,
 });
 
-const schemaApValidator = requireNonEmptyData(
-  new ShaclValidator({
-    shapesFile: SCHEMA_AP_NDE_SHAPES,
-    reportDir: 'output/validation',
-  }),
-  {message: 'No instance of any SCHEMA-AP-NDE sh:targetClass found.'},
-);
+const schemaApValidator = new ShaclValidator({
+  shapesFile: SCHEMA_AP_NDE_SHAPES,
+  reportDir: 'output/validation',
+});
 
 const sampleStages = await shaclSampleStages({
   shapesFile: SCHEMA_AP_NDE_SHAPES,
