@@ -10,6 +10,7 @@ CONSTRUCT {
     ?distribution a dcat:Distribution ;
         dcat:accessURL ?distribution_url ;
         dcat:mediaType ?distribution_mediaType ;
+        dcat:compressFormat ?distribution_compressFormat ;
         dcat:byteSize ?distribution_size ;
         dct:conformsTo ?conformsTo ;
         dct:modified ?distribution_modified .
@@ -21,18 +22,18 @@ CONSTRUCT {
 
     ?distribution dcat:accessURL ?distribution_url .
     OPTIONAL { ?distribution dcat:mediaType ?distribution_mediaType . }
+    OPTIONAL { ?distribution dcat:compressFormat ?distribution_compressFormat . }
 #    OPTIONAL { ?distribution dcat:byteSize ?distribution_size . }
     OPTIONAL { ?distribution dct:modified ?distribution_modified . }
     OPTIONAL { ?distribution dct:conformsTo ?conformsTo. }
+    # The dataset register normalizes `+gzip`/`+zip` mediaType suffixes into a
+    # separate dcat:compressFormat, so only the plain RDF mediaTypes need to
+    # be listed here.
     FILTER(?conformsTo = <https://www.w3.org/TR/sparql11-protocol/>
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/ld+json>
-        || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/ld+json+gzip>
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/n-quads>
-        || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/n-quads+gzip>
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/n-triples>
-        || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/n-triples+gzip>
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/text/turtle>
-        || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/text/turtle+gzip>
     )
 
     # Exclude dataset descriptions that are no longer valid.
