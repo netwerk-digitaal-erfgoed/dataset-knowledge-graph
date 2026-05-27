@@ -19,6 +19,7 @@ import {qualityMeasurementsStage} from './qualityMeasurementsStage.js';
 import {ConsoleReporter} from '@lde/pipeline-console-reporter';
 import {resolve} from 'node:path';
 import type {DatasetSelector} from '@lde/pipeline';
+import {validationGraphIri} from './validationGraphIri.js';
 
 const SCHEMA_AP_NDE_SHAPES =
   'https://raw.githubusercontent.com/netwerk-digitaal-erfgoed/schema-profile/main/shacl.ttl';
@@ -49,9 +50,27 @@ const voidStageList = await voidStages({
   batchSize: 1,
 });
 
+// Validation reports go to:
+//  - output/validation/ (Turtle files, one per dataset; for offline inspection)
+//  - the SPARQL store, per dataset, in a derived "shacl-validation" graph so
+//    operators can query violations without parsing files (see
+//    validationGraphIri for the graph IRI scheme).
+const validationReportWriters: Writer[] = [
+  new FileWriter({outputDir: 'output/validation', format: 'turtle'}),
+];
+if (config.SPARQL_UPDATE_URL) {
+  validationReportWriters.push(
+    new SparqlUpdateWriter({
+      endpoint: new URL(config.SPARQL_UPDATE_URL),
+      auth: config.SPARQL_UPDATE_AUTHORIZATION,
+      graphIri: dataset => validationGraphIri(dataset.iri),
+    }),
+  );
+}
+
 const schemaApValidator = new ShaclValidator({
   shapesFile: SCHEMA_AP_NDE_SHAPES,
-  reportDir: 'output/validation',
+  reportWriters: validationReportWriters,
 });
 
 const sampleStages = await shaclSampleStages({
