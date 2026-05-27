@@ -239,7 +239,10 @@ describe('iiif.rq detection query', () => {
           "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
     `;
 
-    const subjectFilter = `?s schema:isPartOf <${DATASET_IRI}>.`;
+    // Production subject filters (subjectFilters.ts) use full IRIs, not
+    // PREFIX-bound shortcuts — so the pattern is independent of which
+    // schema.org namespace the query template declares.
+    const subjectFilter = `?s <http://schema.org/isPartOf> <${DATASET_IRI}>.`;
     const quads = await runQueryOn(turtle, subjectFilter);
 
     const subsetIri = findSubsetIri(quads);

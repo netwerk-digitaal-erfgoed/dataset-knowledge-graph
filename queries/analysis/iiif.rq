@@ -1,4 +1,4 @@
-PREFIX schema: <http://schema.org/>
+PREFIX schema: <https://schema.org/>
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX void: <http://rdfs.org/ns/void#>
 
@@ -13,8 +13,7 @@ WHERE {
     {
         SELECT (COUNT(DISTINCT ?s) AS ?count) {
             #subjectFilter#
-            ?s ?p ?format .
-            VALUES ?p { schema:encodingFormat <https://schema.org/encodingFormat> }
+            ?s schema:encodingFormat|<http://schema.org/encodingFormat> ?format .
             FILTER(isLiteral(?format) && REGEX(STR(?format), "^application/ld\\+json;profile='http://iiif\\.io/api/presentation/\\d+/context\\.json'$"))
         }
     }
