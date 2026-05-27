@@ -11,9 +11,10 @@ CONSTRUCT {
 }
 WHERE {
     {
-        SELECT (COUNT(DISTINCT ?manifest) AS ?count) {
+        SELECT (COUNT(DISTINCT ?s) AS ?count) {
             #subjectFilter#
-            ?manifest schema:encodingFormat ?format .
+            ?s ?p ?format .
+            VALUES ?p { schema:encodingFormat <https://schema.org/encodingFormat> }
             FILTER(isLiteral(?format) && REGEX(STR(?format), "^application/ld\\+json;profile='http://iiif\\.io/api/presentation/\\d+/context\\.json'$"))
         }
     }

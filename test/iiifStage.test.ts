@@ -37,21 +37,23 @@ beforeAll(async () => {
   queryTemplate = (await readFile(queryPath)).toString();
 });
 
-function buildQuery(): string {
-  // Mirror SparqlConstructExecutor's substitutions: empty subjectFilter,
+function buildQuery(subjectFilter = ''): string {
+  // Mirror SparqlConstructExecutor's substitutions: subjectFilter pattern,
   // and ?dataset → the dataset IRI literal.
   return queryTemplate
-    .replaceAll('#subjectFilter#', '')
+    .replaceAll('#subjectFilter#', subjectFilter)
     .replaceAll('?dataset', `<${DATASET_IRI}>`);
 }
 
-async function runQueryOn(turtle: string): Promise<Quad[]> {
+async function runQueryOn(turtle: string, subjectFilter = ''): Promise<Quad[]> {
   const store = new Store();
   const parser = new Parser();
   store.addQuads(parser.parse(PREFIXES + turtle));
 
   const engine = new QueryEngine();
-  const stream = await engine.queryQuads(buildQuery(), {sources: [store]});
+  const stream = await engine.queryQuads(buildQuery(subjectFilter), {
+    sources: [store],
+  });
   const quads: Quad[] = [];
   for await (const q of stream) quads.push(q);
   return quads;
@@ -204,5 +206,44 @@ describe('iiif.rq detection query', () => {
 
     const quads = await runQueryOn(turtle);
     expect(quads).toHaveLength(0);
+  });
+
+  it('detects manifests published under https://schema.org/encodingFormat', async () => {
+    const turtle = `
+      <http://example.org/work/1> <https://schema.org/encodingFormat>
+        "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+      <http://example.org/work/2> <https://schema.org/encodingFormat>
+        "application/ld+json;profile='http://iiif.io/api/presentation/2/context.json'" .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBeDefined();
+    expect(findEntitiesCount(quads, subsetIri!)).toBe(2);
+  });
+
+  it('honours the subjectFilter, scoping the count to the dataset', async () => {
+    // Two manifests inside the dataset, one outside. The subject filter is a
+    // graph pattern on ?s (the same convention subjectFilters.ts uses) so only
+    // the in-dataset manifests should be counted.
+    const turtle = `
+      <http://example.org/work/1> schema:isPartOf <${DATASET_IRI}> ;
+        schema:encodingFormat
+          "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+      <http://example.org/work/2> schema:isPartOf <${DATASET_IRI}> ;
+        schema:encodingFormat
+          "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+      <http://example.org/work/3> schema:isPartOf <http://example.org/dataset/other> ;
+        schema:encodingFormat
+          "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+    `;
+
+    const subjectFilter = `?s schema:isPartOf <${DATASET_IRI}>.`;
+    const quads = await runQueryOn(turtle, subjectFilter);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBeDefined();
+    expect(findEntitiesCount(quads, subsetIri!)).toBe(2);
   });
 });
