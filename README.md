@@ -303,6 +303,24 @@ Licenses that apply to resources in the dataset.
     ].
 ```
 
+### IIIF Presentation manifests
+
+Datasets that expose [IIIF Presentation API](http://iiif.io/api/presentation/)
+manifests — detected by matching `schema:encodingFormat` literals against the
+[SCHEMA-AP-NDE](https://docs.nde.nl/schema-profile/) IIIF profile pattern — get
+a `void:subset` keyed on `dcterms:conformsTo <http://iiif.io/api/presentation/>`
+with a `void:entities` count of distinct manifests. v2 and v3 manifests are
+collapsed into a single, version-less subset; the `\d+` in the regex makes the
+detection forwards-compatible with future Presentation API versions.
+
+```ttl
+<https://example.com/dataset> a void:Dataset;
+    void:subset [
+        dcterms:conformsTo <http://iiif.io/api/presentation/> ;
+        void:entities 42 .
+    ].
+```
+
 ### Distributions
 
 All declared RDF distributions are validated:

@@ -15,6 +15,7 @@
     "start": "node build/src/main.js",
     "dev": "tsc-watch --onSuccess 'npm run start'",
     "lint": "eslint . && prettier --check src/",
+    "test": "vitest run",
     "clean": "rm -rf build/",
     "compile": "tsc",
     "fix": "eslint --fix . && prettier --write src/"
@@ -44,6 +45,7 @@
     "rdf-dereference": "^5.0.0"
   },
   "devDependencies": {
+    "@comunica/query-sparql-rdfjs-lite": "^5.2.3",
     "@eslint/js": "^10.0.1",
     "@rdfjs/types": "^2.0.1",
     "@types/n3": "^1.16.4",
@@ -55,6 +57,7 @@
     "prettier": "^3.8.3",
     "tsc-watch": "^7.2.0",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.60.0"
+    "typescript-eslint": "^8.60.0",
+    "vitest": "^4.1.7"
   }
 }

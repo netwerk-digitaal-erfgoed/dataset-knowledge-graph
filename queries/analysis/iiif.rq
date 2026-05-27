@@ -1,0 +1,22 @@
+PREFIX schema: <http://schema.org/>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX void: <http://rdfs.org/ns/void#>
+
+CONSTRUCT {
+    ?dataset a void:Dataset ;
+        void:subset ?iiifSubset .
+    ?iiifSubset
+        dcterms:conformsTo <http://iiif.io/api/presentation/> ;
+        void:entities ?count .
+}
+WHERE {
+    {
+        SELECT (COUNT(DISTINCT ?manifest) AS ?count) {
+            #subjectFilter#
+            ?manifest schema:encodingFormat ?format .
+            FILTER(isLiteral(?format) && REGEX(STR(?format), "^application/ld\\+json;profile='http://iiif\\.io/api/presentation/\\d+/context\\.json'$"))
+        }
+    }
+    FILTER(?count > 0)
+    BIND(URI(CONCAT(STR(?dataset), "/.well-known/void#iiif-", MD5("http://iiif.io/api/presentation/"))) AS ?iiifSubset)
+}

@@ -16,6 +16,7 @@ import {config} from './config.js';
 import {createSubjectFilterSelector} from './subjectFilters.js';
 import {buildUriSpacesMap} from './uriSpaces.js';
 import {qualityMeasurementsStage} from './qualityMeasurementsStage.js';
+import {iiifStage} from './iiifStage.js';
 import {ConsoleReporter} from '@lde/pipeline-console-reporter';
 import {resolve} from 'node:path';
 import type {DatasetSelector} from '@lde/pipeline';
@@ -85,6 +86,7 @@ const sampleStages = await shaclSampleStages({
 const stages = [
   ...voidStageList,
   ...sampleStages,
+  await iiifStage(),
   qualityMeasurementsStage({
     validator: schemaApValidator,
     profile: SCHEMA_AP_NDE_PROFILE,
