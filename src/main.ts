@@ -58,6 +58,9 @@ const sampleStages = await shaclSampleStages({
   shapesFile: SCHEMA_AP_NDE_SHAPES,
   samplesPerClass: SAMPLES_PER_CLASS,
   validator: schemaApValidator,
+  namespaceAliases: [
+    {canonical: 'https://schema.org/', alias: 'http://schema.org/'},
+  ],
 });
 
 const stages = [
