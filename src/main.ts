@@ -4,6 +4,7 @@ import {
   SparqlDistributionResolver,
   FileWriter,
   SparqlUpdateWriter,
+  adaptiveTimeoutPolicy,
   provenancePlugin,
   schemaOrgNormalizationPlugin,
   type Writer,
@@ -122,6 +123,15 @@ await new Pipeline({
   }),
   stages,
   plugins: [schemaOrgNormalizationPlugin(), provenancePlugin()],
+  // Fast-fail endpoints that repeatedly time out so one bad dataset doesn’t
+  // hold up the run for hours. After two consecutive timeouts on the same
+  // endpoint, subsequent requests get a 10s budget instead of 5min; a single
+  // successful request relaxes back to the default.
+  timeout: adaptiveTimeoutPolicy({
+    defaultMs: 300_000,
+    tightenedMs: 10_000,
+    tightenAfterTimeouts: 2,
+  }),
   writers,
   reporter,
 }).run();
