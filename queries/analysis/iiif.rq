@@ -14,7 +14,14 @@ WHERE {
         SELECT (COUNT(DISTINCT ?s) AS ?count) {
             #subjectFilter#
             ?s schema:encodingFormat|<http://schema.org/encodingFormat> ?format .
-            FILTER(isLiteral(?format) && REGEX(STR(?format), "^application/ld\\+json;profile='http://iiif\\.io/api/presentation/[0-9]+/context\\.json'$"))
+            # Match the IIIF Presentation profile media type without REGEX: a regex
+            # over every encodingFormat literal is costly on QLever and on remote
+            # SPARQL endpoints alike. STRSTARTS lets engines prefix-scan instead.
+            # The version segment (e.g. /2/, /3/) is left unconstrained, which is
+            # intentionally forwards-compatible.
+            FILTER(isLiteral(?format)
+                && STRSTARTS(STR(?format), "application/ld+json;profile='http://iiif.io/api/presentation/")
+                && STRENDS(STR(?format), "/context.json'"))
         }
     }
     FILTER(?count > 0)

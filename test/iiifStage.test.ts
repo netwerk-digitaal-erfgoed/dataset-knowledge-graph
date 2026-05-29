@@ -148,10 +148,26 @@ describe('iiif.rq detection query', () => {
     expect(findEntitiesCount(quads, subsetIris[0])).toBe(3);
   });
 
-  it('matches a hypothetical IIIF Presentation v4 manifest (forwards-compatible [0-9]+)', async () => {
+  it('matches a hypothetical IIIF Presentation v4 manifest (forwards-compatible version segment)', async () => {
     const turtle = `
       <http://example.org/work/1> schema:encodingFormat
         "application/ld+json;profile='http://iiif.io/api/presentation/4/context.json'" .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBeDefined();
+    expect(findEntitiesCount(quads, subsetIri!)).toBe(1);
+  });
+
+  it('matches any version segment, not only numeric ones (deliberate forwards-compatibility)', async () => {
+    // The detection avoids REGEX for performance and so no longer constrains the
+    // version segment to digits. A non-numeric segment is matched too; in practice
+    // the IIIF profile segment is always a version number, so this is acceptable.
+    const turtle = `
+      <http://example.org/work/1> schema:encodingFormat
+        "application/ld+json;profile='http://iiif.io/api/presentation/beta/context.json'" .
     `;
 
     const quads = await runQueryOn(turtle);
