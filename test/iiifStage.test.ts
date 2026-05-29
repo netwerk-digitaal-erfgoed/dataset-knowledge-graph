@@ -148,7 +148,7 @@ describe('iiif.rq detection query', () => {
     expect(findEntitiesCount(quads, subsetIris[0])).toBe(3);
   });
 
-  it('matches a hypothetical IIIF Presentation v4 manifest (forwards-compatible \\d+)', async () => {
+  it('matches a hypothetical IIIF Presentation v4 manifest (forwards-compatible [0-9]+)', async () => {
     const turtle = `
       <http://example.org/work/1> schema:encodingFormat
         "application/ld+json;profile='http://iiif.io/api/presentation/4/context.json'" .

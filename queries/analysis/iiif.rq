@@ -14,7 +14,7 @@ WHERE {
         SELECT (COUNT(DISTINCT ?s) AS ?count) {
             #subjectFilter#
             ?s schema:encodingFormat|<http://schema.org/encodingFormat> ?format .
-            FILTER(isLiteral(?format) && REGEX(STR(?format), "^application/ld\\+json;profile='http://iiif\\.io/api/presentation/\\d+/context\\.json'$"))
+            FILTER(isLiteral(?format) && REGEX(STR(?format), "^application/ld\\+json;profile='http://iiif\\.io/api/presentation/[0-9]+/context\\.json'$"))
         }
     }
     FILTER(?count > 0)
