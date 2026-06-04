@@ -27,6 +27,7 @@ const SCHEMA_AP_NDE_SHAPES =
   'https://raw.githubusercontent.com/netwerk-digitaal-erfgoed/schema-profile/main/shacl.ttl';
 const SCHEMA_AP_NDE_PROFILE = 'https://docs.nde.nl/schema-profile/';
 const SAMPLES_PER_CLASS = 50;
+const IIIF_MANIFEST_SAMPLE_SIZE = 10;
 
 const uriSpaces = await buildUriSpacesMap();
 const {importer, server} = createQlever({
@@ -87,7 +88,7 @@ const sampleStages = await shaclSampleStages({
 const stages = [
   ...voidStageList,
   ...sampleStages,
-  await iiifStage(),
+  await iiifStage({manifestSampleSize: IIIF_MANIFEST_SAMPLE_SIZE}),
   qualityMeasurementsStage({
     validator: schemaApValidator,
     profile: SCHEMA_AP_NDE_PROFILE,

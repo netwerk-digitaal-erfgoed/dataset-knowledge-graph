@@ -7,7 +7,14 @@ CONSTRUCT {
         void:subset ?iiifSubset .
     ?iiifSubset
         dcterms:conformsTo <http://iiif.io/api/presentation/> ;
-        void:entities ?count .
+        void:entities ?count ;
+        # Intermediate triple: a capped, first-N sample of the matched manifest
+        # IRIs, consumed and stripped by the verification executor before
+        # output. It is never published. The combined query (a COUNT sub-select
+        # cross-joined with a LIMIT sub-select) keeps detection a single
+        # round-trip, which matters because most datasets are queried against
+        # their own remote SPARQL endpoint.
+        <https://data.netwerkdigitaalerfgoed.nl/def/internal/iiif-manifest-sample> ?manifest .
 }
 WHERE {
     {
@@ -23,6 +30,19 @@ WHERE {
                 && STRSTARTS(STR(?format), "application/ld+json;profile='http://iiif.io/api/presentation/")
                 && STRENDS(STR(?format), "/context.json'"))
         }
+    }
+    {
+        # First-N sample of distinct manifest IRIs. First-N (not random) is
+        # cheap and reproducible: the failure mode is systemic, so the first N
+        # manifests are a sufficient probe. #limit# is substituted by iiifStage.
+        SELECT DISTINCT ?manifest {
+            #subjectFilter#
+            ?manifest schema:encodingFormat|<http://schema.org/encodingFormat> ?format .
+            FILTER(isLiteral(?format)
+                && STRSTARTS(STR(?format), "application/ld+json;profile='http://iiif.io/api/presentation/")
+                && STRENDS(STR(?format), "/context.json'"))
+        }
+        LIMIT #limit#
     }
     FILTER(?count > 0)
     BIND(URI(CONCAT(STR(?dataset), "/.well-known/void#iiif-", MD5("http://iiif.io/api/presentation/"))) AS ?iiifSubset)

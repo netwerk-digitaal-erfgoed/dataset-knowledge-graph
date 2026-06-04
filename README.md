@@ -310,8 +310,11 @@ manifests — detected by matching `schema:encodingFormat` literals against the
 [SCHEMA-AP-NDE](https://docs.nde.nl/schema-profile/) IIIF profile pattern — get
 a `void:subset` keyed on `dcterms:conformsTo <http://iiif.io/api/presentation/>`
 with a `void:entities` count of distinct manifests. v2 and v3 manifests are
-collapsed into a single, version-less subset; the `\d+` in the regex makes the
-detection forwards-compatible with future Presentation API versions.
+collapsed into a single, version-less subset. Detection uses `STRSTARTS` /
+`STRENDS` rather than a regex (a regex over every `encodingFormat` literal is
+costly on QLever and on remote endpoints alike); the version segment is left
+unconstrained, which is intentionally forwards-compatible with future
+Presentation API versions.
 
 ```ttl
 <https://example.com/dataset> a void:Dataset;
@@ -319,6 +322,95 @@ detection forwards-compatible with future Presentation API versions.
         dcterms:conformsTo <http://iiif.io/api/presentation/> ;
         void:entities 42 .
     ].
+```
+
+#### Validated conformance
+
+The `dcterms:conformsTo` marker above is **declared**: it records only that the
+dataset’s own RDF claims IIIF conformance. To distinguish a dataset that serves
+working manifests from one that merely claims to, a first-N sample (default 10)
+of the matched manifest IRIs is dereferenced via
+[`@lde/iiif-validator`](https://www.npmjs.com/package/@lde/iiif-validator) —
+each is checked to be a real IIIF Presentation Manifest (HTTP 2xx, parses as
+JSON, an IIIF Presentation `@context`, and a manifest `type`). Throttled
+dereferencing (≤ 4 concurrent) keeps the load off heritage hosts; a single
+broken manifest is one tick in a ratio, so there are no retries.
+
+The declared marker is **never removed** — it is the neutral statistic. The
+validation outcome is added alongside it as two
+[DQV](https://www.w3.org/TR/vocab-dqv/) integer measurements plus a
+[PROV](https://www.w3.org/TR/prov-o/) activity:
+
+```ttl
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dqv:     <http://www.w3.org/ns/dqv#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+
+<https://example.org/dataset>
+    dqv:hasQualityMeasurement
+        [ a dqv:QualityMeasurement ;
+          dqv:computedOn <https://example.org/dataset> ;
+          dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/iiif-manifests-sampled> ;
+          dqv:value 10 ;
+          dcterms:conformsTo <http://iiif.io/api/presentation/> ;
+          prov:wasGeneratedBy _:validation ] ,
+        [ a dqv:QualityMeasurement ;
+          dqv:computedOn <https://example.org/dataset> ;
+          dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/iiif-manifests-validated> ;
+          dqv:value 7 ;
+          dcterms:conformsTo <http://iiif.io/api/presentation/> ;
+          prov:wasGeneratedBy _:validation ] .
+
+_:validation
+    a prov:Activity ;
+    prov:used <https://example.org/dataset>, <http://iiif.io/api/presentation/> ;
+    prov:wasAssociatedWith <https://www.npmjs.com/package/@lde/iiif-validator> .
+```
+
+| Metric IRI | Type | Meaning |
+|---|---|---|
+| `…/metric/iiif-manifests-sampled` | `xsd:integer` | Number of manifest IRIs dereferenced — the denominator `N`. At most the configured sample size (10). |
+| `…/metric/iiif-manifests-validated` | `xsd:integer` | How many of the sampled manifests `k` resolved to a valid IIIF Presentation Manifest. |
+
+No float ratio and no baked threshold are emitted: consumers derive `k / N` and
+pick their own bar. The only non-arbitrary cut is `validated = 0` versus
+`validated > 0`. Combining the declared subset with the validated count yields
+three observable states:
+
+| State | subset + `conformsTo` | `void:entities` | sampled / validated |
+|---|---|---|---|
+| No IIIF | absent | – | – |
+| Declared but failing | present | declared count | sampled = N, validated = 0 |
+| Declared and working | present | declared count | sampled = N, validated ≥ 1 |
+
+#### Querying
+
+“Find datasets whose IIIF manifests actually resolve”:
+
+```sparql
+PREFIX dqv: <http://www.w3.org/ns/dqv#>
+
+SELECT ?dataset WHERE {
+    ?dataset dqv:hasQualityMeasurement [
+        dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/iiif-manifests-validated> ;
+        dqv:value ?validated
+    ] .
+    FILTER(?validated > 0)
+}
+```
+
+“Find datasets that declare IIIF but whose sampled manifests all fail” (the
+diagnostic query for giving publishers feedback):
+
+```sparql
+PREFIX dqv: <http://www.w3.org/ns/dqv#>
+
+SELECT ?dataset WHERE {
+    ?dataset dqv:hasQualityMeasurement [
+        dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/iiif-manifests-validated> ;
+        dqv:value 0
+    ] .
+}
 ```
 
 ### Distributions
