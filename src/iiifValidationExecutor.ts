@@ -31,22 +31,18 @@ const PROV_WAS_GENERATED_BY = namedNode(
 const XSD_INTEGER = namedNode('http://www.w3.org/2001/XMLSchema#integer');
 const IIIF_PRESENTATION = namedNode('http://iiif.io/api/presentation/');
 
-const METRIC_BASE = 'https://data.netwerkdigitaalerfgoed.nl/def/metric/';
-const MANIFESTS_SAMPLED_METRIC = namedNode(
-  `${METRIC_BASE}iiif-manifests-sampled`,
-);
+const METRIC_BASE = 'https://def.nde.nl/metric#';
+const MANIFESTS_SAMPLED_METRIC = namedNode(`${METRIC_BASE}manifests-sampled`);
 const MANIFESTS_VALIDATED_METRIC = namedNode(
-  `${METRIC_BASE}iiif-manifests-validated`,
+  `${METRIC_BASE}manifests-validated`,
 );
 
 /**
  * Predicate of the intermediate triple emitted by `iiif.rq` carrying a sampled
- * manifest IRI. Consumed and stripped here; never published. Must match the
- * IRI hard-coded in `queries/analysis/iiif.rq`.
+ * manifest IRI. Consumed and stripped here; never reaches output. Must match
+ * the IRI hard-coded in `queries/analysis/iiif.rq`.
  */
-const MANIFEST_SAMPLE = namedNode(
-  'https://data.netwerkdigitaalerfgoed.nl/def/internal/iiif-manifest-sample',
-);
+const MANIFEST_SAMPLE = namedNode('https://def.nde.nl/iiif#manifest-sample');
 
 const DEFAULT_VALIDATOR_SOFTWARE = namedNode(
   'https://www.npmjs.com/package/@lde/iiif-validator',
@@ -83,7 +79,7 @@ export interface IiifValidationExecutorOptions {
  * declared marker is never removed), the intermediate manifest-sample triples
  * are stripped, and the sampled manifest URIs are dereferenced via
  * `@lde/iiif-validator`. The outcome is appended as two DQV integer
- * measurements (`iiif-manifests-sampled`, `iiif-manifests-validated`) plus a
+ * measurements (`manifests-sampled`, `manifests-validated`) plus a
  * PROV activity, mirroring {@link qualityMeasurementsStage}. Consumers derive
  * `k / N` and pick their own trust threshold; the only non-arbitrary cut is
  * `validated = 0` (failing) versus `validated > 0` (working).

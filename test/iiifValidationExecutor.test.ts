@@ -19,9 +19,7 @@ const VOID_SUBSET = namedNode('http://rdfs.org/ns/void#subset');
 const VOID_ENTITIES = namedNode('http://rdfs.org/ns/void#entities');
 const DCTERMS_CONFORMS_TO = namedNode('http://purl.org/dc/terms/conformsTo');
 const IIIF_PRESENTATION = namedNode('http://iiif.io/api/presentation/');
-const MANIFEST_SAMPLE = namedNode(
-  'https://data.netwerkdigitaalerfgoed.nl/def/internal/iiif-manifest-sample',
-);
+const MANIFEST_SAMPLE = namedNode('https://def.nde.nl/iiif#manifest-sample');
 const XSD_INTEGER = namedNode('http://www.w3.org/2001/XMLSchema#integer');
 const DQV_HAS_QUALITY_MEASUREMENT = namedNode(
   'http://www.w3.org/ns/dqv#hasQualityMeasurement',
@@ -31,12 +29,10 @@ const DQV_IS_MEASUREMENT_OF = namedNode(
 );
 const DQV_VALUE = namedNode('http://www.w3.org/ns/dqv#value');
 const DQV_COMPUTED_ON = namedNode('http://www.w3.org/ns/dqv#computedOn');
-const METRIC_BASE = 'https://data.netwerkdigitaalerfgoed.nl/def/metric/';
-const MANIFESTS_SAMPLED_METRIC = namedNode(
-  `${METRIC_BASE}iiif-manifests-sampled`,
-);
+const METRIC_BASE = 'https://def.nde.nl/metric#';
+const MANIFESTS_SAMPLED_METRIC = namedNode(`${METRIC_BASE}manifests-sampled`);
 const MANIFESTS_VALIDATED_METRIC = namedNode(
-  `${METRIC_BASE}iiif-manifests-validated`,
+  `${METRIC_BASE}manifests-validated`,
 );
 
 /** Find the integer value of the measurement of the given metric. */

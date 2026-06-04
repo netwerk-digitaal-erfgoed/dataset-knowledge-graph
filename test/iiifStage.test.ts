@@ -14,9 +14,7 @@ const VOID_SUBSET = namedNode('http://rdfs.org/ns/void#subset');
 const VOID_ENTITIES = namedNode('http://rdfs.org/ns/void#entities');
 const DCTERMS_CONFORMS_TO = namedNode('http://purl.org/dc/terms/conformsTo');
 const IIIF_PRESENTATION = namedNode('http://iiif.io/api/presentation/');
-const MANIFEST_SAMPLE = namedNode(
-  'https://data.netwerkdigitaalerfgoed.nl/def/internal/iiif-manifest-sample',
-);
+const MANIFEST_SAMPLE = namedNode('https://def.nde.nl/iiif#manifest-sample');
 const XSD_INTEGER = 'http://www.w3.org/2001/XMLSchema#integer';
 
 const DATASET_IRI = 'http://example.org/dataset/1';

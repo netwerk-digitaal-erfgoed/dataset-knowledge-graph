@@ -29,7 +29,7 @@ const PROV_WAS_GENERATED_BY = namedNode(
 const XSD_BOOLEAN = namedNode('http://www.w3.org/2001/XMLSchema#boolean');
 const XSD_INTEGER = namedNode('http://www.w3.org/2001/XMLSchema#integer');
 
-const METRIC_BASE = 'https://data.netwerkdigitaalerfgoed.nl/def/metric/';
+const METRIC_BASE = 'https://def.nde.nl/metric#';
 const CONFORMANCE_METRIC = namedNode(
   `${METRIC_BASE}schema-ap-nde-sample-conformance`,
 );

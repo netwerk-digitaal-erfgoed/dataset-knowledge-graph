@@ -29,7 +29,7 @@ export interface IiifStageOptions {
  * the JSON-LD context-profile pattern for any IIIF Presentation version. The
  * declared `dcterms:conformsTo` marker is never removed — it distinguishes
  * “no IIIF” from “declared but failing”. Validation adds two DQV
- * measurements (`iiif-manifests-sampled`, `iiif-manifests-validated`) so
+ * measurements (`manifests-sampled`, `manifests-validated`) so
  * consumers can tell working manifests apart from broken ones.
  *
  * Per-request timeout for the SPARQL query is configured at the

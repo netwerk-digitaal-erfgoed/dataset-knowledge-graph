@@ -350,13 +350,13 @@ validation outcome is added alongside it as two
     dqv:hasQualityMeasurement
         [ a dqv:QualityMeasurement ;
           dqv:computedOn <https://example.org/dataset> ;
-          dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/iiif-manifests-sampled> ;
+          dqv:isMeasurementOf <https://def.nde.nl/metric#manifests-sampled> ;
           dqv:value 10 ;
           dcterms:conformsTo <http://iiif.io/api/presentation/> ;
           prov:wasGeneratedBy _:validation ] ,
         [ a dqv:QualityMeasurement ;
           dqv:computedOn <https://example.org/dataset> ;
-          dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/iiif-manifests-validated> ;
+          dqv:isMeasurementOf <https://def.nde.nl/metric#manifests-validated> ;
           dqv:value 7 ;
           dcterms:conformsTo <http://iiif.io/api/presentation/> ;
           prov:wasGeneratedBy _:validation ] .
@@ -369,8 +369,8 @@ _:validation
 
 | Metric IRI | Type | Meaning |
 |---|---|---|
-| `…/metric/iiif-manifests-sampled` | `xsd:integer` | Number of manifest IRIs dereferenced — the denominator `N`. At most the configured sample size (10). |
-| `…/metric/iiif-manifests-validated` | `xsd:integer` | How many of the sampled manifests `k` resolved to a valid IIIF Presentation Manifest. |
+| `…/metric#manifests-sampled` | `xsd:integer` | Number of manifest IRIs dereferenced — the denominator `N`. At most the configured sample size (10). |
+| `…/metric#manifests-validated` | `xsd:integer` | How many of the sampled manifests `k` resolved to a valid IIIF Presentation Manifest. |
 
 No float ratio and no baked threshold are emitted: consumers derive `k / N` and
 pick their own bar. The only non-arbitrary cut is `validated = 0` versus
@@ -392,7 +392,7 @@ PREFIX dqv: <http://www.w3.org/ns/dqv#>
 
 SELECT ?dataset WHERE {
     ?dataset dqv:hasQualityMeasurement [
-        dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/iiif-manifests-validated> ;
+        dqv:isMeasurementOf <https://def.nde.nl/metric#manifests-validated> ;
         dqv:value ?validated
     ] .
     FILTER(?validated > 0)
@@ -407,7 +407,7 @@ PREFIX dqv: <http://www.w3.org/ns/dqv#>
 
 SELECT ?dataset WHERE {
     ?dataset dqv:hasQualityMeasurement [
-        dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/iiif-manifests-validated> ;
+        dqv:isMeasurementOf <https://def.nde.nl/metric#manifests-validated> ;
         dqv:value 0
     ] .
 }
@@ -478,18 +478,18 @@ validation run:
     dqv:hasQualityMeasurement
         [ a dqv:QualityMeasurement ;
           dqv:computedOn <https://example.org/dataset> ;
-          dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/schema-ap-nde-sample-conformance> ;
+          dqv:isMeasurementOf <https://def.nde.nl/metric#schema-ap-nde-sample-conformance> ;
           dqv:value true ;
           dcterms:conformsTo <https://docs.nde.nl/schema-profile/> ;
           prov:wasGeneratedBy _:validation ],
         [ a dqv:QualityMeasurement ;
           dqv:computedOn <https://example.org/dataset> ;
-          dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/quads-validated> ;
+          dqv:isMeasurementOf <https://def.nde.nl/metric#quads-validated> ;
           dqv:value 5234 ;
           prov:wasGeneratedBy _:validation ],
         [ a dqv:QualityMeasurement ;
           dqv:computedOn <https://example.org/dataset> ;
-          dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/samples-per-class> ;
+          dqv:isMeasurementOf <https://def.nde.nl/metric#samples-per-class> ;
           dqv:value 50 ;
           prov:wasGeneratedBy _:validation ] .
 
@@ -503,9 +503,9 @@ Three measurements are emitted per dataset:
 
 | Metric IRI | Type | Meaning |
 |---|---|---|
-| `…/metric/schema-ap-nde-sample-conformance` | `xsd:boolean` | Whether the sampled resources conformed to SCHEMA-AP-NDE’s SHACL shapes. Carries `dcterms:conformsTo` so consumers reach the profile IRI via the DQV path alone. |
-| `…/metric/quads-validated` | `xsd:integer` | Number of quads the validator inspected — the union of the per-class sample subgraphs. Contextualises the conformance verdict by indicating coverage. |
-| `…/metric/samples-per-class` | `xsd:integer` | Configured sample cap per `sh:targetClass`. Currently 50. Same value across all datasets in a given pipeline run; included so consumers can interpret the coverage figure. |
+| `…/metric#schema-ap-nde-sample-conformance` | `xsd:boolean` | Whether the sampled resources conformed to SCHEMA-AP-NDE’s SHACL shapes. Carries `dcterms:conformsTo` so consumers reach the profile IRI via the DQV path alone. |
+| `…/metric#quads-validated` | `xsd:integer` | Number of quads the validator inspected — the union of the per-class sample subgraphs. Contextualises the conformance verdict by indicating coverage. |
+| `…/metric#samples-per-class` | `xsd:integer` | Configured sample cap per `sh:targetClass`. Currently 50. Same value across all datasets in a given pipeline run; included so consumers can interpret the coverage figure. |
 
 The conformance measurement has three observable states, distinguished by combining `dqv:value` with `quads-validated`:
 
@@ -533,7 +533,7 @@ SELECT ?dataset WHERE {
     ?dataset dqv:hasQualityMeasurement
         [ dqv:value true ;
           dcterms:conformsTo <https://docs.nde.nl/schema-profile/> ],
-        [ dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/quads-validated> ;
+        [ dqv:isMeasurementOf <https://def.nde.nl/metric#quads-validated> ;
           dqv:value ?n ] .
     FILTER(?n > 0)
 }
@@ -560,7 +560,7 @@ PREFIX dqv:  <http://www.w3.org/ns/dqv#>
 
 SELECT ?dataset WHERE {
     ?dataset dqv:hasQualityMeasurement [
-        dqv:isMeasurementOf <https://data.netwerkdigitaalerfgoed.nl/def/metric/quads-validated> ;
+        dqv:isMeasurementOf <https://def.nde.nl/metric#quads-validated> ;
         dqv:value 0
     ] .
 }

@@ -9,12 +9,12 @@ CONSTRUCT {
         dcterms:conformsTo <http://iiif.io/api/presentation/> ;
         void:entities ?count ;
         # Intermediate triple: a capped, first-N sample of the matched manifest
-        # IRIs, consumed and stripped by the verification executor before
-        # output. It is never published. The combined query (a COUNT sub-select
-        # cross-joined with a LIMIT sub-select) keeps detection a single
-        # round-trip, which matters because most datasets are queried against
-        # their own remote SPARQL endpoint.
-        <https://data.netwerkdigitaalerfgoed.nl/def/internal/iiif-manifest-sample> ?manifest .
+        # IRIs, consumed and stripped by the validation executor before output;
+        # it never reaches the published graph. The combined query (a COUNT
+        # sub-select cross-joined with a LIMIT sub-select) keeps detection a
+        # single round-trip, which matters because most datasets are queried
+        # against their own remote SPARQL endpoint.
+        <https://def.nde.nl/iiif#manifest-sample> ?manifest .
 }
 WHERE {
     {
