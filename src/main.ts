@@ -38,8 +38,8 @@ const {importer, server} = createQlever({
   port: config.QLEVER_PORT,
   indexName: 'data',
   serverOptions: {
-    'memory-max-size': '16G',
-    'default-query-timeout': '120s',
+    'memory-max-size': config.QLEVER_MEMORY_MAX_SIZE,
+    'default-query-timeout': config.QLEVER_QUERY_TIMEOUT,
   },
 });
 
