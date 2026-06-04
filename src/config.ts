@@ -34,7 +34,8 @@ const schema = {
     },
     // Per-query time budget. Several analysis queries on large datasets take
     // ~2 minutes, so the previous 120s aborted them spuriously. The pipeline’s
-    // own per-request timeout policy remains the effective upper bound.
+    // own per-request timeout policy (main.ts, 300s by default), which becomes
+    // the effective upper bound now that this sits above it.
     QLEVER_QUERY_TIMEOUT: {
       type: 'string',
       default: '600s',

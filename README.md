@@ -610,6 +610,13 @@ QLEVER_ENV=native
 
 Native mode is ~2x faster than Docker on macOS (see [index tuning benchmarks](docs/qlever-index-tuning.md)).
 
+The embedded QLever server can be tuned via these environment variables (defaults shown):
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `QLEVER_MEMORY_MAX_SIZE` | `12G` | Maximum memory QLever uses for query processing. Keep it below the container memory limit (16 GiB in production): a query that would exceed it is aborted with an HTTP 500 that the pipeline catches per stage and continues, instead of the container being OOM-killed. |
+| `QLEVER_QUERY_TIMEOUT` | `600s` | Per-query time budget. A backstop above the pipeline’s own per-request timeout policy (300s by default), which is the effective upper bound. |
+
 ## Pipeline Steps
 
 The pipeline consists of the following steps.
