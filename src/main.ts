@@ -38,8 +38,8 @@ const {importer, server} = createQlever({
   port: config.QLEVER_PORT,
   indexName: 'data',
   serverOptions: {
-    'memory-max-size': '16G',
-    'default-query-timeout': '120s',
+    'memory-max-size': config.QLEVER_MEMORY_MAX_SIZE,
+    'default-query-timeout': config.QLEVER_QUERY_TIMEOUT,
   },
 });
 
@@ -126,10 +126,10 @@ await new Pipeline({
   plugins: [schemaOrgNormalizationPlugin(), provenancePlugin()],
   // Fast-fail endpoints that repeatedly time out so one bad dataset doesn’t
   // hold up the run for hours. After two consecutive timeouts on the same
-  // endpoint, subsequent requests get a 10s budget instead of 5min; a single
-  // successful request relaxes back to the default.
+  // endpoint, subsequent requests get a 10s budget instead of the default; a
+  // single successful request relaxes back to the default.
   timeout: adaptiveTimeoutPolicy({
-    defaultMs: 300_000,
+    defaultMs: config.SPARQL_REQUEST_TIMEOUT_MS,
     tightenedMs: 10_000,
     tightenAfterTimeouts: 2,
   }),
