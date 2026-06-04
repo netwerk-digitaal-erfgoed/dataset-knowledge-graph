@@ -21,7 +21,8 @@ const schema = {
     QLEVER_IMAGE: {
       type: 'string',
     },
-    // QLever’s own memory ceiling for query processing. Kept safely below
+    // QLever’s own memory ceiling for query processing and caching (the result
+    // cache is part of this budget, so it bounds cache-max-size too). Kept below
     // the container memory limit (16 GiB in production): when an analysis query
     // over a large dataset would exceed this, QLever aborts it with an HTTP 500
     // that the pipeline catches per stage and continues, instead of growing past
@@ -32,10 +33,12 @@ const schema = {
       type: 'string',
       default: '12G',
     },
-    // Per-query time budget. Several analysis queries on large datasets take
-    // ~2 minutes, so the previous 120s aborted them spuriously. The pipeline’s
-    // own per-request timeout policy (main.ts, 300s by default), which becomes
-    // the effective upper bound now that this sits above it.
+    // QLever’s server-side per-query timeout. Keep it higher than the
+    // pipeline’s per-request timeout (the adaptiveTimeoutPolicy defaultMs in
+    // main.ts, currently 300s and not exposed as an env var) so that the client
+    // policy stays the binding limit and this only acts as a backstop. Set it
+    // below that and QLever cuts queries off before the client budget is spent,
+    // as the old 120s did to the ~2-minute analysis queries on large datasets.
     QLEVER_QUERY_TIMEOUT: {
       type: 'string',
       default: '600s',
