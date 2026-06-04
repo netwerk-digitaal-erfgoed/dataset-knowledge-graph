@@ -14,6 +14,7 @@ const VOID_SUBSET = namedNode('http://rdfs.org/ns/void#subset');
 const VOID_ENTITIES = namedNode('http://rdfs.org/ns/void#entities');
 const DCTERMS_CONFORMS_TO = namedNode('http://purl.org/dc/terms/conformsTo');
 const IIIF_PRESENTATION = namedNode('http://iiif.io/api/presentation/');
+const MANIFEST_SAMPLE = namedNode('https://def.nde.nl/iiif#manifest-sample');
 const XSD_INTEGER = 'http://www.w3.org/2001/XMLSchema#integer';
 
 const DATASET_IRI = 'http://example.org/dataset/1';
@@ -37,26 +38,51 @@ beforeAll(async () => {
   queryTemplate = (await readFile(queryPath)).toString();
 });
 
-function buildQuery(subjectFilter = ''): string {
-  // Mirror SparqlConstructExecutor's substitutions: subjectFilter pattern,
+function buildQuery(subjectFilter = '', limit = 10): string {
+  // Mirror iiifStage's and SparqlConstructExecutor's substitutions: the
+  // #limit# sample cap (threaded by iiifStage), the subjectFilter pattern,
   // and ?dataset → the dataset IRI literal.
   return queryTemplate
+    .replaceAll('#limit#', String(limit))
     .replaceAll('#subjectFilter#', subjectFilter)
     .replaceAll('?dataset', `<${DATASET_IRI}>`);
 }
 
-async function runQueryOn(turtle: string, subjectFilter = ''): Promise<Quad[]> {
+async function runQueryOn(
+  turtle: string,
+  subjectFilter = '',
+  limit = 10,
+): Promise<Quad[]> {
   const store = new Store();
   const parser = new Parser();
   store.addQuads(parser.parse(PREFIXES + turtle));
 
   const engine = new QueryEngine();
-  const stream = await engine.queryQuads(buildQuery(subjectFilter), {
+  const stream = await engine.queryQuads(buildQuery(subjectFilter, limit), {
     sources: [store],
   });
+  // CONSTRUCT is set-semantics, but the cross-join of the COUNT and sample
+  // sub-selects makes the engine's stream repeat the constant triples once per
+  // sampled row. Production collapses these via the executor's `deduplicate`
+  // option; mirror that here so the test asserts the query's logical graph.
+  const seen = new Set<string>();
   const quads: Quad[] = [];
-  for await (const q of stream) quads.push(q);
+  for await (const q of stream) {
+    const key = `${q.subject.value}|${q.predicate.value}|${q.object.value}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      quads.push(q);
+    }
+  }
   return quads;
+}
+
+function findSampleManifests(quads: Quad[], subset: string): string[] {
+  return quads
+    .filter(
+      q => q.subject.value === subset && q.predicate.equals(MANIFEST_SAMPLE),
+    )
+    .map(q => q.object.value);
 }
 
 function findSubsetIri(quads: Quad[]): string | undefined {
@@ -237,6 +263,55 @@ describe('iiif.rq detection query', () => {
     const subsetIri = findSubsetIri(quads);
     expect(subsetIri).toBeDefined();
     expect(findEntitiesCount(quads, subsetIri!)).toBe(2);
+  });
+
+  it('emits a sample of the matched manifest IRIs alongside the declared count', async () => {
+    const turtle = `
+      <http://example.org/work/1> schema:encodingFormat
+        "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+      <http://example.org/work/2> schema:encodingFormat
+        "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBeDefined();
+    // Declared count is preserved unchanged.
+    expect(findEntitiesCount(quads, subsetIri!)).toBe(2);
+    // Every matched manifest is sampled (count ≤ limit).
+    expect(findSampleManifests(quads, subsetIri!).sort()).toEqual([
+      'http://example.org/work/1',
+      'http://example.org/work/2',
+    ]);
+  });
+
+  it('caps the manifest sample at the configured limit', async () => {
+    const turtle = `
+      <http://example.org/work/1> schema:encodingFormat
+        "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+      <http://example.org/work/2> schema:encodingFormat
+        "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+      <http://example.org/work/3> schema:encodingFormat
+        "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+    `;
+
+    const quads = await runQueryOn(turtle, '', 2);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBeDefined();
+    // The declared count covers all three manifests …
+    expect(findEntitiesCount(quads, subsetIri!)).toBe(3);
+    // … but only two are sampled, and each is one of the matched manifests.
+    const sampled = findSampleManifests(quads, subsetIri!);
+    expect(sampled).toHaveLength(2);
+    for (const manifest of sampled) {
+      expect([
+        'http://example.org/work/1',
+        'http://example.org/work/2',
+        'http://example.org/work/3',
+      ]).toContain(manifest);
+    }
   });
 
   it('honours the subjectFilter, scoping the count to the dataset', async () => {
