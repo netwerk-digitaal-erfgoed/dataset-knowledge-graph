@@ -615,7 +615,8 @@ The embedded QLever server can be tuned via these environment variables (default
 | Variable | Default | Description |
 | --- | --- | --- |
 | `QLEVER_MEMORY_MAX_SIZE` | `12G` | Maximum memory QLever uses for query processing and caching (the result cache is part of this budget). Keep it below the container memory limit (16 GiB in production): a query that would exceed it is aborted with an HTTP 500 that the pipeline catches per stage and continues, instead of the container being OOM-killed. |
-| `QLEVER_QUERY_TIMEOUT` | `600s` | QLever’s per-query timeout. Keep it above the pipeline’s per-request timeout (hardcoded at 300s in `main.ts`, not an env var) so QLever only acts as a backstop. Raised from 120s, which cut off the ~2-minute analysis queries on large datasets. |
+| `QLEVER_QUERY_TIMEOUT` | `600s` | QLever’s per-query timeout. Keep it above `SPARQL_REQUEST_TIMEOUT_MS` so QLever only acts as a backstop. Raised from 120s, which cut off the ~2-minute analysis queries on large datasets. |
+| `SPARQL_REQUEST_TIMEOUT_MS` | `300000` | Per-request timeout (milliseconds) for SPARQL queries against endpoints, including the local QLever server. Applied as the `adaptiveTimeoutPolicy` default budget in `main.ts`; this is the effective upper bound on a single query. Covers SPARQL query requests only — not data-dump downloads or imports, which are timed out separately by the downloader. |
 
 ## Pipeline Steps
 

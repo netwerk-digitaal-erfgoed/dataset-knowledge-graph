@@ -33,15 +33,25 @@ const schema = {
       type: 'string',
       default: '12G',
     },
-    // QLever’s server-side per-query timeout. Keep it higher than the
-    // pipeline’s per-request timeout (the adaptiveTimeoutPolicy defaultMs in
-    // main.ts, currently 300s and not exposed as an env var) so that the client
-    // policy stays the binding limit and this only acts as a backstop. Set it
-    // below that and QLever cuts queries off before the client budget is spent,
-    // as the old 120s did to the ~2-minute analysis queries on large datasets.
+    // QLever’s server-side per-query timeout. Keep it higher than the pipeline’s
+    // per-request timeout (SPARQL_REQUEST_TIMEOUT_MS, applied as the
+    // adaptiveTimeoutPolicy defaultMs in main.ts) so that the client policy stays
+    // the binding limit and this only acts as a backstop. Set it below that and
+    // QLever cuts queries off before the client budget is spent, as the old 120s
+    // did to the ~2-minute analysis queries on large datasets.
     QLEVER_QUERY_TIMEOUT: {
       type: 'string',
       default: '600s',
+    },
+    // Per-request timeout (milliseconds) for SPARQL queries against endpoints,
+    // including the local QLever server. Applied by adaptiveTimeoutPolicy in
+    // main.ts as the default budget, so it is the effective upper bound on a
+    // single query; keep QLEVER_QUERY_TIMEOUT above it. Covers SPARQL query
+    // requests only (remote endpoints and the local QLever), not data-dump
+    // downloads or imports, which are timed out separately by the downloader.
+    SPARQL_REQUEST_TIMEOUT_MS: {
+      type: 'number',
+      default: 300_000,
     },
   },
 } as const;
@@ -54,6 +64,7 @@ interface Config {
   QLEVER_IMAGE?: string;
   QLEVER_MEMORY_MAX_SIZE: string;
   QLEVER_QUERY_TIMEOUT: string;
+  SPARQL_REQUEST_TIMEOUT_MS: number;
 }
 
 export const config = envSchema({
