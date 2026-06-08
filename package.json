@@ -42,6 +42,7 @@
     "@lde/sparql-qlever": "^0.14.6",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.19.22",
     "env-schema": "^7.0.0",
+    "fetch-sparql-endpoint": "^7.1.0",
     "n3": "^2.0.1",
     "p-limit": "^7.3.0",
     "rdf-dereference": "^5.0.0"

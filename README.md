@@ -480,6 +480,128 @@ SELECT ?dataset WHERE {
 }
 ```
 
+### Subject URI resolution
+
+Every dataset mints URIs for its own resources in some namespace. The
+`subject-uri-space` VoID stage ranks subject namespaces by entity count; this
+feature takes the single most common one – excluding known terminology-source
+prefixes, so a dataset that mostly references RKD or GeoNames URIs is still
+measured on the namespace it owns – and asks whether those URIs resolve, layering
+persistent-identifier (PID) detection on top.
+
+Resolution is measured for the chosen namespace regardless of whether it is a
+recognised PID scheme: an unrecognised-but-resolving namespace still gets a
+ratio; only the scheme and organisation layer is PID-specific.
+
+A first-N sample (default 10) of subject URIs from the namespace is dereferenced,
+following redirects (ARK and Handle URIs are resolver links that redirect to an
+institutional landing page). A URI counts as resolved when the final response is
+`200`, is `text/html`, and the landing page advertises the original URI back to
+the user (raw or HTML-entity-escaped) – which matters precisely because we landed
+on a different, redirected URL. Dereferencing is throttled (≤ 4 concurrent),
+with no retries: a broken URI is one tick in a ratio.
+
+The measurements hang off the namespace’s `void:subset` node (not the
+dataset, unlike IIIF), so the whole persistent-identifier story is reachable in
+one hop:
+
+```ttl
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix void:    <http://rdfs.org/ns/void#> .
+@prefix dqv:     <http://www.w3.org/ns/dqv#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+
+<https://example.org/dataset> void:subset <https://example.org/dataset/.well-known/void#subject-uri-space-…> .
+
+<https://example.org/dataset/.well-known/void#subject-uri-space-…>
+    void:uriSpace "https://n2t.net/ark:/60537/" ;
+    void:entities 312000 ;
+    dcterms:conformsTo <https://def.nde.nl/pid-scheme#ark> ;   # declared, only if recognised
+    dcterms:publisher "Gouda Tijdmachine" ;                    # ARK only, non-fatal
+    dqv:hasQualityMeasurement
+        [ a dqv:QualityMeasurement ;
+          dqv:computedOn <https://example.org/dataset/.well-known/void#subject-uri-space-…> ;
+          dqv:isMeasurementOf <https://def.nde.nl/metric#subject-uris-sampled> ;
+          dqv:value 10 ;
+          prov:wasGeneratedBy _:sampling ] ,
+        [ a dqv:QualityMeasurement ;
+          dqv:computedOn <https://example.org/dataset/.well-known/void#subject-uri-space-…> ;
+          dqv:isMeasurementOf <https://def.nde.nl/metric#subject-uris-resolved> ;
+          dqv:value 8 ;
+          prov:wasGeneratedBy _:sampling ] .
+
+_:sampling
+    a prov:Activity ;
+    prov:used <https://example.org/dataset/.well-known/void#subject-uri-space-…> ;
+    prov:wasAssociatedWith <https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph> .
+```
+
+#### Persistent identifiers
+
+`dcterms:conformsTo` is attached only when the namespace matches a recognised PID
+scheme. The metric names stay neutral (`subject-uris-*`, not `persistent-uris-*`)
+because the resolution ratio applies to any namespace – PID-ness lives only in
+the scheme label.
+
+| Scheme | Matched on | `dcterms:conformsTo` | Organisation |
+|---|---|---|---|
+| ARK | `n2t.net/ark:`, `arks.org/ark:` | `…/pid-scheme#ark` | NAAN looked up via `arks.org` `who.name`, emitted as `dcterms:publisher` (non-fatal) |
+| Handle | `hdl.handle.net`, `handle.net` | `…/pid-scheme#handle` | none – the Global Handle Registry exposes no public org name |
+
+Host matching tolerates `http`/`https`; at most one scheme is assigned per
+namespace.
+
+| Metric IRI | Type | Meaning |
+|---|---|---|
+| `…/metric#subject-uris-sampled` | `xsd:integer` | Number of subject URIs dereferenced – the denominator `N`, capped at the sample size (10). |
+| `…/metric#subject-uris-resolved` | `xsd:integer` | How many of the sampled URIs `k` resolved to a self-describing landing page. |
+
+Combining the chosen namespace, the optional scheme and org, and the resolved
+count yields five observable states:
+
+| Namespace | scheme / org | `subject-uris-resolved` |
+|---|---|---|
+| recognised PID, resolves | emitted | > 0 |
+| recognised PID, none resolve | emitted | 0 (claims a PID, nothing resolves) |
+| unrecognised, resolves | absent | > 0 |
+| unrecognised, none resolve | absent | 0 |
+| no surviving namespace | – | nothing emitted |
+
+#### Querying
+
+“Find datasets whose own subject URIs resolve”:
+
+```sparql
+PREFIX void: <http://rdfs.org/ns/void#>
+PREFIX dqv: <http://www.w3.org/ns/dqv#>
+
+SELECT ?dataset WHERE {
+    ?dataset void:subset/dqv:hasQualityMeasurement [
+        dqv:isMeasurementOf <https://def.nde.nl/metric#subject-uris-resolved> ;
+        dqv:value ?resolved
+    ] .
+    FILTER(?resolved > 0)
+}
+```
+
+“Find datasets that mint a persistent identifier but whose sampled URIs all
+fail” (the diagnostic query for giving publishers feedback):
+
+```sparql
+PREFIX void: <http://rdfs.org/ns/void#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX dqv: <http://www.w3.org/ns/dqv#>
+
+SELECT ?dataset WHERE {
+    ?dataset void:subset ?ns .
+    ?ns dcterms:conformsTo ?scheme ;
+        dqv:hasQualityMeasurement [
+            dqv:isMeasurementOf <https://def.nde.nl/metric#subject-uris-resolved> ;
+            dqv:value 0
+        ] .
+}
+```
+
 ### Distributions
 
 All declared RDF distributions are validated:

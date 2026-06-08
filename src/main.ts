@@ -9,7 +9,7 @@ import {
   schemaOrgNormalizationPlugin,
   type Writer,
 } from '@lde/pipeline';
-import {voidStages} from '@lde/pipeline-void';
+import {voidStages, VOID_STAGE_NAMES} from '@lde/pipeline-void';
 import {shaclSampleStages} from '@lde/pipeline-shacl-sampler';
 import {ShaclValidator} from '@lde/pipeline-shacl-validator';
 import {createQlever} from '@lde/sparql-qlever';
@@ -19,6 +19,7 @@ import {buildUriSpacesMap} from './uriSpaces.js';
 import {qualityMeasurementsStage} from './qualityMeasurementsStage.js';
 import {iiifStage} from './iiifStage.js';
 import {mediaStage} from './mediaStage.js';
+import {subjectUriResolution} from './subjectUriResolution.js';
 import {ConsoleReporter} from '@lde/pipeline-console-reporter';
 import {resolve} from 'node:path';
 import type {DatasetSelector} from '@lde/pipeline';
@@ -29,6 +30,7 @@ const SCHEMA_AP_NDE_SHAPES =
 const SCHEMA_AP_NDE_PROFILE = 'https://docs.nde.nl/schema-profile/';
 const SAMPLES_PER_CLASS = 50;
 const IIIF_MANIFEST_SAMPLE_SIZE = 10;
+const SUBJECT_URI_SAMPLE_SIZE = 10;
 
 const uriSpaces = await buildUriSpacesMap();
 const {importer, server} = createQlever({
@@ -52,6 +54,16 @@ const voidStageList = await voidStages({
     'https://schema.org/',
   ],
   batchSize: 1,
+  // Enrich the subject-uri-space stage: sample the dataset’s own subject
+  // namespace and measure whether those URIs resolve, layering PID detection
+  // on top. The terminology prefixes are excluded so we pick the namespace the
+  // dataset mints for its own resources, not a referenced terminology source.
+  transforms: {
+    [VOID_STAGE_NAMES.subjectUriSpace]: subjectUriResolution({
+      terminologyPrefixes: uriSpaces.keys(),
+      sampleSize: SUBJECT_URI_SAMPLE_SIZE,
+    }),
+  },
 });
 
 // Validation reports go to:
