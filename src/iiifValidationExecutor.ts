@@ -19,7 +19,6 @@ const DQV_IS_MEASUREMENT_OF = namedNode(
   'http://www.w3.org/ns/dqv#isMeasurementOf',
 );
 const DQV_VALUE = namedNode('http://www.w3.org/ns/dqv#value');
-const DCTERMS_CONFORMS_TO = namedNode('http://purl.org/dc/terms/conformsTo');
 const PROV_ACTIVITY = namedNode('http://www.w3.org/ns/prov#Activity');
 const PROV_USED = namedNode('http://www.w3.org/ns/prov#used');
 const PROV_WAS_ASSOCIATED_WITH = namedNode(
@@ -122,16 +121,21 @@ export class IiifValidationExecutor implements Executor {
     dataset: Dataset,
   ): AsyncIterable<Quad> {
     const sampledManifests: string[] = [];
+    // The manifest-sample triples are all subjects of the IIIF capability
+    // subset; capture that IRI so the measurements are computed on the subset
+    // they actually describe, not the whole dataset.
+    let iiifSubset: string | undefined;
     for await (const q of quads) {
       if (q.predicate.equals(MANIFEST_SAMPLE)) {
         sampledManifests.push(q.object.value);
+        iiifSubset = q.subject.value;
         continue;
       }
       yield q;
     }
 
     // No IIIF subset detected: emit nothing extra (state 1, “no IIIF”).
-    if (sampledManifests.length === 0) {
+    if (sampledManifests.length === 0 || iiifSubset === undefined) {
       return;
     }
 
@@ -143,38 +147,57 @@ export class IiifValidationExecutor implements Executor {
       verdict => verdict.status === 'fulfilled' && verdict.value.valid,
     ).length;
 
-    yield* this.measurementQuads(dataset, sampledManifests.length, validated);
+    yield* this.measurementQuads(
+      dataset,
+      namedNode(iiifSubset),
+      sampledManifests.length,
+      validated,
+    );
   }
 
   private *measurementQuads(
     dataset: Dataset,
+    iiifSubset: ReturnType<typeof namedNode>,
     sampled: number,
     validated: number,
   ): Generator<Quad> {
-    const subject = namedNode(dataset.iri.toString());
     const activity = blankNode();
     const sampledMeasurement = blankNode();
     const validatedMeasurement = blankNode();
 
     // PROV: the dereferencing activity.
     yield quad(activity, RDF_TYPE, PROV_ACTIVITY);
-    yield quad(activity, PROV_USED, subject);
+    yield quad(activity, PROV_USED, namedNode(dataset.iri.toString()));
     yield quad(activity, PROV_USED, IIIF_PRESENTATION);
     yield quad(activity, PROV_WAS_ASSOCIATED_WITH, this.validatorSoftware);
 
-    yield quad(subject, DQV_HAS_QUALITY_MEASUREMENT, sampledMeasurement);
-    yield quad(subject, DQV_HAS_QUALITY_MEASUREMENT, validatedMeasurement);
+    // The measurements describe the IIIF capability subset, which already
+    // carries `dcterms:conformsTo <iiif-presentation>` — so they hang off the
+    // subset and `dqv:computedOn` it, dropping the per-measurement conformsTo
+    // back-link the dataset-level modelling needed.
+    yield quad(iiifSubset, DQV_HAS_QUALITY_MEASUREMENT, sampledMeasurement);
+    yield quad(iiifSubset, DQV_HAS_QUALITY_MEASUREMENT, validatedMeasurement);
+
+    // Backward compatibility: also link the measurements from the dataset, the
+    // path the shipped dataset-register queries still read
+    // (`?dataset dqv:hasQualityMeasurement …`). The new structure only appears
+    // after the next DKG run, so consumers cannot migrate to
+    // `void:subset/dqv:hasQualityMeasurement` before then. Drop these once
+    // dataset-register has migrated (tracked in dataset-register).
+    const datasetNode = namedNode(dataset.iri.toString());
+    yield quad(datasetNode, DQV_HAS_QUALITY_MEASUREMENT, sampledMeasurement);
+    yield quad(datasetNode, DQV_HAS_QUALITY_MEASUREMENT, validatedMeasurement);
 
     yield* this.integerMeasurement(
       sampledMeasurement,
-      subject,
+      iiifSubset,
       MANIFESTS_SAMPLED_METRIC,
       sampled,
       activity,
     );
     yield* this.integerMeasurement(
       validatedMeasurement,
-      subject,
+      iiifSubset,
       MANIFESTS_VALIDATED_METRIC,
       validated,
       activity,
@@ -183,18 +206,15 @@ export class IiifValidationExecutor implements Executor {
 
   private *integerMeasurement(
     measurement: ReturnType<typeof blankNode>,
-    subject: ReturnType<typeof namedNode>,
+    computedOn: ReturnType<typeof namedNode>,
     metric: ReturnType<typeof namedNode>,
     value: number,
     activity: ReturnType<typeof blankNode>,
   ): Generator<Quad> {
     yield quad(measurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT);
-    yield quad(measurement, DQV_COMPUTED_ON, subject);
+    yield quad(measurement, DQV_COMPUTED_ON, computedOn);
     yield quad(measurement, DQV_IS_MEASUREMENT_OF, metric);
     yield quad(measurement, DQV_VALUE, literal(String(value), XSD_INTEGER));
-    // Carry the IIIF profile so the DQV navigation path reaches what was
-    // validated without leaving DQV (mirrors the conformance measurement).
-    yield quad(measurement, DCTERMS_CONFORMS_TO, IIIF_PRESENTATION);
     yield quad(measurement, PROV_WAS_GENERATED_BY, activity);
   }
 }

@@ -303,24 +303,65 @@ Licenses that apply to resources in the dataset.
     ].
 ```
 
-### IIIF Presentation manifests
+### Media
 
-Datasets that expose [IIIF Presentation API](http://iiif.io/api/presentation/)
-manifests — detected by matching `schema:encodingFormat` literals against the
-[SCHEMA-AP-NDE](https://docs.nde.nl/schema-profile/) IIIF profile pattern — get
-a `void:subset` keyed on `dcterms:conformsTo <http://iiif.io/api/presentation/>`
-with a `void:entities` count of distinct manifests. v2 and v3 manifests are
-collapsed into a single, version-less subset. Detection uses `STRSTARTS` /
-`STRENDS` rather than a regex (a regex over every `encodingFormat` literal is
-costly on QLever and on remote endpoints alike); the version segment is left
-unconstrained, which is intentionally forwards-compatible with future
-Presentation API versions.
+Whether a dataset exposes *any* media — images, audio, video, 3D — is reported
+as a `void:subset` marked
+`<https://def.nde.nl/probe#detects> <https://def.nde.nl/probe#media>`. The
+subset exists iff the dataset has media, so its presence is the `has-media`
+signal: a media-bearing dataset that offers no IIIF is then observable as
+“media, but no IIIF” rather than indistinguishable from “no media”.
+
+Media is detected by a deliberately wide but curated allowlist of media
+*predicates* spanning schema.org, EDM, CIDOC-CRM, Linked Art, FOAF, Omeka and a
+few bespoke heritage vocabularies (see `queries/analysis/media.rq`). False
+friends are excluded — e.g. `crm:P16_used_specific_object` (a tool, not a
+digital object) and `schema:depicts` (subject matter, not a media link). Each
+present predicate becomes a self-describing `void:propertyPartition`; the
+subset’s aggregate `void:entities` is the **MAX** over those partitions — a
+double-count-safe lower bound on the number of media objects (one record often
+carries `image` + `thumbnailUrl` + `contentUrl`, so summing would treble-count
+it).
 
 ```ttl
 <https://example.com/dataset> a void:Dataset;
     void:subset [
-        dcterms:conformsTo <http://iiif.io/api/presentation/> ;
-        void:entities 42 .
+        <https://def.nde.nl/probe#detects> <https://def.nde.nl/probe#media> ;
+        void:entities 104276 ;
+        void:propertyPartition
+            [ void:property <https://schema.org/contentUrl> ; void:entities 104276 ],
+            [ void:property <https://schema.org/thumbnailUrl> ; void:entities 104276 ] .
+    ].
+```
+
+### IIIF Presentation manifests
+
+Datasets that expose [IIIF Presentation API](http://iiif.io/api/presentation/)
+manifests get a `void:subset` keyed on
+`dcterms:conformsTo <http://iiif.io/api/presentation/>` with a `void:entities`
+count of distinct manifests. Detection is **decoupled** from
+[SCHEMA-AP-NDE](https://docs.nde.nl/schema-profile/) conformance (issue #314): a
+manifest counts as IIIF *capability* if its `schema:encodingFormat` literal is
+either the full profile pattern *or* the bare `application/ld+json` media type —
+so a working manifest declared without the `;profile=` parameter is not missed.
+The profile-conformant manifests are emitted as a *nested* `void:subset` keyed
+on `dcterms:conformsTo <https://docs.nde.nl/schema-profile/>`, encoding
+`conformant ⊆ capability`. The capability subset in turn nests under the
+dataset’s media subset (`iiif ⊆ media`). v2 and v3 manifests are collapsed into
+a single, version-less subset. Detection uses `STRSTARTS` / `STRENDS` rather
+than a regex (a regex over every `encodingFormat` literal is costly on QLever
+and on remote endpoints alike); the version segment is left unconstrained, which
+is intentionally forwards-compatible with future Presentation API versions.
+
+```ttl
+<https://example.com/dataset> a void:Dataset;
+    void:subset [
+        dcterms:conformsTo <http://iiif.io/api/presentation/> ;  # capability
+        void:entities 42 ;
+        void:subset [
+            dcterms:conformsTo <https://docs.nde.nl/schema-profile/> ;  # conformance
+            void:entities 37 .
+        ] .
     ].
 ```
 
@@ -339,26 +380,29 @@ broken manifest is one tick in a ratio, so there are no retries.
 The declared marker is **never removed** — it is the neutral statistic. The
 validation outcome is added alongside it as two
 [DQV](https://www.w3.org/TR/vocab-dqv/) integer measurements plus a
-[PROV](https://www.w3.org/TR/prov-o/) activity:
+[PROV](https://www.w3.org/TR/prov-o/) activity. The measurements are
+`dqv:computedOn` the **capability subset** — the resource they actually describe
+— which already carries the `dcterms:conformsTo` marker, so no per-measurement
+profile back-link is needed. For backward compatibility the measurements are
+*also* linked from the dataset (`?dataset dqv:hasQualityMeasurement …`), the
+path earlier consumers read; that link is transitional and will be dropped once
+consumers navigate via `void:subset`:
 
 ```ttl
-@prefix dcterms: <http://purl.org/dc/terms/> .
-@prefix dqv:     <http://www.w3.org/ns/dqv#> .
-@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix dqv:  <http://www.w3.org/ns/dqv#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
 
-<https://example.org/dataset>
+<https://example.org/dataset/.well-known/void#iiif-…>
     dqv:hasQualityMeasurement
         [ a dqv:QualityMeasurement ;
-          dqv:computedOn <https://example.org/dataset> ;
+          dqv:computedOn <https://example.org/dataset/.well-known/void#iiif-…> ;
           dqv:isMeasurementOf <https://def.nde.nl/metric#manifests-sampled> ;
           dqv:value 10 ;
-          dcterms:conformsTo <http://iiif.io/api/presentation/> ;
           prov:wasGeneratedBy _:validation ] ,
         [ a dqv:QualityMeasurement ;
-          dqv:computedOn <https://example.org/dataset> ;
+          dqv:computedOn <https://example.org/dataset/.well-known/void#iiif-…> ;
           dqv:isMeasurementOf <https://def.nde.nl/metric#manifests-validated> ;
           dqv:value 7 ;
-          dcterms:conformsTo <http://iiif.io/api/presentation/> ;
           prov:wasGeneratedBy _:validation ] .
 
 _:validation
@@ -374,14 +418,17 @@ _:validation
 
 No float ratio and no baked threshold are emitted: consumers derive `k / N` and
 pick their own bar. The only non-arbitrary cut is `validated = 0` versus
-`validated > 0`. Combining the declared subset with the validated count yields
-three observable states:
+`validated > 0`. The DKG stays signal-only; a consumer composes these orthogonal
+signals into a verdict. Combining the media subset, the capability/conformance
+subsets and the validated count yields a gradient:
 
-| State | subset + `conformsTo` | `void:entities` | sampled / validated |
-|---|---|---|---|
-| No IIIF | absent | – | – |
-| Declared but failing | present | declared count | sampled = N, validated = 0 |
-| Declared and working | present | declared count | sampled = N, validated ≥ 1 |
+| State | media subset | capability subset | conformance sub-subset | validated |
+|---|---|---|---|---|
+| No media | absent | – | – | – |
+| Media, no IIIF | present | absent | – | – |
+| IIIF declared but failing | present | present | – | 0 |
+| IIIF working, non-conformant | present | present | absent / 0 | ≥ 1 |
+| IIIF working and conformant | present | present | present, ≥ 1 | ≥ 1 |
 
 #### Querying
 
@@ -389,13 +436,32 @@ three observable states:
 
 ```sparql
 PREFIX dqv: <http://www.w3.org/ns/dqv#>
+PREFIX void: <http://rdfs.org/ns/void#>
 
 SELECT ?dataset WHERE {
-    ?dataset dqv:hasQualityMeasurement [
+    ?dataset void:subset/dqv:hasQualityMeasurement [
         dqv:isMeasurementOf <https://def.nde.nl/metric#manifests-validated> ;
         dqv:value ?validated
     ] .
     FILTER(?validated > 0)
+}
+```
+
+“Find datasets that have media but expose no IIIF” (the publishers to nudge):
+
+```sparql
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX void: <http://rdfs.org/ns/void#>
+
+SELECT ?dataset WHERE {
+    ?dataset void:subset [
+        <https://def.nde.nl/probe#detects> <https://def.nde.nl/probe#media>
+    ] .
+    FILTER NOT EXISTS {
+        ?dataset void:subset/void:subset [
+            dcterms:conformsTo <http://iiif.io/api/presentation/>
+        ] .
+    }
 }
 ```
 
@@ -404,9 +470,10 @@ diagnostic query for giving publishers feedback):
 
 ```sparql
 PREFIX dqv: <http://www.w3.org/ns/dqv#>
+PREFIX void: <http://rdfs.org/ns/void#>
 
 SELECT ?dataset WHERE {
-    ?dataset dqv:hasQualityMeasurement [
+    ?dataset void:subset/dqv:hasQualityMeasurement [
         dqv:isMeasurementOf <https://def.nde.nl/metric#manifests-validated> ;
         dqv:value 0
     ] .

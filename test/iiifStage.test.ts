@@ -15,6 +15,7 @@ const VOID_ENTITIES = namedNode('http://rdfs.org/ns/void#entities');
 const DCTERMS_CONFORMS_TO = namedNode('http://purl.org/dc/terms/conformsTo');
 const IIIF_PRESENTATION = namedNode('http://iiif.io/api/presentation/');
 const MANIFEST_SAMPLE = namedNode('https://def.nde.nl/iiif#manifest-sample');
+const SCHEMA_AP_NDE = namedNode('https://docs.nde.nl/schema-profile/');
 const XSD_INTEGER = 'http://www.w3.org/2001/XMLSchema#integer';
 
 const DATASET_IRI = 'http://example.org/dataset/1';
@@ -22,6 +23,10 @@ const EXPECTED_SUBSET_IRI =
   DATASET_IRI +
   '/.well-known/void#iiif-' +
   createHash('md5').update('http://iiif.io/api/presentation/').digest('hex');
+const EXPECTED_CONFORMANT_SUBSET_IRI =
+  DATASET_IRI +
+  '/.well-known/void#iiif-conformant-' +
+  createHash('md5').update('https://docs.nde.nl/schema-profile/').digest('hex');
 
 const queryPath = resolve(
   new URL('../queries/analysis/iiif.rq', import.meta.url).pathname,
@@ -96,6 +101,16 @@ function findEntitiesCount(quads: Quad[], subset: string): number | undefined {
     q => q.subject.value === subset && q.predicate.equals(VOID_ENTITIES),
   );
   return entities ? Number(entities.object.value) : undefined;
+}
+
+/** The conformant sub-subset nested under the IIIF capability subset. */
+function findConformantSubsetIri(
+  quads: Quad[],
+  iiifSubset: string,
+): string | undefined {
+  return quads.find(
+    q => q.subject.value === iiifSubset && q.predicate.equals(VOID_SUBSET),
+  )?.object.value;
 }
 
 describe('iiifStage', () => {
@@ -339,5 +354,120 @@ describe('iiif.rq detection query', () => {
     const subsetIri = findSubsetIri(quads);
     expect(subsetIri).toBeDefined();
     expect(findEntitiesCount(quads, subsetIri!)).toBe(2);
+  });
+
+  it('detects a manifest declared with the bare application/ld+json media type (issue #314)', async () => {
+    // A functional manifest declared without the `;profile=` parameter — the
+    // Beeldbank Erfgoed ’s-Hertogenbosch case — must still count as IIIF.
+    const turtle = `
+      <http://example.org/manifest/1> schema:encodingFormat "application/ld+json" .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBe(EXPECTED_SUBSET_IRI);
+    expect(findEntitiesCount(quads, subsetIri!)).toBe(1);
+  });
+
+  it('counts bare ld+json as capability but not as conformance', async () => {
+    const turtle = `
+      <http://example.org/manifest/1> schema:encodingFormat
+        "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+      <http://example.org/manifest/2> schema:encodingFormat "application/ld+json" .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBeDefined();
+    // Capability: both manifests.
+    expect(findEntitiesCount(quads, subsetIri!)).toBe(2);
+
+    // Conformance: nested sub-subset, only the profile-conformant manifest.
+    const conformantIri = findConformantSubsetIri(quads, subsetIri!);
+    expect(conformantIri).toBe(EXPECTED_CONFORMANT_SUBSET_IRI);
+    expect(findEntitiesCount(quads, conformantIri!)).toBe(1);
+    const conformsTo = quads.find(
+      q =>
+        q.subject.value === conformantIri &&
+        q.predicate.equals(DCTERMS_CONFORMS_TO),
+    );
+    expect(conformsTo?.object.equals(SCHEMA_AP_NDE)).toBe(true);
+  });
+
+  it('reports a zero-entity conformant sub-subset when only non-profile manifests exist', async () => {
+    const turtle = `
+      <http://example.org/manifest/1> schema:encodingFormat "application/ld+json" .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const subsetIri = findSubsetIri(quads);
+    const conformantIri = findConformantSubsetIri(quads, subsetIri!);
+    expect(conformantIri).toBeDefined();
+    expect(findEntitiesCount(quads, conformantIri!)).toBe(0);
+  });
+
+  it('nests the IIIF subset under the dataset’s media subset (iiif ⊆ media)', async () => {
+    const turtle = `
+      <http://example.org/manifest/1> schema:encodingFormat
+        "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const iiifSubset = findSubsetIri(quads);
+    expect(iiifSubset).toBe(EXPECTED_SUBSET_IRI);
+    // The same deterministic media subset IRI that media.rq emits is the parent.
+    const mediaSubset = DATASET_IRI + '/.well-known/void#media';
+    expect(
+      quads.some(
+        q =>
+          q.subject.value === mediaSubset &&
+          q.predicate.equals(VOID_SUBSET) &&
+          q.object.value === iiifSubset,
+      ),
+    ).toBe(true);
+  });
+
+  it('samples the schema:contentUrl manifest IRI rather than the encodingFormat-bearing node (issue #314 defect #2)', async () => {
+    // The encodingFormat sits on a blank node; the dereferenceable manifest URL
+    // lives in schema:contentUrl. The sample must be the contentUrl, not the
+    // (here, blank) encodingFormat-bearing node.
+    const turtle = `
+      <http://example.org/work/1> schema:associatedMedia [
+        schema:encodingFormat "application/ld+json" ;
+        schema:contentUrl <https://example.org/iiif/1/manifest.json>
+      ] .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBeDefined();
+    expect(findSampleManifests(quads, subsetIri!)).toEqual([
+      'https://example.org/iiif/1/manifest.json',
+    ]);
+  });
+
+  it('does not sample a blank-node manifest that has no schema:contentUrl (issue #314)', async () => {
+    // encodingFormat on a blank node with no contentUrl: still counted as
+    // capability, but the blank node is not a dereferenceable URL, so it must
+    // not appear in the sample (it would always fail validation otherwise).
+    const turtle = `
+      <http://example.org/work/1> schema:associatedMedia [
+        schema:encodingFormat "application/ld+json"
+      ] .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBeDefined();
+    // Detected as capability …
+    expect(findEntitiesCount(quads, subsetIri!)).toBe(1);
+    // … but nothing dereferenceable is sampled.
+    expect(findSampleManifests(quads, subsetIri!)).toEqual([]);
   });
 });

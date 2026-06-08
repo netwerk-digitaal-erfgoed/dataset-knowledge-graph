@@ -135,7 +135,8 @@ describe('IiifValidationExecutor', () => {
     expect(measurementValue(out, MANIFESTS_SAMPLED_METRIC.value)).toBe(2);
     expect(measurementValue(out, MANIFESTS_VALIDATED_METRIC.value)).toBe(1);
 
-    // Measurements are computed on the dataset and carry the IIIF profile.
+    // Measurements are computed on the IIIF subset (which already carries the
+    // conformsTo marker), not the dataset, and no longer re-link the profile.
     const sampledMeasurement = out.find(
       q =>
         q.predicate.equals(DQV_IS_MEASUREMENT_OF) &&
@@ -147,19 +148,28 @@ describe('IiifValidationExecutor', () => {
         q =>
           q.subject.equals(sampledMeasurement!) &&
           q.predicate.equals(DQV_COMPUTED_ON) &&
-          q.object.equals(namedNode(DATASET_IRI)),
+          q.object.equals(namedNode(SUBSET_IRI)),
       ),
     ).toBe(true);
     expect(
       out.some(
         q =>
           q.subject.equals(sampledMeasurement!) &&
-          q.predicate.equals(DCTERMS_CONFORMS_TO) &&
-          q.object.equals(IIIF_PRESENTATION),
+          q.predicate.equals(DCTERMS_CONFORMS_TO),
       ),
-    ).toBe(true);
+    ).toBe(false);
 
-    // The dataset links to both measurements.
+    // The IIIF subset links to both measurements.
+    expect(
+      out.filter(
+        q =>
+          q.subject.equals(namedNode(SUBSET_IRI)) &&
+          q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT),
+      ),
+    ).toHaveLength(2);
+
+    // Backward compatibility: the dataset also links to both measurements, so
+    // the shipped `?dataset dqv:hasQualityMeasurement` consumer keeps working.
     expect(
       out.filter(
         q =>

@@ -24,13 +24,17 @@ export interface IiifStageOptions {
  * `void:entities` count of distinct manifests, then *verify* a sample of those
  * manifests by dereferencing them.
  *
- * Detection mirrors SCHEMA-AP-NDE’s `_:IIIFPresentationManifestShape`: a
- * resource is a IIIF manifest iff its `schema:encodingFormat` literal matches
- * the JSON-LD context-profile pattern for any IIIF Presentation version. The
- * declared `dcterms:conformsTo` marker is never removed — it distinguishes
- * “no IIIF” from “declared but failing”. Validation adds two DQV
- * measurements (`manifests-sampled`, `manifests-validated`) so
- * consumers can tell working manifests apart from broken ones.
+ * Detection is *decoupled* from SCHEMA-AP-NDE conformance (issue #314): a
+ * resource counts as IIIF capability if its `schema:encodingFormat` literal is
+ * either the full profile pattern *or* the bare `application/ld+json` media
+ * type — so a working manifest declared without the `;profile=` parameter is
+ * not missed. The profile-conformant manifests are emitted as a nested
+ * `void:subset` keyed on `dcterms:conformsTo <https://docs.nde.nl/schema-profile/>`,
+ * encoding `conformant ⊆ capability`. The declared capability marker is never
+ * removed — it distinguishes “no IIIF” from “declared but failing”. Validation
+ * adds two DQV measurements (`manifests-sampled`, `manifests-validated`),
+ * computed on the capability subset, so consumers can tell working manifests
+ * apart from broken ones.
  *
  * Per-request timeout for the SPARQL query is configured at the
  * {@link Pipeline} level via `PipelineOptions.timeout`; the manifest
