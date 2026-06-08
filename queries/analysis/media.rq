@@ -1,0 +1,66 @@
+PREFIX void: <http://rdfs.org/ns/void#>
+
+# Detect whether a dataset exposes *any* media — images, audio, video, 3D — so a
+# media-bearing dataset that offers no IIIF is observable (issue #314: “no media”
+# and “media but no IIIF” are different states). The net is cast deliberately
+# wide across vocabularies (schema.org, EDM, CIDOC-CRM, Linked Art, FOAF, Omeka
+# and a few bespoke heritage predicates), but curated: media *predicates* only,
+# excluding false friends like `crm:P16_used_specific_object` (a tool, not a
+# digital object) and `schema:depicts` (subject matter, not a media link).
+#
+# Each present predicate becomes a self-describing `void:propertyPartition` with
+# its own `void:entities` (distinct subjects bearing it ≈ records with media);
+# the aggregate `void:entities` of the subset is computed by MediaSubsetExecutor
+# as the MAX over these partitions — a double-count-safe lower bound on the
+# number of media objects. Counting is via predicates here (correctly scoped by
+# `#subjectFilter#`, which binds ?s); class-typed media objects are a documented
+# follow-up.
+CONSTRUCT {
+    ?dataset a void:Dataset ;
+        void:subset ?mediaSubset .
+    ?mediaSubset
+        a void:Dataset ;
+        <https://def.nde.nl/probe#detects> <https://def.nde.nl/probe#media> ;
+        void:propertyPartition [
+            void:property ?property ;
+            void:entities ?count
+        ] .
+}
+WHERE {
+    {
+        SELECT ?property (COUNT(DISTINCT ?s) AS ?count) {
+            #subjectFilter#
+            VALUES ?property {
+                # encodingFormat denotes a media/file object and is the signal
+                # iiif.rq detects manifests on, so including it guarantees every
+                # IIIF manifest is also counted as media — the `iiif ⊆ media`
+                # nesting invariant holds structurally (issue #314).
+                <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
+                <https://schema.org/contentUrl> <http://schema.org/contentUrl>
+                <https://schema.org/image> <http://schema.org/image>
+                <https://schema.org/thumbnailUrl> <http://schema.org/thumbnailUrl>
+                <https://schema.org/thumbnail> <http://schema.org/thumbnail>
+                <https://schema.org/associatedMedia> <http://schema.org/associatedMedia>
+                <https://schema.org/hasRepresentation> <http://schema.org/hasRepresentation>
+                <http://www.europeana.eu/schemas/edm/isShownBy>
+                <http://www.europeana.eu/schemas/edm/isShownAt>
+                <http://www.europeana.eu/schemas/edm/object>
+                <http://www.europeana.eu/schemas/edm/hasView>
+                <http://www.cidoc-crm.org/cidoc-crm/P138i_has_representation>
+                <http://www.cidoc-crm.org/cidoc-crm/P65_shows_visual_item>
+                <http://xmlns.com/foaf/0.1/depiction>
+                <http://xmlns.com/foaf/0.1/thumbnail>
+                <https://linked.art/ns/terms/digitally_carried_by>
+                <https://linked.art/ns/terms/digitally_shown_by>
+                <http://omeka.org/s/vocabs/o#media>
+                <http://omeka.org/s/vocabs/o#primary_media>
+                <http://omeka.org/s/vocabs/o#thumbnail>
+                <http://memorix.io/ontology#hasDigitalDocument>
+                <https://data.cultureelerfgoed.nl/id/rnce#image>
+            }
+            ?s ?property ?o .
+        }
+        GROUP BY ?property
+    }
+    BIND(URI(CONCAT(STR(?dataset), "/.well-known/void#media")) AS ?mediaSubset)
+}

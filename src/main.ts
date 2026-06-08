@@ -18,6 +18,7 @@ import {createSubjectFilterSelector} from './subjectFilters.js';
 import {buildUriSpacesMap} from './uriSpaces.js';
 import {qualityMeasurementsStage} from './qualityMeasurementsStage.js';
 import {iiifStage} from './iiifStage.js';
+import {mediaStage} from './mediaStage.js';
 import {ConsoleReporter} from '@lde/pipeline-console-reporter';
 import {resolve} from 'node:path';
 import type {DatasetSelector} from '@lde/pipeline';
@@ -88,6 +89,9 @@ const sampleStages = await shaclSampleStages({
 const stages = [
   ...voidStageList,
   ...sampleStages,
+  // mediaStage runs before iiifStage so the media subset its capability subset
+  // nests under is present when the IIIF stage asserts the containment edge.
+  await mediaStage(),
   await iiifStage({manifestSampleSize: IIIF_MANIFEST_SAMPLE_SIZE}),
   qualityMeasurementsStage({
     validator: schemaApValidator,
