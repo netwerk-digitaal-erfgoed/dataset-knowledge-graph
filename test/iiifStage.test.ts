@@ -470,4 +470,26 @@ describe('iiif.rq detection query', () => {
     // … but nothing dereferenceable is sampled.
     expect(findSampleManifests(quads, subsetIri!)).toEqual([]);
   });
+
+  it('samples a SCHEMA-AP-NDE-conformant manifest as its own encodingFormat-bearing IRI (no contentUrl override)', async () => {
+    // A conformant manifest per IIIFPresentationManifestShape is an IRI bearing
+    // the profile encodingFormat and a license, with NO schema:contentUrl — so
+    // the dereference target must be the manifest IRI itself. The contentUrl
+    // branch only exists for the non-conformant MediaObject-wrapper structure,
+    // and is keyed on the presence of a contentUrl, which a conformant manifest
+    // does not have.
+    const turtle = `
+      <https://example.org/iiif/1/manifest> schema:encodingFormat
+          "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" ;
+        schema:license <https://creativecommons.org/publicdomain/zero/1.0/> .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBeDefined();
+    expect(findSampleManifests(quads, subsetIri!)).toEqual([
+      'https://example.org/iiif/1/manifest',
+    ]);
+  });
 });
