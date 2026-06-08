@@ -228,6 +228,23 @@ describe('subjectUriResolution', () => {
     expect(out.some(q => q.predicate.equals(DCTERMS_PUBLISHER))).toBe(false);
   });
 
+  it('does not classify a look-alike host as a Handle scheme', async () => {
+    // The host merely starts with 'hdl.handle.net' — the trailing-slash
+    // boundary must stop it from matching the Handle prefix.
+    const ns = subset('https://hdl.handle.net.evil.example/123/', 50);
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: sampleFixed(['https://hdl.handle.net.evil.example/123/good']),
+      resolve: resolveByName,
+    });
+
+    const out = await collect(transform(stream(ns.quads), context));
+
+    expect(out.some(q => q.predicate.equals(DCTERMS_CONFORMS_TO))).toBe(false);
+    // The resolution measurement is still emitted for the namespace.
+    expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+  });
+
   it('measures an unrecognised namespace without a scheme or org', async () => {
     const ns = subset('http://example.org/id/', 42);
     const transform = subjectUriResolution({

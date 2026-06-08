@@ -1,10 +1,10 @@
 import {DataFactory} from 'n3';
 import pLimit from 'p-limit';
 import type {Quad} from '@rdfjs/types';
-import type {Dataset, Distribution} from '@lde/dataset';
+import {assertSafeIri, type Dataset, type Distribution} from '@lde/dataset';
 import {
-  SparqlConstructExecutor,
-  NotSupported,
+  ConstantTimeoutPolicy,
+  SparqlItemSelector,
   type ExecutorContext,
   type QuadTransform,
 } from '@lde/pipeline';
@@ -59,8 +59,8 @@ type PidScheme = keyof typeof PID_SCHEMES;
 const PID_PREFIXES: ReadonlyArray<{scheme: PidScheme; prefix: string}> = [
   {scheme: 'ark', prefix: 'n2t.net/ark:'},
   {scheme: 'ark', prefix: 'arks.org/ark:'},
-  {scheme: 'handle', prefix: 'hdl.handle.net'},
-  {scheme: 'handle', prefix: 'handle.net'},
+  {scheme: 'handle', prefix: 'hdl.handle.net/'},
+  {scheme: 'handle', prefix: 'handle.net/'},
 ];
 
 const DEFAULT_SOFTWARE = namedNode(
@@ -76,8 +76,15 @@ export const DEFAULT_SAMPLE_SIZE = 10;
  */
 const DEFAULT_CONCURRENCY = 4;
 
-/** Marker predicate/object for the internal sampling CONSTRUCT. */
-const SAMPLE_MARKER = namedNode('https://def.nde.nl/internal#sampled-subject');
+/**
+ * Budget for the sample SELECT. The transform runs outside the stage runner, so
+ * the Pipeline's adaptive timeout policy is out of reach; a bounded constant
+ * keeps one slow endpoint from stalling the run.
+ */
+const SAMPLE_TIMEOUT_MS = 60_000;
+
+/** Per-request budget for dereferencing a sampled URI and the arks.org lookup. */
+const DEREFERENCE_TIMEOUT_MS = 10_000;
 
 /** Samples up to `sampleSize` distinct subject IRIs from `uriSpace`. */
 export type SampleUris = (
@@ -321,40 +328,43 @@ function* integerMeasurement(
 }
 
 /**
- * Default sampler: a `SELECT DISTINCT ?s … LIMIT n` short-circuited on the
- * namespace prefix, run through {@link SparqlConstructExecutor} so it reuses the
- * distribution’s endpoint, subject filter, and named-graph handling.
+ * Default sampler: a `SELECT DISTINCT ?s` short-circuited on the namespace
+ * prefix, paged through {@link SparqlItemSelector} and capped at `sampleSize`.
+ * A bounded {@link ConstantTimeoutPolicy} fast-fails a slow endpoint, since the
+ * transform runs outside the stage runner where the Pipeline's adaptive policy
+ * would normally apply. The distribution's subject filter and named graph are
+ * woven into the query, mirroring the VoID class selector.
  */
 const defaultSampleUris: SampleUris = async (
   uriSpace,
   sampleSize,
-  {dataset, distribution},
+  {distribution},
 ) => {
+  const subjectFilter = distribution.subjectFilter ?? '';
+  let fromClause = '';
+  if (distribution.namedGraph) {
+    assertSafeIri(distribution.namedGraph);
+    fromClause = `FROM <${distribution.namedGraph}>`;
+  }
   const query = [
-    `CONSTRUCT { ?s <${SAMPLE_MARKER.value}> <${SAMPLE_MARKER.value}> }`,
+    'SELECT DISTINCT ?s',
+    fromClause,
     'WHERE {',
-    '  {',
-    '    SELECT DISTINCT ?s WHERE {',
-    '      #subjectFilter#',
-    '      ?s ?p ?o .',
-    `      FILTER(ISIRI(?s) && STRSTARTS(STR(?s), ${sparqlString(uriSpace)}))`,
-    '    }',
-    `    LIMIT ${sampleSize}`,
-    '  }',
+    `  ${subjectFilter}`,
+    '  ?s ?p ?o .',
+    `  FILTER(ISIRI(?s) && STRSTARTS(STR(?s), ${sparqlString(uriSpace)}))`,
     '}',
   ].join('\n');
 
-  const result = await new SparqlConstructExecutor({query}).execute(
-    dataset,
-    distribution,
-  );
-  if (result instanceof NotSupported) return [];
-
-  const subjects = new Set<string>();
-  for await (const q of result) {
-    subjects.add(q.subject.value);
+  const selector = new SparqlItemSelector({query, maxResults: sampleSize});
+  const timeout = new ConstantTimeoutPolicy(SAMPLE_TIMEOUT_MS);
+  const subjects: string[] = [];
+  for await (const row of selector.select(distribution, sampleSize, {
+    timeout,
+  })) {
+    if (row.s) subjects.push(row.s.value);
   }
-  return [...subjects];
+  return subjects;
 };
 
 /**
@@ -369,6 +379,7 @@ const defaultResolve: ResolveUri = async uri => {
     response = await fetch(uri, {
       redirect: 'follow',
       headers: {accept: 'text/html'},
+      signal: AbortSignal.timeout(DEREFERENCE_TIMEOUT_MS),
     });
   } catch {
     return false;
@@ -393,9 +404,10 @@ const defaultResolve: ResolveUri = async uri => {
 const defaultLookupOrg: LookupOrg = async naan => {
   let response: Response;
   try {
-    response = await fetch(`https://arks.org/ark:${naan}`, {
+    response = await fetch(`https://arks.org/ark:${encodeURIComponent(naan)}`, {
       redirect: 'follow',
       headers: {accept: 'application/json'},
+      signal: AbortSignal.timeout(DEREFERENCE_TIMEOUT_MS),
     });
   } catch {
     return undefined;
@@ -422,5 +434,11 @@ function htmlEscape(value: string): string {
 }
 
 function sparqlString(value: string): string {
-  return `"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
+  const escaped = value
+    .replaceAll('\\', '\\\\')
+    .replaceAll('"', '\\"')
+    .replaceAll('\n', '\\n')
+    .replaceAll('\r', '\\r')
+    .replaceAll('\t', '\\t');
+  return `"${escaped}"`;
 }
