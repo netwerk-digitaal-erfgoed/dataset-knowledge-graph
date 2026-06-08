@@ -1,13 +1,9 @@
 import {DataFactory} from 'n3';
 import pLimit from 'p-limit';
+import {SparqlEndpointFetcher, type IBindings} from 'fetch-sparql-endpoint';
 import type {Quad} from '@rdfjs/types';
 import {assertSafeIri, type Dataset, type Distribution} from '@lde/dataset';
-import {
-  ConstantTimeoutPolicy,
-  SparqlItemSelector,
-  type ExecutorContext,
-  type QuadTransform,
-} from '@lde/pipeline';
+import type {ExecutorContext, QuadTransform} from '@lde/pipeline';
 
 const {namedNode, literal, blankNode, quad} = DataFactory;
 
@@ -328,9 +324,9 @@ function* integerMeasurement(
 }
 
 /**
- * Default sampler: a `SELECT DISTINCT ?s` short-circuited on the namespace
- * prefix, paged through {@link SparqlItemSelector} and capped at `sampleSize`.
- * A bounded {@link ConstantTimeoutPolicy} fast-fails a slow endpoint, since the
+ * Default sampler: a `SELECT DISTINCT ?s … LIMIT n` short-circuited on the
+ * namespace prefix, run as a plain SPARQL SELECT against the distribution's
+ * endpoint. The fetcher's own timeout fast-fails a slow endpoint, since the
  * transform runs outside the stage runner where the Pipeline's adaptive policy
  * would normally apply. The distribution's subject filter and named graph are
  * woven into the query, mirroring the VoID class selector.
@@ -354,15 +350,19 @@ const defaultSampleUris: SampleUris = async (
     '  ?s ?p ?o .',
     `  FILTER(ISIRI(?s) && STRSTARTS(STR(?s), ${sparqlString(uriSpace)}))`,
     '}',
+    `LIMIT ${sampleSize}`,
   ].join('\n');
 
-  const selector = new SparqlItemSelector({query, maxResults: sampleSize});
-  const timeout = new ConstantTimeoutPolicy(SAMPLE_TIMEOUT_MS);
+  const fetcher = new SparqlEndpointFetcher({timeout: SAMPLE_TIMEOUT_MS});
+  // fetchBindings yields IBindings (object mode), not the string/Buffer the
+  // NodeJS.ReadableStream type implies.
+  const bindings = (await fetcher.fetchBindings(
+    distribution.accessUrl.toString(),
+    query,
+  )) as unknown as AsyncIterable<IBindings>;
   const subjects: string[] = [];
-  for await (const row of selector.select(distribution, sampleSize, {
-    timeout,
-  })) {
-    if (row.s) subjects.push(row.s.value);
+  for await (const row of bindings) {
+    if (row.s?.termType === 'NamedNode') subjects.push(row.s.value);
   }
   return subjects;
 };
