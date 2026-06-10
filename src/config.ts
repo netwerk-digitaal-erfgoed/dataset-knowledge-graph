@@ -3,11 +3,31 @@ import {envSchema} from 'env-schema';
 const schema = {
   type: 'object',
   properties: {
-    SPARQL_UPDATE_URL: {
+    // Directory the per-dataset summary n-quads are written to (one file per
+    // analysed dataset, each quad in a named graph = the dataset IRI). This is
+    // the DKG's output store: a long-running, read-only QLever co-located on the
+    // same node rebuilds its index from these files. In production this points
+    // at the shared PVC mount; the default keeps `npm run dev` self-contained.
+    OUTPUT_CACHE_DIR: {
       type: 'string',
+      default: 'output/nq',
     },
-    SPARQL_UPDATE_AUTHORIZATION: {
+    // Directory the per-dataset SHACL validation reports are written to as
+    // n-quads (each quad in its derived `validationGraphIri` graph). Kept in a
+    // separate directory from OUTPUT_CACHE_DIR so the two file sets are pruned
+    // and indexed independently.
+    OUTPUT_VALIDATION_CACHE_DIR: {
       type: 'string',
+      default: 'output/validation/nq',
+    },
+    // Marker file the pipeline writes (atomically) after every run — success or
+    // partial failure — to signal the serving QLever to rebuild its index from
+    // whatever n-quads were produced. Decoupling the rebuild from the pipeline's
+    // exit status means a partially-failed run still publishes the set it did
+    // process. In production this sits on the shared PVC the serving pod polls.
+    REBUILD_SENTINEL_PATH: {
+      type: 'string',
+      default: 'output/nq/.rebuild',
     },
     QLEVER_ENV: {
       type: 'string',
@@ -57,8 +77,9 @@ const schema = {
 } as const;
 
 interface Config {
-  SPARQL_UPDATE_URL?: string;
-  SPARQL_UPDATE_AUTHORIZATION?: string;
+  OUTPUT_CACHE_DIR: string;
+  OUTPUT_VALIDATION_CACHE_DIR: string;
+  REBUILD_SENTINEL_PATH: string;
   QLEVER_ENV: 'docker' | 'native';
   QLEVER_PORT: number;
   QLEVER_IMAGE?: string;

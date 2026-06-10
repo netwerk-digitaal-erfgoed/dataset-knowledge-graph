@@ -9,7 +9,7 @@ This repository is the [data pipeline](#pipeline-steps) that generates the Knowl
 ## Finding datasets
 
 To query the Knowledge Graph, use the SPARQL endpoint at 
-`https://triplestore.netwerkdigitaalerfgoed.nl/repositories/dataset-knowledge-graph`.
+`https://sparql.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph`.
 
 Some example queries (make sure to select repository `dataset-knowledge-graph` on the top right):
 
@@ -842,4 +842,43 @@ and example queries.
 
 ### 6. Write analysis results
 
-Write the analysis results to local files and a triple store.
+Each dataset’s Summary is written to its own **n-quads file** (`OUTPUT_CACHE_DIR`,
+one file per dataset, every quad in a named graph = the dataset IRI), and its
+SHACL report to a sibling n-quads file (`OUTPUT_VALIDATION_CACHE_DIR`, each quad
+in a derived `dkg/shacl-validation/…` graph). Turtle copies are also written to
+`output/` and `output/validation/` for offline inspection.
+
+This is the DKG’s output store: a separate, **read-only** QLever — co-located on
+the same node, sharing the volume — rebuilds its served index from these files.
+The KG is therefore a pure derived/cache, fully rebuilt each run; there is no
+SPARQL UPDATE into a live store (QLever’s UPDATE path is too unreliable to depend
+on). After every run the pipeline writes a `.rebuild` marker
+(`REBUILD_SENTINEL_PATH`) **on success and on partial failure alike**, so the
+serving QLever picks up whatever set was processed regardless of the run’s exit
+status. Because each dataset’s file is finalized atomically (temp + rename), a
+crash mid-run leaves the already-processed files intact for the next rebuild.
+
+### 7. Reconcile the cache with the register
+
+The writer only rewrites the files of the datasets selected in this run, so a
+dataset that has since been **removed from the register** or whose registration
+has **expired** (`schema:validUntil`) is no longer selected — and its file
+lingers as a stale “ghost”, surfacing in downstream consumers such as the
+[data stories](https://datastories.demo.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph/)
+once the index is rebuilt.
+
+After writing, the pipeline reconciles the cache against the register: it asks
+the register for the set of dataset URIs that currently exist and are valid (the
+keep-set, see [`queries/selection/registered-dataset.rq`](queries/selection/registered-dataset.rq)),
+then deletes every `.nq` file whose dataset is not in that set (both its summary
+and validation file).
+
+The keep-set deliberately applies only the register’s identity and validity
+checks (`validUntil` + catalog freshness), **not** the distribution-type or
+endpoint filters of the selection query: a dataset that is registered and valid
+but merely skipped this run (no RDF distribution, an unreliable or timed-out
+endpoint) stays in the keep-set, so its last-good file is preserved rather than
+deleted. If the register returns an empty keep-set (e.g. an outage), the step
+fails closed and prunes nothing rather than emptying the cache. Reconciliation
+failures are logged, not fatal: the files for this run are already written, and
+the next run reconciles whatever is left.
