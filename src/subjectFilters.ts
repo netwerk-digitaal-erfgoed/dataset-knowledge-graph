@@ -8,6 +8,10 @@ import {rdfDereferencer} from 'rdf-dereference';
 const SUBJECT_FILTER_PREDICATE =
   'https://data.netwerkdigitaalerfgoed.nl/def/subjectFilter';
 
+export const DATASET_REGISTER_SPARQL_ENDPOINT = new URL(
+  'https://datasetregister.netwerkdigitaalerfgoed.nl/sparql',
+);
+
 async function loadSubjectFilters(): Promise<Map<string, string>> {
   const {data} = await rdfDereferencer.dereference(
     resolve('queries/selection/supplemental.ttl'),
@@ -43,9 +47,7 @@ export async function createSubjectFilterSelector(): Promise<DatasetSelector> {
   ).toString();
 
   const inner = new RegistrySelector({
-    registry: new Client(
-      new URL('https://datasetregister.netwerkdigitaalerfgoed.nl/sparql'),
-    ),
+    registry: new Client(DATASET_REGISTER_SPARQL_ENDPOINT),
     query,
   });
 

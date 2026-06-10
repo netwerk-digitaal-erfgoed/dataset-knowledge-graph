@@ -3,7 +3,6 @@ import {
   ImportResolver,
   SparqlDistributionResolver,
   FileWriter,
-  SparqlUpdateWriter,
   adaptiveTimeoutPolicy,
   provenancePlugin,
   schemaOrgNormalizationPlugin,
@@ -14,7 +13,15 @@ import {shaclSampleStages} from '@lde/pipeline-shacl-sampler';
 import {ShaclValidator} from '@lde/pipeline-shacl-validator';
 import {createQlever} from '@lde/sparql-qlever';
 import {config} from './config.js';
-import {createSubjectFilterSelector} from './subjectFilters.js';
+import {
+  createSubjectFilterSelector,
+  DATASET_REGISTER_SPARQL_ENDPOINT,
+} from './subjectFilters.js';
+import {
+  pruneOrphanedGraphs,
+  fileGraphPrunerDependencies,
+} from './pruneOrphanedGraphs.js';
+import {publishRebuildSentinel} from './rebuildSentinel.js';
 import {buildUriSpacesMap} from './uriSpaces.js';
 import {qualityMeasurementsStage} from './qualityMeasurementsStage.js';
 import {iiifStage} from './iiifStage.js';
@@ -68,21 +75,17 @@ const voidStageList = await voidStages({
 
 // Validation reports go to:
 //  - output/validation/ (Turtle files, one per dataset; for offline inspection)
-//  - the SPARQL store, per dataset, in a derived "shacl-validation" graph so
-//    operators can query violations without parsing files (see
-//    validationGraphIri for the graph IRI scheme).
+//  - the n-quads output cache, per dataset, each quad in a derived
+//    "shacl-validation" graph so operators can query violations once the serving
+//    QLever has indexed them (see validationGraphIri for the graph IRI scheme).
 const validationReportWriters: Writer[] = [
   new FileWriter({outputDir: 'output/validation', format: 'turtle'}),
+  new FileWriter({
+    outputDir: config.OUTPUT_VALIDATION_CACHE_DIR,
+    format: 'n-quads',
+    graphIri: dataset => validationGraphIri(dataset.iri),
+  }),
 ];
-if (config.SPARQL_UPDATE_URL) {
-  validationReportWriters.push(
-    new SparqlUpdateWriter({
-      endpoint: new URL(config.SPARQL_UPDATE_URL),
-      auth: config.SPARQL_UPDATE_AUTHORIZATION,
-      graphIri: dataset => validationGraphIri(dataset.iri),
-    }),
-  );
-}
 
 const schemaApValidator = new ShaclValidator({
   shapesFile: SCHEMA_AP_NDE_SHAPES,
@@ -120,35 +123,67 @@ const datasetSelector: DatasetSelector = {
   },
 };
 
+// Summaries go to:
+//  - output/ (Turtle files, one per dataset; for offline inspection)
+//  - the n-quads output cache, one file per dataset with every quad in a named
+//    graph = the dataset IRI, preserving our one-graph-per-dataset structure.
+//    A read-only QLever rebuilds its served index from these files.
 const writers: Writer[] = [
   new FileWriter({outputDir: 'output', format: 'turtle'}),
+  new FileWriter({
+    outputDir: config.OUTPUT_CACHE_DIR,
+    format: 'n-quads',
+    graphIri: dataset => dataset.iri,
+  }),
 ];
-if (config.SPARQL_UPDATE_URL) {
-  writers.push(
-    new SparqlUpdateWriter({
-      endpoint: new URL(config.SPARQL_UPDATE_URL),
-      auth: config.SPARQL_UPDATE_AUTHORIZATION,
-    }),
-  );
-}
 
-await new Pipeline({
-  datasetSelector,
-  distributionResolver: new ImportResolver(new SparqlDistributionResolver(), {
-    importer,
-    server,
-  }),
-  stages,
-  plugins: [schemaOrgNormalizationPlugin(), provenancePlugin()],
-  // Fast-fail endpoints that repeatedly time out so one bad dataset doesn’t
-  // hold up the run for hours. After two consecutive timeouts on the same
-  // endpoint, subsequent requests get a 10s budget instead of the default; a
-  // single successful request relaxes back to the default.
-  timeout: adaptiveTimeoutPolicy({
-    defaultMs: config.SPARQL_REQUEST_TIMEOUT_MS,
-    tightenedMs: 10_000,
-    tightenAfterTimeouts: 2,
-  }),
-  writers,
-  reporter,
-}).run();
+try {
+  await new Pipeline({
+    datasetSelector,
+    distributionResolver: new ImportResolver(new SparqlDistributionResolver(), {
+      importer,
+      server,
+    }),
+    stages,
+    plugins: [schemaOrgNormalizationPlugin(), provenancePlugin()],
+    // Fast-fail endpoints that repeatedly time out so one bad dataset doesn’t
+    // hold up the run for hours. After two consecutive timeouts on the same
+    // endpoint, subsequent requests get a 10s budget instead of the default; a
+    // single successful request relaxes back to the default.
+    timeout: adaptiveTimeoutPolicy({
+      defaultMs: config.SPARQL_REQUEST_TIMEOUT_MS,
+      tightenedMs: 10_000,
+      tightenAfterTimeouts: 2,
+    }),
+    writers,
+    reporter,
+  }).run();
+
+  // Reconcile the cache with the register: delete the `.nq` files of datasets
+  // that have since been removed from the register or whose registration
+  // expired, so stale “ghost” datasets stop surfacing once the served index is
+  // rebuilt. Failures are logged rather than thrown: the run has already written
+  // this run’s files, and the next run reconciles whatever is left.
+  try {
+    const {prunedGraphs, failedGraphs} = await pruneOrphanedGraphs(
+      fileGraphPrunerDependencies({
+        registryEndpoint: DATASET_REGISTER_SPARQL_ENDPOINT,
+        summaryDir: config.OUTPUT_CACHE_DIR,
+        validationDir: config.OUTPUT_VALIDATION_CACHE_DIR,
+      }),
+    );
+    console.log(
+      `Cache reconciliation: pruned ${prunedGraphs.length} orphaned file(s) ` +
+        'against the register keep-set' +
+        (failedGraphs.length > 0
+          ? `; ${failedGraphs.length} failed to delete: ${failedGraphs.join(', ')}`
+          : '.'),
+    );
+  } catch (error) {
+    console.error(`Cache reconciliation skipped: ${(error as Error).message}`);
+  }
+} finally {
+  // Signal the serving QLever to rebuild — on success AND on partial failure —
+  // so operators always see the set that was processed this run.
+  await publishRebuildSentinel(config.REBUILD_SENTINEL_PATH);
+}

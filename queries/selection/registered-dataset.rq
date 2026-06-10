@@ -1,0 +1,37 @@
+# The keep-set for store reconciliation: every dataset URI that currently exists
+# in the Dataset Register and is still valid. Any DKG graph whose dataset URI is
+# NOT returned here is an orphan (the dataset was removed from the register or
+# its registration expired) and gets pruned.
+#
+# This deliberately mirrors only the identity and validity checks of
+# dataset-with-rdf-distribution.rq (validUntil + catalog freshness), and OMITS
+# its distribution-type and endpoint filters. A dataset that is registered and
+# valid but merely skipped this run (no RDF distribution, an unreliable or
+# timed-out endpoint) must stay in the keep-set so its last-good summary is
+# preserved rather than deleted.
+PREFIX dcat: <http://www.w3.org/ns/dcat#>
+PREFIX schema: <https://schema.org/>
+
+SELECT DISTINCT ?dataset WHERE {
+    ?dataset a dcat:Dataset ;
+        schema:subjectOf ?registrationUrl .
+
+    # Exclude dataset descriptions that are no longer valid.
+    FILTER(NOT EXISTS {
+        ?registrationUrl schema:validUntil [] .
+    })
+
+    # In case of a catalog, exclude datasets that are no longer part of the catalog.
+    OPTIONAL {
+        SELECT ?dataset (MAX(?datasetRead) AS ?datasetLastRead) (MAX(?registrationUrlRead) AS ?registrationUrlLastRead) {
+            ?dataset schema:dateRead ?datasetRead ;
+                schema:subjectOf ?registrationUrl .
+            ?registrationUrl schema:dateRead ?registrationUrlRead .
+        }
+        GROUP BY ?dataset
+    }
+    FILTER(
+        (!BOUND(?datasetLastRead) && !BOUND(?registrationUrlLastRead)) # Without Dataset Register metadata, for local tests.
+        || ?datasetLastRead >= ?registrationUrlLastRead
+    )
+}
