@@ -33,6 +33,7 @@ CONSTRUCT {
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/ld+json>
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/n-quads>
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/n-triples>
+        || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/rdf+xml>
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/text/turtle>
     )
 
