@@ -34,7 +34,7 @@
     "@lde/dataset": "^0.7.5",
     "@lde/dataset-registry-client": "^0.8.1",
     "@lde/iiif-validator": "^0.1.4",
-    "@lde/pipeline": "^0.30.9",
+    "@lde/pipeline": "^0.30.10",
     "@lde/pipeline-console-reporter": "^0.21.9",
     "@lde/pipeline-shacl-sampler": "^0.4.9",
     "@lde/pipeline-shacl-validator": "^0.12.9",
