@@ -30,10 +30,12 @@ const DQV_IS_MEASUREMENT_OF = namedNode(
 );
 const DQV_VALUE = namedNode('http://www.w3.org/ns/dqv#value');
 const XSD_INTEGER = namedNode('http://www.w3.org/2001/XMLSchema#integer');
+const XSD_BOOLEAN = namedNode('http://www.w3.org/2001/XMLSchema#boolean');
 
 const METRIC_BASE = 'https://def.nde.nl/metric#';
 const SAMPLED_METRIC = `${METRIC_BASE}subject-uris-sampled`;
 const RESOLVED_METRIC = `${METRIC_BASE}subject-uris-resolved`;
+const DURABLE_METRIC = `${METRIC_BASE}subject-namespace-durable`;
 const ARK_SCHEME = namedNode('https://def.nde.nl/pid-scheme#ark');
 const HANDLE_SCHEME = namedNode('https://def.nde.nl/pid-scheme#handle');
 
@@ -97,6 +99,28 @@ function measurementValue(
     q => q.subject.equals(measurement) && q.predicate.equals(DQV_VALUE),
   );
   return value ? Number(value.object.value) : undefined;
+}
+
+/** Find the `dqv:value` term of the measurement of `metric`, computed on `node`. */
+function measurementValueTerm(
+  quads: Quad[],
+  metric: string,
+  node: NamedNode,
+): Quad['object'] | undefined {
+  const measurement = quads.find(
+    q => q.predicate.equals(DQV_IS_MEASUREMENT_OF) && q.object.value === metric,
+  )?.subject;
+  if (!measurement) return undefined;
+  const onNode = quads.some(
+    q =>
+      q.subject.equals(measurement) &&
+      q.predicate.equals(DQV_COMPUTED_ON) &&
+      q.object.equals(node),
+  );
+  if (!onNode) return undefined;
+  return quads.find(
+    q => q.subject.equals(measurement) && q.predicate.equals(DQV_VALUE),
+  )?.object;
 }
 
 const sampleFixed =
@@ -316,6 +340,176 @@ describe('subjectUriResolution', () => {
     expect(out.some(q => q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT))).toBe(
       false,
     );
+  });
+
+  describe('non-durable subject namespaces', () => {
+    it('flags a SaaS host hit with subject-namespace-durable = false', async () => {
+      const ns = subset('https://collectie.adlibhosting.com/id/', 5000);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed(['https://collectie.adlibhosting.com/id/good']),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(measurementValueTerm(out, DURABLE_METRIC, ns.node)?.value).toBe(
+        'false',
+      );
+    });
+
+    it('matches a subdomain of a disallowed host', async () => {
+      const ns = subset('https://cmu.adlibhosting.com/id/', 5000);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed(['https://cmu.adlibhosting.com/id/good']),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(measurementValueTerm(out, DURABLE_METRIC, ns.node)?.value).toBe(
+        'false',
+      );
+    });
+
+    it('does not flag a look-alike host', async () => {
+      const ns = subset('https://adlibhosting.com.evil.example/id/', 5000);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed([
+          'https://adlibhosting.com.evil.example/id/good',
+        ]),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(
+        measurementValueTerm(out, DURABLE_METRIC, ns.node),
+      ).toBeUndefined();
+    });
+
+    it('flags a self-hosted software path fragment', async () => {
+      const ns = subset(
+        'https://zoeken.geheugenvanzoetermeer.nl/AtlantisPubliek/data/',
+        5000,
+      );
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed([
+          'https://zoeken.geheugenvanzoetermeer.nl/AtlantisPubliek/data/good',
+        ]),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(measurementValueTerm(out, DURABLE_METRIC, ns.node)?.value).toBe(
+        'false',
+      );
+    });
+
+    it('respects the slash boundary of a path fragment', async () => {
+      const ns = subset('https://example.org/AtlantisPubliekX/data/', 5000);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed([
+          'https://example.org/AtlantisPubliekX/data/good',
+        ]),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(
+        measurementValueTerm(out, DURABLE_METRIC, ns.node),
+      ).toBeUndefined();
+    });
+
+    it('flags the namespace even when sampling fails', async () => {
+      const ns = subset('https://collectie.adlibhosting.com/id/', 5000);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: async () => {
+          throw new Error('endpoint timeout');
+        },
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      // The durability marker survives a sampling failure...
+      expect(measurementValueTerm(out, DURABLE_METRIC, ns.node)?.value).toBe(
+        'false',
+      );
+      // ...while the sampled/resolved measurements are dropped.
+      expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
+    });
+
+    it('emits no durable measurement for an unflagged namespace', async () => {
+      const ns = subset('http://example.org/id/', 5000);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed(['http://example.org/id/good']),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(
+        measurementValueTerm(out, DURABLE_METRIC, ns.node),
+      ).toBeUndefined();
+    });
+
+    it('types the durable value as xsd:boolean', async () => {
+      const ns = subset('https://collectie.adlibhosting.com/id/', 5000);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed(['https://collectie.adlibhosting.com/id/good']),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      const value = measurementValueTerm(out, DURABLE_METRIC, ns.node);
+      expect(value?.termType).toBe('Literal');
+      expect(
+        (value as {datatype?: NamedNode} | undefined)?.datatype?.equals(
+          XSD_BOOLEAN,
+        ),
+      ).toBe(true);
+    });
+
+    it('co-emits the durable flag alongside a full resolution', async () => {
+      // The actual 🟠 scenario: the sample fully resolves, yet the namespace is
+      // a known throwaway — both measurements coexist on the subset.
+      const ns = subset('https://collectie.adlibhosting.com/id/', 5000);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed([
+          'https://collectie.adlibhosting.com/id/good-1',
+          'https://collectie.adlibhosting.com/id/good-2',
+        ]),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(2);
+      expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(2);
+      expect(measurementValueTerm(out, DURABLE_METRIC, ns.node)?.value).toBe(
+        'false',
+      );
+      // The subset carries all three measurements.
+      expect(
+        out.filter(
+          q =>
+            q.subject.equals(ns.node) &&
+            q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT),
+        ),
+      ).toHaveLength(3);
+    });
   });
 
   describe('default ARK organisation lookup', () => {

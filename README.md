@@ -541,7 +541,9 @@ _:sampling
 `dcterms:conformsTo` is attached only when the namespace matches a recognised PID
 scheme. The metric names stay neutral (`subject-uris-*`, not `persistent-uris-*`)
 because the resolution ratio applies to any namespace – PID-ness lives only in
-the scheme label.
+the scheme label. Note the two axes: `subject-uris-*` measures the *sampled URIs*
+(how many resolve), while `subject-namespace-durable` (below) is a verdict on the
+*namespace itself* as a durable home, independent of the sample.
 
 | Scheme | Matched on | `dcterms:conformsTo` | Organisation |
 |---|---|---|---|
@@ -566,6 +568,55 @@ count yields five observable states:
 | unrecognised, resolves | absent | > 0 |
 | unrecognised, none resolve | absent | 0 |
 | no surviving namespace | – | nothing emitted |
+
+#### Non-durable namespaces
+
+Resolution measures whether URIs work *today*. It cannot see that a namespace is a
+vendor’s default hosted URL structure – one that resolves now but does not survive
+a contract or CMS change. A disallow list of known non-durable vendor namespaces
+is the counterweight: when the chosen namespace matches it, a
+`subject-namespace-durable` measurement is emitted with value `"false"^^xsd:boolean`.
+
+The flag is `false`-only: not being on a hand-curated list is no evidence of
+durability, so absence stays weaker than a durability claim (mirroring
+`dcterms:conformsTo`, a one-sided positive marker). A boolean – rather than a
+presence-only marker – leaves room to later emit `true` from a justifiable
+positive signal (e.g. a live, registered ARK NAAN).
+
+Unlike the sampled/resolved ratio, durability is knowable from the namespace
+string alone, so the flag is emitted **independently of sampling**: it survives a
+sampling or endpoint failure – a vendor preview domain whose endpoint is slow
+today is exactly what we most want flagged.
+
+| Metric IRI | Type | Meaning |
+|---|---|---|
+| `…/metric#subject-namespace-durable` | `xsd:boolean` | Emitted `false` only when the namespace is on the disallow list of known non-durable vendor namespaces; absent otherwise. |
+
+The list matches in two modes, tolerant of `http`/`https`:
+
+| Mode | Matched on | Example entry | Catches |
+|---|---|---|---|
+| host | host component, exactly or on a dot-boundary subdomain | `adlibhosting.com` | every SaaS subdomain (`cmu.adlibhosting.com`), while rejecting look-alikes (`adlibhosting.com.evil.example`) |
+| path | a slash-bounded substring, any host | `/AtlantisPubliek/` | self-hosted vendor software under an institution’s own domain (`zoeken.geheugenvanzoetermeer.nl/AtlantisPubliek/data/`) |
+
+A 🟠 namespace looks like a fully-resolving one with the extra flag – the two
+measurements coexist on the same subset:
+
+```ttl
+<https://example.org/dataset/.well-known/void#subject-uri-space-…>
+    void:uriSpace "https://collectie.adlibhosting.com/id/" ;
+    dqv:hasQualityMeasurement
+        [ a dqv:QualityMeasurement ;
+          dqv:computedOn <https://example.org/dataset/.well-known/void#subject-uri-space-…> ;
+          dqv:isMeasurementOf <https://def.nde.nl/metric#subject-uris-resolved> ;
+          dqv:value 10 ;
+          prov:wasGeneratedBy _:sampling ] ,
+        [ a dqv:QualityMeasurement ;
+          dqv:computedOn <https://example.org/dataset/.well-known/void#subject-uri-space-…> ;
+          dqv:isMeasurementOf <https://def.nde.nl/metric#subject-namespace-durable> ;
+          dqv:value false ;
+          prov:wasGeneratedBy _:durability ] .
+```
 
 #### Querying
 
