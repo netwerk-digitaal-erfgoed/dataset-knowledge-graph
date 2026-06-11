@@ -67,7 +67,8 @@ const PID_PREFIXES: ReadonlyArray<{scheme: PidScheme; prefix: string}> = [
  * Disallow list of known non-durable subject namespaces: a vendor’s default
  * hosted URL structure that resolves today but does not survive a contract or
  * CMS change. Mirrors the {@link PID_PREFIXES} allowlist as auditable governance
- * data, each entry justified by a `reason`; tolerant of `http`/`https`.
+ * data, each entry tagged with the `reason` it is non-durable; tolerant of
+ * `http`/`https`.
  *
  * Two modes capture how vendor software splits by where it is hosted:
  * - `host` — a SaaS host shared across institutions (Adlib, Spinque, …). Matches
@@ -82,15 +83,11 @@ const NON_DURABLE_NAMESPACES: ReadonlyArray<{
   value: string;
   reason: string;
 }> = [
-  {mode: 'host', value: 'adlibhosting.com', reason: 'Axiell Adlib SaaS host'},
-  {mode: 'host', value: 'spinque.com', reason: 'Spinque SaaS host'},
-  {mode: 'host', value: 'kleksi.com', reason: 'Kleksi SaaS host'},
-  {mode: 'host', value: 'xentropics.cloud', reason: 'Xentropics-hosted Omeka'},
-  {
-    mode: 'path',
-    value: '/AtlantisPubliek/',
-    reason: 'Deventit Atlantis software',
-  },
+  {mode: 'host', value: 'adlibhosting.com', reason: 'vendor'},
+  {mode: 'host', value: 'spinque.com', reason: 'vendor'},
+  {mode: 'host', value: 'kleksi.com', reason: 'vendor'},
+  {mode: 'host', value: 'xentropics.cloud', reason: 'vendor'},
+  {mode: 'path', value: '/AtlantisPubliek/', reason: 'vendor'},
 ];
 
 const DEFAULT_SOFTWARE = namedNode(
