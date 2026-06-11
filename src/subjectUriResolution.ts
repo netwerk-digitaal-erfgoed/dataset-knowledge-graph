@@ -32,6 +32,7 @@ const PROV_WAS_GENERATED_BY = namedNode(
   'http://www.w3.org/ns/prov#wasGeneratedBy',
 );
 const XSD_INTEGER = namedNode('http://www.w3.org/2001/XMLSchema#integer');
+const XSD_BOOLEAN = namedNode('http://www.w3.org/2001/XMLSchema#boolean');
 
 const METRIC_BASE = 'https://def.nde.nl/metric#';
 const SUBJECT_URIS_SAMPLED_METRIC = namedNode(
@@ -39,6 +40,9 @@ const SUBJECT_URIS_SAMPLED_METRIC = namedNode(
 );
 const SUBJECT_URIS_RESOLVED_METRIC = namedNode(
   `${METRIC_BASE}subject-uris-resolved`,
+);
+const SUBJECT_NAMESPACE_DURABLE_METRIC = namedNode(
+  `${METRIC_BASE}subject-namespace-durable`,
 );
 
 const PID_SCHEME_BASE = 'https://def.nde.nl/pid-scheme#';
@@ -57,6 +61,33 @@ const PID_PREFIXES: ReadonlyArray<{scheme: PidScheme; prefix: string}> = [
   {scheme: 'ark', prefix: 'arks.org/ark:'},
   {scheme: 'handle', prefix: 'hdl.handle.net/'},
   {scheme: 'handle', prefix: 'handle.net/'},
+];
+
+/**
+ * Disallow list of known non-durable subject namespaces: a vendor’s default
+ * hosted URL structure that resolves today but does not survive a contract or
+ * CMS change. Mirrors the {@link PID_PREFIXES} allowlist as auditable governance
+ * data, each entry tagged with the `reason` it is non-durable; tolerant of
+ * `http`/`https`.
+ *
+ * Two modes capture how vendor software splits by where it is hosted:
+ * - `host` — a SaaS host shared across institutions (Adlib, Spinque, …). Matches
+ *   the host component exactly or on a dot-boundary subdomain, so one entry
+ *   covers every current and future subdomain while rejecting look-alikes.
+ * - `path` — a distinctive software path under the institution’s own domain,
+ *   the only thing that flags *self-hosted* software (e.g. Atlantis under
+ *   `geheugenvanzoetermeer.nl`). Matched as a slash-bounded substring.
+ */
+const NON_DURABLE_NAMESPACES: ReadonlyArray<{
+  mode: 'host' | 'path';
+  value: string;
+  reason: string;
+}> = [
+  {mode: 'host', value: 'adlibhosting.com', reason: 'vendor'},
+  {mode: 'host', value: 'spinque.com', reason: 'vendor'},
+  {mode: 'host', value: 'kleksi.com', reason: 'vendor'},
+  {mode: 'host', value: 'xentropics.cloud', reason: 'vendor'},
+  {mode: 'path', value: '/AtlantisPubliek/', reason: 'vendor'},
 ];
 
 const DEFAULT_SOFTWARE = namedNode(
@@ -137,6 +168,10 @@ export interface SubjectUriResolutionOptions {
  *   recognised) and `dcterms:publisher` the ARK issuing org (non-fatal);
  * - **validated** facts: `subject-uris-sampled` / `subject-uris-resolved` DQV
  *   measurements plus a PROV activity.
+ * - **durability** facts: a `subject-namespace-durable = false` DQV measurement
+ *   when the chosen namespace matches the {@link NON_DURABLE_NAMESPACES}
+ *   disallow list — emitted independently of sampling, so it survives an
+ *   endpoint failure.
  *
  * The metric names are namespace-neutral because the ratio applies to any
  * namespace; PID-ness lives only in the scheme label. If no non-terminology
@@ -178,6 +213,13 @@ export function subjectUriResolution(
     // No non-terminology namespace survived: emit nothing extra.
     if (winner === undefined) {
       return;
+    }
+
+    // Durability is knowable from the namespace string alone, so flag it before
+    // (and outside) the best-effort sampling block: a vendor preview domain
+    // whose endpoint is slow today is exactly what we most want flagged.
+    if (isNonDurable(winner.uriSpace)) {
+      yield* nonDurableMeasurement(namedNode(winner.subset), software);
     }
 
     // Enrichment is best-effort: a failed sample must not drop the VoID output
@@ -239,11 +281,31 @@ function pickWinner(
   return best && {subset: best.subset, uriSpace: best.uriSpace};
 }
 
+/** Strip a leading `http://`/`https://` once, so host/path matching is scheme-neutral. */
+function stripScheme(uriSpace: string): string {
+  return uriSpace.replace(/^https?:\/\//, '');
+}
+
 /** Classify a namespace as an ARK/Handle PID scheme, tolerant of http/https. */
 function detectPidScheme(uriSpace: string): PidScheme | undefined {
-  const withoutScheme = uriSpace.replace(/^https?:\/\//, '');
+  const withoutScheme = stripScheme(uriSpace);
   return PID_PREFIXES.find(({prefix}) => withoutScheme.startsWith(prefix))
     ?.scheme;
+}
+
+/**
+ * Whether a namespace is on the {@link NON_DURABLE_NAMESPACES} disallow list.
+ * `host` entries match the host component exactly or on a dot-boundary
+ * subdomain; `path` entries match anywhere as a slash-bounded substring.
+ */
+function isNonDurable(uriSpace: string): boolean {
+  const withoutScheme = stripScheme(uriSpace);
+  const host = withoutScheme.split('/')[0];
+  return NON_DURABLE_NAMESPACES.some(({mode, value}) =>
+    mode === 'host'
+      ? host === value || host.endsWith(`.${value}`)
+      : withoutScheme.includes(value),
+  );
 }
 
 /** Extract the NAAN from an ARK namespace, e.g. `…/ark:/60537/` → `60537`. */
@@ -283,9 +345,7 @@ function* measurementQuads(
 
   // PROV: the sampling/dereferencing activity.
   const activity = blankNode();
-  yield quad(activity, RDF_TYPE, PROV_ACTIVITY);
-  yield quad(activity, PROV_USED, subset);
-  yield quad(activity, PROV_WAS_ASSOCIATED_WITH, software);
+  yield* activityQuads(activity, subset, software);
 
   // Validated facts — the sampled/resolved ratio, for any namespace.
   const sampledMeasurement = blankNode();
@@ -309,6 +369,39 @@ function* measurementQuads(
   );
 }
 
+/**
+ * The non-durability marker: `subject-namespace-durable = false`, emitted only
+ * on a disallow-list hit (absence stays weaker than a durability claim). Carries
+ * its own PROV activity so it survives a sampling/endpoint failure.
+ */
+function* nonDurableMeasurement(
+  subset: ReturnType<typeof namedNode>,
+  software: ReturnType<typeof namedNode>,
+): Generator<Quad> {
+  const activity = blankNode();
+  yield* activityQuads(activity, subset, software);
+
+  const measurement = blankNode();
+  yield quad(subset, DQV_HAS_QUALITY_MEASUREMENT, measurement);
+  yield* booleanMeasurement(
+    measurement,
+    subset,
+    SUBJECT_NAMESPACE_DURABLE_METRIC,
+    false,
+    activity,
+  );
+}
+
+function* activityQuads(
+  activity: ReturnType<typeof blankNode>,
+  used: ReturnType<typeof namedNode>,
+  software: ReturnType<typeof namedNode>,
+): Generator<Quad> {
+  yield quad(activity, RDF_TYPE, PROV_ACTIVITY);
+  yield quad(activity, PROV_USED, used);
+  yield quad(activity, PROV_WAS_ASSOCIATED_WITH, software);
+}
+
 function* integerMeasurement(
   measurement: ReturnType<typeof blankNode>,
   computedOn: ReturnType<typeof namedNode>,
@@ -320,6 +413,20 @@ function* integerMeasurement(
   yield quad(measurement, DQV_COMPUTED_ON, computedOn);
   yield quad(measurement, DQV_IS_MEASUREMENT_OF, metric);
   yield quad(measurement, DQV_VALUE, literal(String(value), XSD_INTEGER));
+  yield quad(measurement, PROV_WAS_GENERATED_BY, activity);
+}
+
+function* booleanMeasurement(
+  measurement: ReturnType<typeof blankNode>,
+  computedOn: ReturnType<typeof namedNode>,
+  metric: ReturnType<typeof namedNode>,
+  value: boolean,
+  activity: ReturnType<typeof blankNode>,
+): Generator<Quad> {
+  yield quad(measurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT);
+  yield quad(measurement, DQV_COMPUTED_ON, computedOn);
+  yield quad(measurement, DQV_IS_MEASUREMENT_OF, metric);
+  yield quad(measurement, DQV_VALUE, literal(String(value), XSD_BOOLEAN));
   yield quad(measurement, PROV_WAS_GENERATED_BY, activity);
 }
 
