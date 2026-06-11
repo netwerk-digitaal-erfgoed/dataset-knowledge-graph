@@ -20,6 +20,22 @@ const schema = {
       type: 'string',
       default: 'output/validation/nq',
     },
+    // Directory the per-dataset processing records are written to as n-quads
+    // (each in the provenance graph, keyed by dataset IRI), so a future run can
+    // skip datasets unchanged since the last run. Kept separate from
+    // OUTPUT_CACHE_DIR so the file sets are pruned and indexed independently;
+    // the served QLever indexes it alongside the others.
+    OUTPUT_PROVENANCE_CACHE_DIR: {
+      type: 'string',
+      default: 'output/provenance/nq',
+    },
+    // Query endpoint of the served (read-only) QLever the previous run's
+    // records were loaded into. The skip gate reads them from here at the start
+    // of a run. Leave unset (e.g. local `npm run dev`) to disable skipping and
+    // reprocess every dataset; set it in production to enable skipping.
+    SERVED_SPARQL_ENDPOINT: {
+      type: 'string',
+    },
     // Marker file the pipeline writes (atomically) after every run — success or
     // partial failure — to signal the serving QLever to rebuild its index from
     // whatever n-quads were produced. Decoupling the rebuild from the pipeline's
@@ -79,6 +95,8 @@ const schema = {
 interface Config {
   OUTPUT_CACHE_DIR: string;
   OUTPUT_VALIDATION_CACHE_DIR: string;
+  OUTPUT_PROVENANCE_CACHE_DIR: string;
+  SERVED_SPARQL_ENDPOINT?: string;
   REBUILD_SENTINEL_PATH: string;
   QLEVER_ENV: 'docker' | 'native';
   QLEVER_PORT: number;

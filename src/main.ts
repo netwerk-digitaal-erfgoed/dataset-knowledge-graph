@@ -3,11 +3,13 @@ import {
   ImportResolver,
   SparqlDistributionResolver,
   FileWriter,
+  FileLoadedSparqlProvenanceStore,
   adaptiveTimeoutPolicy,
   provenancePlugin,
   schemaOrgNormalizationPlugin,
   type Writer,
 } from '@lde/pipeline';
+import {PIPELINE_VERSION} from './pipelineVersion.js';
 import {voidStages, VOID_STAGE_NAMES} from '@lde/pipeline-void';
 import {shaclSampleStages} from '@lde/pipeline-shacl-sampler';
 import {ShaclValidator} from '@lde/pipeline-shacl-validator';
@@ -174,6 +176,23 @@ const writers: Writer[] = [
   }),
 ];
 
+// Per-dataset processing memory, so a run skips datasets whose source and
+// pipeline version are both unchanged — before paying the import cost. Reads
+// the previous run's records by querying the served (read-only) QLever, and
+// writes this run's records as n-quads files (in their own directory, scoped by
+// the provenance graph) for the served QLever's next rebuild. Disabled when
+// SERVED_SPARQL_ENDPOINT is unset (e.g. local `npm run dev`), in which case
+// every dataset is reprocessed.
+const provenanceStore = config.SERVED_SPARQL_ENDPOINT
+  ? new FileLoadedSparqlProvenanceStore({
+      queryEndpoint: new URL(config.SERVED_SPARQL_ENDPOINT),
+      pipelineIri: new URL(
+        'https://sparql.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph/provenance',
+      ),
+      outputDir: config.OUTPUT_PROVENANCE_CACHE_DIR,
+    })
+  : undefined;
+
 try {
   await new Pipeline({
     datasetSelector,
@@ -183,6 +202,11 @@ try {
     }),
     stages,
     plugins: [schemaOrgNormalizationPlugin(), provenancePlugin()],
+    // Skip datasets unchanged since the last run. pipelineVersion is the opaque
+    // logic version (managed by release-please); rotating it forces a full
+    // reprocess. Ignored when no provenanceStore is configured.
+    provenanceStore,
+    pipelineVersion: PIPELINE_VERSION,
     // Fast-fail endpoints that repeatedly time out so one bad dataset doesn’t
     // hold up the run for hours. After two consecutive timeouts on the same
     // endpoint, subsequent requests get a 10s budget instead of the default; a
