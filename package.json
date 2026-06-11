@@ -6,7 +6,7 @@
     "build/src"
   ],
   "exports": "./build/src/main.js",
-  "version": "0.0.0-semantically-released",
+  "version": "0.1.0",
   "description": "Pipeline that generates the NDE Dataset Knowledge Graph",
   "engines": {
     "node": ">=22"
@@ -34,11 +34,11 @@
     "@lde/dataset": "^0.7.5",
     "@lde/dataset-registry-client": "^0.8.1",
     "@lde/iiif-validator": "^0.1.4",
-    "@lde/pipeline": "^0.30.11",
-    "@lde/pipeline-console-reporter": "^0.21.11",
-    "@lde/pipeline-shacl-sampler": "^0.4.12",
-    "@lde/pipeline-shacl-validator": "^0.12.11",
-    "@lde/pipeline-void": "^0.28.11",
+    "@lde/pipeline": "^0.30.12",
+    "@lde/pipeline-console-reporter": "^0.21.12",
+    "@lde/pipeline-shacl-sampler": "^0.4.13",
+    "@lde/pipeline-shacl-validator": "^0.12.12",
+    "@lde/pipeline-void": "^0.28.12",
     "@lde/sparql-qlever": "^0.14.7",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.19.22",
     "env-schema": "^7.0.0",
