@@ -36,6 +36,39 @@ const SCHEMA_AP_NDE_SHAPES =
   'https://raw.githubusercontent.com/netwerk-digitaal-erfgoed/schema-profile/main/shacl.ttl';
 const SCHEMA_AP_NDE_PROFILE = 'https://docs.nde.nl/schema-profile/';
 const SAMPLES_PER_CLASS = 50;
+
+// SCHEMA-AP-NDE targets schema:Organization (and schema:Person), so a dump that
+// contains nothing but its own self-description — a schema:Dataset and the
+// publisher Organization that supports it — would otherwise sample that
+// publisher, find it trivially conformant (only `name` is required) and report
+// the dataset as ‘tested and passed’. But the publisher is the dataset’s own
+// administrative metadata, not collection content. We subtract any resource the
+// self-description points at via schema:publisher/provider/creator from the
+// Organization and Person samples, so a content-less dump drops to
+// quads-validated = 0 (‘profile doesn’t apply’). The exclusion is anchored to the
+// schema:Dataset/DataCatalog node, never to the predicate alone, so per-work
+// creator Organizations — reached from CreativeWork nodes — stay in the sample
+// and are still validated. Both http:// and https://schema.org/ forms are
+// matched because the source data may use either.
+const SELF_DESCRIPTION_PUBLISHER_EXCLUSION = `MINUS {
+  ?selfDescription a ?selfDescriptionType .
+  FILTER(?selfDescriptionType IN (
+    <https://schema.org/Dataset>, <http://schema.org/Dataset>,
+    <https://schema.org/DataCatalog>, <http://schema.org/DataCatalog>
+  ))
+  ?selfDescription ?publisherPredicate ?s .
+  FILTER(?publisherPredicate IN (
+    <https://schema.org/publisher>, <http://schema.org/publisher>,
+    <https://schema.org/provider>, <http://schema.org/provider>,
+    <https://schema.org/creator>, <http://schema.org/creator>
+  ))
+}`;
+const SELF_DESCRIPTION_TARGET_CLASSES = new Set([
+  'https://schema.org/Organization',
+  'http://schema.org/Organization',
+  'https://schema.org/Person',
+  'http://schema.org/Person',
+]);
 const IIIF_MANIFEST_SAMPLE_SIZE = 10;
 const SUBJECT_URI_SAMPLE_SIZE = 10;
 
@@ -99,6 +132,10 @@ const sampleStages = await shaclSampleStages({
   namespaceAliases: [
     {canonical: 'https://schema.org/', alias: 'http://schema.org/'},
   ],
+  excludeResources: targetClass =>
+    SELF_DESCRIPTION_TARGET_CLASSES.has(targetClass.value)
+      ? SELF_DESCRIPTION_PUBLISHER_EXCLUSION
+      : '',
 });
 
 const stages = [
