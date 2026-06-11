@@ -1,0 +1,23 @@
+name: release-please
+
+# Maintains a standing release PR (version bump + CHANGELOG) from conventional
+# commits. Nothing is released until a maintainer MERGES that PR, which then
+# tags a semver release and rotates PIPELINE_VERSION — forcing a full reprocess
+# of every dataset on the next run.
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

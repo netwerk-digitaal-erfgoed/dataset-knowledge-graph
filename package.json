@@ -6,7 +6,7 @@
     "build/src"
   ],
   "exports": "./build/src/main.js",
-  "version": "0.0.0-semantically-released",
+  "version": "0.1.0",
   "description": "Pipeline that generates the NDE Dataset Knowledge Graph",
   "engines": {
     "node": ">=22"
