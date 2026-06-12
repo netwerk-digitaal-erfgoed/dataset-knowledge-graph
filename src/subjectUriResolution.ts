@@ -57,13 +57,39 @@ const SUBJECT_RESOLUTION_FAILURE_BASE =
  * Why a sampled subject URI did not resolve to a self-describing landing page.
  * Mirrors the `subject-resolution-failure` concept scheme; a `null` outcome
  * (resolved) is represented out-of-band.
+ *
+ * Outcomes split into two classes (see {@link isTransientFailure}):
+ * - **definitive** — `http-error` (a non-retryable `4xx` such as `404`/`410`),
+ *   `wrong-content-type`, `no-self-reference`: a genuine, dataset-attributable
+ *   defect. Counted against the ratio and persisted in the PROV trail.
+ * - **transient** — `timeout`, `network-error`, `server-error` (`429`/`5xx`): a
+ *   blip in the multi-hop PID-resolver chain, not a property of the dataset.
+ *   Retried with backoff; if still failing it is excluded from the sample
+ *   entirely (neither counted nor persisted).
  */
 export type SubjectResolutionFailure =
   | 'timeout'
   | 'network-error'
+  | 'server-error'
   | 'http-error'
   | 'wrong-content-type'
   | 'no-self-reference';
+
+/**
+ * Transient failures: a slow or briefly unavailable hop in the resolver chain,
+ * not a broken PID. Retried, then excluded from the denominator rather than
+ * scored as a non-resolution — so a single network blip during a crawl cannot
+ * report a healthy dataset as partially broken.
+ */
+const TRANSIENT_FAILURES: ReadonlySet<SubjectResolutionFailure> = new Set([
+  'timeout',
+  'network-error',
+  'server-error',
+]);
+
+function isTransientFailure(reason: SubjectResolutionFailure): boolean {
+  return TRANSIENT_FAILURES.has(reason);
+}
 
 /** Map a failure reason to its `subject-resolution-failure#` concept IRI. */
 function subjectResolutionFailureIri(reason: SubjectResolutionFailure) {
@@ -135,8 +161,31 @@ const DEFAULT_CONCURRENCY = 4;
  */
 const SAMPLE_TIMEOUT_MS = 60_000;
 
-/** Per-request budget for dereferencing a sampled URI and the arks.org lookup. */
-const DEREFERENCE_TIMEOUT_MS = 10_000;
+/**
+ * Per-request budget for dereferencing a sampled URI and the arks.org lookup.
+ * Kept generous because ARK/Handle resolution traverses a multi-hop global
+ * chain (`n2t.net → arks.org → institutional host → landing page`); a single
+ * slow or briefly rate-limited hop must not trip a false non-resolution.
+ */
+const DEREFERENCE_TIMEOUT_MS = 15_000;
+
+/**
+ * Extra attempts for a transient dereference failure before giving up. Combined
+ * with {@link retryDelay}, the effective budget for a flaky resolver chain
+ * spans several timeouts, not one.
+ */
+const DEFAULT_RETRIES = 2;
+
+/** Exponential backoff before retry attempt `attempt` (0-based): 500 ms, 1 s, … */
+function retryDelay(attempt: number): number {
+  return 500 * 2 ** attempt;
+}
+
+/** Injectable sleep so tests drive the retry loop without real delays. */
+export type Sleep = (milliseconds: number) => Promise<void>;
+
+const defaultSleep: Sleep = milliseconds =>
+  new Promise(resolve => setTimeout(resolve, milliseconds));
 
 /** Samples up to `sampleSize` distinct subject IRIs from `uriSpace`. */
 export type SampleUris = (
@@ -173,6 +222,10 @@ export interface SubjectUriResolutionOptions {
   sampleUris?: SampleUris;
   /** Resolution check. Injectable for testing; defaults to an HTTP fetch. */
   resolve?: ResolveUri;
+  /** Extra attempts for a transient failure before giving up. @default 2 */
+  retries?: number;
+  /** Backoff between retries. Injectable for testing; defaults to real delays. */
+  sleep?: Sleep;
   /** ARK organisation lookup. Injectable for testing; defaults to arks.org. */
   lookupOrg?: LookupOrg;
   /**
@@ -216,6 +269,8 @@ export function subjectUriResolution(
   const concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;
   const sampleUris = options.sampleUris ?? defaultSampleUris;
   const resolve = options.resolve ?? defaultResolve;
+  const retries = options.retries ?? DEFAULT_RETRIES;
+  const sleep = options.sleep ?? defaultSleep;
   const lookupOrg = options.lookupOrg ?? defaultLookupOrg;
   const software = options.software
     ? namedNode(options.software)
@@ -260,29 +315,39 @@ export function subjectUriResolution(
         distribution,
       });
       const limit = pLimit(concurrency);
-      const outcomes = await Promise.allSettled(
-        sampled.map(uri => limit(() => resolve(uri))),
+      const outcomes = await Promise.all(
+        sampled.map(uri =>
+          limit(() => resolveWithRetry(uri, resolve, retries, sleep)),
+        ),
       );
 
-      // Pair each sampled URI with its settled outcome: a `null` classification
-      // counts as resolved, any reason becomes a persisted failure. An
-      // unexpected rejection is mapped defensively to `network-error` so the URI
-      // still surfaces rather than vanishing from both the count and the trail.
+      // Classify each settled outcome. A `null` resolves; a *definitive* reason
+      // is a real defect — counted and persisted. A *transient* reason survived
+      // every retry, so the resolver chain (not the dataset) is at fault: drop
+      // the URI from the sample entirely rather than scoring it as broken.
       let resolved = 0;
+      let measurable = 0;
       const failures: SampleFailure[] = [];
       sampled.forEach((uri, index) => {
-        const outcome = outcomes[index];
-        const reason: SubjectResolutionFailure | null =
-          outcome.status === 'fulfilled' ? outcome.value : 'network-error';
+        const reason = outcomes[index];
         if (reason === null) {
           resolved++;
-        } else {
+          measurable++;
+        } else if (!isTransientFailure(reason)) {
+          measurable++;
           failures.push({
             url: uri,
             reasonIri: subjectResolutionFailureIri(reason),
           });
         }
       });
+
+      // Every sampled URI was transiently unreachable: we could not measure this
+      // namespace this run. Emit nothing extra (the next run retries) rather
+      // than reporting a misleading 0/0 the diagnostic queries would misread.
+      if (measurable === 0) {
+        return;
+      }
 
       const scheme = detectPidScheme(winner.uriSpace);
       const org =
@@ -293,7 +358,7 @@ export function subjectUriResolution(
       measurements = [
         ...measurementQuads(
           namedNode(winner.subset),
-          sampled.length,
+          measurable,
           resolved,
           failures,
           scheme,
@@ -307,6 +372,38 @@ export function subjectUriResolution(
 
     yield* measurements;
   };
+}
+
+/**
+ * Resolve a URI, retrying a {@link isTransientFailure transient} outcome with
+ * exponential backoff up to `retries` times. Returns the final outcome: `null`
+ * (resolved), a definitive failure, or — once retries are exhausted — the last
+ * transient failure. An unexpected rejection from `resolve` is treated as a
+ * transient `network-error`, so a flaky check is retried rather than surfacing a
+ * stray non-resolution.
+ */
+async function resolveWithRetry(
+  uri: string,
+  resolve: ResolveUri,
+  retries: number,
+  sleep: Sleep,
+): Promise<SubjectResolutionFailure | null> {
+  let outcome: SubjectResolutionFailure | null;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      outcome = await resolve(uri);
+    } catch {
+      outcome = 'network-error';
+    }
+    if (
+      outcome === null ||
+      !isTransientFailure(outcome) ||
+      attempt >= retries
+    ) {
+      return outcome;
+    }
+    await sleep(retryDelay(attempt));
+  }
 }
 
 /** Pick the subset with the most entities whose namespace is not a terminology source. */
@@ -542,7 +639,7 @@ const defaultResolve: ResolveUri = async uri => {
   } catch (error) {
     return classifyFetchError(error);
   }
-  if (!response.ok) return 'http-error';
+  if (!response.ok) return classifyHttpStatus(response.status);
   if (!(response.headers.get('content-type') ?? '').includes('text/html')) {
     return 'wrong-content-type';
   }
@@ -568,6 +665,15 @@ function classifyFetchError(error: unknown): SubjectResolutionFailure {
   return name === 'TimeoutError' || name === 'AbortError'
     ? 'timeout'
     : 'network-error';
+}
+
+/**
+ * Split a non-2xx status into a transient `server-error` (`429` Too Many
+ * Requests or any `5xx` — the server says “try later”) and a definitive
+ * `http-error` (a `4xx` such as `404`/`410` — the resource is genuinely gone).
+ */
+function classifyHttpStatus(status: number): SubjectResolutionFailure {
+  return status === 429 || status >= 500 ? 'server-error' : 'http-error';
 }
 
 /**
