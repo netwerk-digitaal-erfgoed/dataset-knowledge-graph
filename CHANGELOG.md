@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.0.0...v1.1.0) (2026-06-12)
+
+
+### Features
+
+* persist failed sampled subject URIs and IIIF manifests with typed reasons ([#341](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/341)) ([1f5b4c6](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/1f5b4c63f7f576f1ac39e4e48420e322bfe5ce44))
+
+
+### Bug Fixes
+
+* retry transient subject-URI resolution failures and exclude them from the ratio ([#345](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/345)) ([0e9fe0a](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/0e9fe0a43bbfd5ec544bb25658bba0a58d514631)), closes [#339](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/339)
+
 ## [1.0.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v0.1.0...v1.0.0) (2026-06-11)
 
 
