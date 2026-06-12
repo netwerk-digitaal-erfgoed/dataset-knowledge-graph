@@ -5,8 +5,11 @@ import {Dataset, Distribution} from '@lde/dataset';
 import {NotSupported, type Executor} from '@lde/pipeline';
 import {
   IiifValidationExecutor,
+  MANIFEST_VALIDATION_FAILURE_REASONS,
+  manifestValidationFailureIri,
   type ValidateManifest,
 } from '../src/iiifValidationExecutor.js';
+import {failureReasonFor} from './failures.js';
 
 const {namedNode, literal, quad} = DataFactory;
 
@@ -34,6 +37,11 @@ const MANIFESTS_SAMPLED_METRIC = namedNode(`${METRIC_BASE}manifests-sampled`);
 const MANIFESTS_VALIDATED_METRIC = namedNode(
   `${METRIC_BASE}manifests-validated`,
 );
+const PROV_QUALIFIED_USAGE = namedNode(
+  'http://www.w3.org/ns/prov#qualifiedUsage',
+);
+const MANIFEST_VALIDATION_FAILURE_BASE =
+  'https://def.nde.nl/manifest-validation-failure#';
 
 /** Find the integer value of the measurement of the given metric. */
 function measurementValue(quads: Quad[], metric: string): number | undefined {
@@ -177,9 +185,25 @@ describe('IiifValidationExecutor', () => {
           q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT),
       ),
     ).toHaveLength(2);
+
+    // Only the failed manifest is enumerated, as a qualified usage carrying its
+    // reason; the validated one is covered by the count alone.
+    expect(
+      out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
+    ).toHaveLength(1);
+    expect(failureReasonFor(out, 'http://example.org/bad/2')).toBe(
+      `${MANIFEST_VALIDATION_FAILURE_BASE}http-error`,
+    );
+    expect(failureReasonFor(out, 'http://example.org/good/1')).toBeUndefined();
   });
 
-  it('records validated = 0 when every sampled manifest fails (k = 0)', async () => {
+  it('records validated = 0 and the validator’s reason per failure (k = 0)', async () => {
+    // Distinct reasons confirm the executor reads the verdict’s reason rather
+    // than hard-coding one.
+    const validateWithReasons: ValidateManifest = async (url: string) =>
+      url.endsWith('/1')
+        ? {valid: false, reason: 'not-a-manifest'}
+        : {valid: false, reason: 'invalid-json'};
     const inner = innerYielding([
       ...voidQuads(),
       sampleQuad('http://example.org/bad/1'),
@@ -187,7 +211,7 @@ describe('IiifValidationExecutor', () => {
     ]);
 
     const executor = new IiifValidationExecutor(inner, {
-      validate: validateByName,
+      validate: validateWithReasons,
     });
     const out = await collect(await executor.execute(dataset, distribution));
 
@@ -201,6 +225,42 @@ describe('IiifValidationExecutor', () => {
     ).toBe(true);
     expect(measurementValue(out, MANIFESTS_SAMPLED_METRIC.value)).toBe(2);
     expect(measurementValue(out, MANIFESTS_VALIDATED_METRIC.value)).toBe(0);
+
+    // Both manifests are enumerated, each with its own typed reason.
+    expect(
+      out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
+    ).toHaveLength(2);
+    expect(failureReasonFor(out, 'http://example.org/bad/1')).toBe(
+      `${MANIFEST_VALIDATION_FAILURE_BASE}not-a-manifest`,
+    );
+    expect(failureReasonFor(out, 'http://example.org/bad/2')).toBe(
+      `${MANIFEST_VALIDATION_FAILURE_BASE}invalid-json`,
+    );
+  });
+
+  it('never emits an undefined reason term for a contract-violating verdict', async () => {
+    // `valid` and `reason` are independent fields; guard against the validator
+    // pairing valid:false with the success reason, which would otherwise build
+    // the undefined IRI manifest-validation-failure#valid-manifest.
+    const validateContradictory: ValidateManifest = async () => ({
+      valid: false,
+      reason: 'valid-manifest',
+    });
+    const inner = innerYielding([
+      ...voidQuads(),
+      sampleQuad('http://example.org/bad/1'),
+    ]);
+
+    const executor = new IiifValidationExecutor(inner, {
+      validate: validateContradictory,
+    });
+    const out = await collect(await executor.execute(dataset, distribution));
+
+    expect(measurementValue(out, MANIFESTS_VALIDATED_METRIC.value)).toBe(0);
+    // Falls back to an in-scheme reason rather than #valid-manifest.
+    expect(failureReasonFor(out, 'http://example.org/bad/1')).toBe(
+      `${MANIFEST_VALIDATION_FAILURE_BASE}network-error`,
+    );
   });
 
   it('counts a manifest that throws during dereferencing as not validated', async () => {
@@ -222,6 +282,10 @@ describe('IiifValidationExecutor', () => {
     // One validator rejection must not fail or drop the others.
     expect(measurementValue(out, MANIFESTS_SAMPLED_METRIC.value)).toBe(2);
     expect(measurementValue(out, MANIFESTS_VALIDATED_METRIC.value)).toBe(1);
+    // The thrown manifest still surfaces, classified defensively.
+    expect(failureReasonFor(out, 'http://example.org/throws/2')).toBe(
+      `${MANIFEST_VALIDATION_FAILURE_BASE}network-error`,
+    );
   });
 
   it('emits no measurements when no IIIF is detected (no sample triples)', async () => {
@@ -253,5 +317,24 @@ describe('IiifValidationExecutor', () => {
     const result = await executor.execute(dataset, distribution);
 
     expect(result).toBeInstanceOf(NotSupported);
+  });
+});
+
+describe('manifest-validation-failure lockstep', () => {
+  // Lockstep with the validator’s `ManifestValidationReason` enum is enforced at
+  // compile time by the `Record<ManifestValidationFailureReason, true>` type of
+  // `MANIFEST_VALIDATION_FAILURE_REASONS` in the source: a new validator reason
+  // that is not listed fails `tsc`. This test derives its reasons from that same
+  // Record (no second hand-maintained list) and only documents the IRI shape.
+  it('maps each failure reason to its manifest-validation-failure# IRI', () => {
+    const reasons = Object.keys(MANIFEST_VALIDATION_FAILURE_REASONS) as Array<
+      keyof typeof MANIFEST_VALIDATION_FAILURE_REASONS
+    >;
+    expect(reasons.length).toBeGreaterThan(0);
+    for (const reason of reasons) {
+      expect(manifestValidationFailureIri(reason).value).toBe(
+        `https://def.nde.nl/manifest-validation-failure#${reason}`,
+      );
+    }
   });
 });

@@ -411,6 +411,11 @@ _:validation
     prov:wasAssociatedWith <https://www.npmjs.com/package/@lde/iiif-validator> .
 ```
 
+Each sampled manifest that **failed** validation is enumerated on the activity as
+a qualified usage carrying the URL and a typed reason (see
+[Failed samples](#failed-samples)); the `validated` manifests are covered by the
+count alone.
+
 | Metric IRI | Type | Meaning |
 |---|---|---|
 | `…/metric#manifests-sampled` | `xsd:integer` | Number of manifest IRIs dereferenced — the denominator `N`. At most the configured sample size (10). |
@@ -536,6 +541,11 @@ _:sampling
     prov:wasAssociatedWith <https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph> .
 ```
 
+Each sampled URI that **failed** to resolve is enumerated on the sampling
+activity as a qualified usage carrying the URI and a typed reason (see
+[Failed samples](#failed-samples)); the `resolved` URIs are covered by the count
+alone.
+
 #### Persistent identifiers
 
 `dcterms:conformsTo` is attached only when the namespace matches a recognised PID
@@ -652,6 +662,79 @@ SELECT ?dataset WHERE {
         ] .
 }
 ```
+
+### Failed samples
+
+Both sampling checks above – subject-URI resolution and
+[IIIF manifest validation](#iiif-presentation-manifests) – report an aggregate
+ratio (`…-resolved` / `…-sampled`, `manifests-validated` / `manifests-sampled`).
+A low ratio tells you *that* something broke, not *which* sample or *why*. So
+every sampled resource that **failed** is enumerated on the check’s
+`prov:Activity` as a [qualified usage](https://www.w3.org/TR/prov-o/#Usage),
+carrying the exact URI/URL and a typed reason:
+
+```ttl
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix failure: <https://def.nde.nl/failure#> .
+
+_:sampling
+    a prov:Activity ;
+    prov:used <https://example.org/id/123> ;        # the failed resource
+    prov:qualifiedUsage _:usage ;
+    prov:wasAssociatedWith <https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph> .
+
+_:usage
+    a prov:Usage ;
+    prov:entity <https://example.org/id/123> ;
+    failure:reason <https://def.nde.nl/subject-resolution-failure#no-self-reference> .
+```
+
+Only failures are persisted: the presence of a `failure:reason` is the contract
+for *“this sample failed”*, so a forward query needs no negation. The resolved /
+validated samples are covered by the count alone. The `prov:Usage` is owned by
+the activity (a usage reifies an *activity-uses-entity* relationship, never a
+subset), but consumers still reach failures dataset-first via the measurement the
+activity generated:
+
+```
+void:subset → dqv:hasQualityMeasurement → measurement
+            → prov:wasGeneratedBy → prov:Activity
+            → prov:qualifiedUsage → prov:Usage → prov:entity / failure:reason
+```
+
+The reason is a SKOS concept from the scheme matching the check:
+
+| Check | Scheme | Concepts |
+|---|---|---|
+| Subject-URI resolution | [`subject-resolution-failure`](https://def.nde.nl/subject-resolution-failure) | `timeout`, `network-error`, `http-error`, `wrong-content-type`, `no-self-reference` |
+| IIIF manifest validation | [`manifest-validation-failure`](https://def.nde.nl/manifest-validation-failure) | `timeout`, `network-error`, `http-error`, `invalid-json`, `binary-content`, `not-a-manifest`, `does-not-load` |
+
+The `manifest-validation-failure` concept local names mirror the
+[`@lde/iiif-validator`](https://www.npmjs.com/package/@lde/iiif-validator) reason
+enum 1:1 (its success value excepted); a build-time guard keeps the two in
+lockstep, so a new validator reason cannot silently emit an undefined term. The
+`failure:reason` predicate is defined in the [`failure`](https://def.nde.nl/failure)
+module.
+
+“List every failed subject URI per dataset with its reason”:
+
+```sparql
+PREFIX void: <http://rdfs.org/ns/void#>
+PREFIX dqv: <http://www.w3.org/ns/dqv#>
+PREFIX prov: <http://www.w3.org/ns/prov#>
+PREFIX failure: <https://def.nde.nl/failure#>
+
+SELECT ?dataset ?failedUri ?reason WHERE {
+    ?dataset void:subset/dqv:hasQualityMeasurement ?measurement .
+    ?measurement dqv:isMeasurementOf <https://def.nde.nl/metric#subject-uris-resolved> ;
+        prov:wasGeneratedBy/prov:qualifiedUsage ?usage .
+    ?usage prov:entity ?failedUri ;
+        failure:reason ?reason .
+}
+```
+
+Swap `subject-uris-resolved` for `manifests-validated` to list failed IIIF
+manifests instead.
 
 ### Distributions
 

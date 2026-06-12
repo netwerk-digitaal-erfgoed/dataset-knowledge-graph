@@ -4,6 +4,11 @@ import {SparqlEndpointFetcher, type IBindings} from 'fetch-sparql-endpoint';
 import type {Quad} from '@rdfjs/types';
 import {assertSafeIri, type Dataset, type Distribution} from '@lde/dataset';
 import type {ExecutorContext, QuadTransform} from '@lde/pipeline';
+import {
+  failureReasonIri,
+  failureUsageQuads,
+  type SampleFailure,
+} from './failureUsage.js';
 
 const {namedNode, literal, blankNode, quad} = DataFactory;
 
@@ -44,6 +49,26 @@ const SUBJECT_URIS_RESOLVED_METRIC = namedNode(
 const SUBJECT_NAMESPACE_DURABLE_METRIC = namedNode(
   `${METRIC_BASE}subject-namespace-durable`,
 );
+
+const SUBJECT_RESOLUTION_FAILURE_BASE =
+  'https://def.nde.nl/subject-resolution-failure#';
+
+/**
+ * Why a sampled subject URI did not resolve to a self-describing landing page.
+ * Mirrors the `subject-resolution-failure` concept scheme; a `null` outcome
+ * (resolved) is represented out-of-band.
+ */
+export type SubjectResolutionFailure =
+  | 'timeout'
+  | 'network-error'
+  | 'http-error'
+  | 'wrong-content-type'
+  | 'no-self-reference';
+
+/** Map a failure reason to its `subject-resolution-failure#` concept IRI. */
+function subjectResolutionFailureIri(reason: SubjectResolutionFailure) {
+  return failureReasonIri(SUBJECT_RESOLUTION_FAILURE_BASE, reason);
+}
 
 const PID_SCHEME_BASE = 'https://def.nde.nl/pid-scheme#';
 const PID_SCHEMES = {
@@ -121,10 +146,14 @@ export type SampleUris = (
 ) => Promise<string[]>;
 
 /**
- * Resolves a sampled URI and reports whether it lands on a self-describing
- * page: a `200`, `text/html` response whose body advertises the original URI.
+ * Resolves a sampled URI and classifies the outcome: `null` when it lands on a
+ * self-describing page (a `200`, `text/html` response whose body advertises the
+ * original URI), otherwise the {@link SubjectResolutionFailure} describing why
+ * it did not.
  */
-export type ResolveUri = (uri: string) => Promise<boolean>;
+export type ResolveUri = (
+  uri: string,
+) => Promise<SubjectResolutionFailure | null>;
 
 /** Looks up the issuing organisation’s name for an ARK NAAN, if available. */
 export type LookupOrg = (naan: string) => Promise<string | undefined>;
@@ -234,9 +263,26 @@ export function subjectUriResolution(
       const outcomes = await Promise.allSettled(
         sampled.map(uri => limit(() => resolve(uri))),
       );
-      const resolved = outcomes.filter(
-        outcome => outcome.status === 'fulfilled' && outcome.value,
-      ).length;
+
+      // Pair each sampled URI with its settled outcome: a `null` classification
+      // counts as resolved, any reason becomes a persisted failure. An
+      // unexpected rejection is mapped defensively to `network-error` so the URI
+      // still surfaces rather than vanishing from both the count and the trail.
+      let resolved = 0;
+      const failures: SampleFailure[] = [];
+      sampled.forEach((uri, index) => {
+        const outcome = outcomes[index];
+        const reason: SubjectResolutionFailure | null =
+          outcome.status === 'fulfilled' ? outcome.value : 'network-error';
+        if (reason === null) {
+          resolved++;
+        } else {
+          failures.push({
+            url: uri,
+            reasonIri: subjectResolutionFailureIri(reason),
+          });
+        }
+      });
 
       const scheme = detectPidScheme(winner.uriSpace);
       const org =
@@ -249,6 +295,7 @@ export function subjectUriResolution(
           namedNode(winner.subset),
           sampled.length,
           resolved,
+          failures,
           scheme,
           org,
           software,
@@ -331,6 +378,7 @@ function* measurementQuads(
   subset: ReturnType<typeof namedNode>,
   sampled: number,
   resolved: number,
+  failures: readonly SampleFailure[],
   scheme: PidScheme | undefined,
   org: string | undefined,
   software: ReturnType<typeof namedNode>,
@@ -343,9 +391,11 @@ function* measurementQuads(
     yield quad(subset, DCTERMS_PUBLISHER, literal(org));
   }
 
-  // PROV: the sampling/dereferencing activity.
+  // PROV: the sampling/dereferencing activity, with a qualified usage per
+  // failed sample naming the URI and why it did not resolve.
   const activity = blankNode();
   yield* activityQuads(activity, subset, software);
+  yield* failureUsageQuads(activity, failures);
 
   // Validated facts — the sampled/resolved ratio, for any namespace.
   const sampledMeasurement = blankNode();
@@ -478,7 +528,8 @@ const defaultSampleUris: SampleUris = async (
  * Default resolution check: follow redirects to the landing page and require a
  * `200`, `text/html` response that advertises the original sampled URI (raw or
  * HTML-entity-escaped) — the permanent link back to the user, which matters
- * because we landed on a different, redirected URL.
+ * because we landed on a different, redirected URL. Returns `null` on success,
+ * otherwise the {@link SubjectResolutionFailure} classifying the breakage.
  */
 const defaultResolve: ResolveUri = async uri => {
   let response: Response;
@@ -488,21 +539,36 @@ const defaultResolve: ResolveUri = async uri => {
       headers: {accept: 'text/html'},
       signal: AbortSignal.timeout(DEREFERENCE_TIMEOUT_MS),
     });
-  } catch {
-    return false;
+  } catch (error) {
+    return classifyFetchError(error);
   }
-  if (!response.ok) return false;
+  if (!response.ok) return 'http-error';
   if (!(response.headers.get('content-type') ?? '').includes('text/html')) {
-    return false;
+    return 'wrong-content-type';
   }
   let body: string;
   try {
     body = await response.text();
   } catch {
-    return false;
+    // A `200 text/html` whose body cannot be read is a transport failure.
+    return 'network-error';
   }
-  return body.includes(uri) || body.includes(htmlEscape(uri));
+  return body.includes(uri) || body.includes(htmlEscape(uri))
+    ? null
+    : 'no-self-reference';
 };
+
+/**
+ * Split an abort/timeout from a generic transport failure by the caught error’s
+ * name: `AbortSignal.timeout` rejects with a `TimeoutError`, an external abort
+ * with an `AbortError`; anything else is a `network-error`.
+ */
+function classifyFetchError(error: unknown): SubjectResolutionFailure {
+  const name = (error as {name?: unknown} | null)?.name;
+  return name === 'TimeoutError' || name === 'AbortError'
+    ? 'timeout'
+    : 'network-error';
+}
 
 /**
  * Default ARK org lookup: read `properties.who.name` from the arks.org NAAN

@@ -9,6 +9,7 @@ import {
   type ResolveUri,
   type SampleUris,
 } from '../src/subjectUriResolution.js';
+import {failureReasonFor} from './failures.js';
 
 const {namedNode, literal, quad} = DataFactory;
 
@@ -123,11 +124,19 @@ function measurementValueTerm(
   )?.object;
 }
 
+const SUBJECT_RESOLUTION_FAILURE_BASE =
+  'https://def.nde.nl/subject-resolution-failure#';
+const PROV_QUALIFIED_USAGE = namedNode(
+  'http://www.w3.org/ns/prov#qualifiedUsage',
+);
+
 const sampleFixed =
   (uris: string[]): SampleUris =>
   async () =>
     uris;
-const resolveByName: ResolveUri = async uri => uri.includes('good');
+// `null` means resolved; a non-`good` URI fails with a typed reason.
+const resolveByName: ResolveUri = async uri =>
+  uri.includes('good') ? null : 'http-error';
 const noOrg: LookupOrg = async () => undefined;
 
 describe('subjectUriResolution', () => {
@@ -161,6 +170,18 @@ describe('subjectUriResolution', () => {
           q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT),
       ),
     ).toHaveLength(2);
+
+    // Only the failed sample is enumerated, as a qualified usage carrying its
+    // typed reason; the two resolved samples are covered by the count alone.
+    expect(
+      out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
+    ).toHaveLength(1);
+    expect(failureReasonFor(out, 'http://example.org/id/bad-3')).toBe(
+      `${SUBJECT_RESOLUTION_FAILURE_BASE}http-error`,
+    );
+    expect(
+      failureReasonFor(out, 'http://example.org/id/good-1'),
+    ).toBeUndefined();
   });
 
   it('picks the most common non-terminology namespace', async () => {
@@ -303,7 +324,7 @@ describe('subjectUriResolution', () => {
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
   });
 
-  it('counts a resolution that throws as unresolved', async () => {
+  it('counts a resolution that throws as unresolved and surfaces it as network-error', async () => {
     const ns = subset('http://example.org/id/', 10);
     const transform = subjectUriResolution({
       terminologyPrefixes: [],
@@ -313,7 +334,7 @@ describe('subjectUriResolution', () => {
       ]),
       resolve: async uri => {
         if (uri.includes('throws')) throw new Error('boom');
-        return true;
+        return null;
       },
     });
 
@@ -321,6 +342,10 @@ describe('subjectUriResolution', () => {
 
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(2);
     expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+    // The rejected URI still surfaces, classified defensively.
+    expect(failureReasonFor(out, 'http://example.org/id/throws')).toBe(
+      `${SUBJECT_RESOLUTION_FAILURE_BASE}network-error`,
+    );
   });
 
   it('keeps the VoID output when sampling fails', async () => {
@@ -552,6 +577,109 @@ describe('subjectUriResolution', () => {
             q.object.value === 'Gouda Tijdmachine',
         ),
       ).toBe(true);
+    });
+  });
+
+  describe('default resolution classifier', () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    const URI = 'http://example.org/id/x';
+
+    /** Drive the default resolve (no injected `resolve`) over a single URI. */
+    async function runWithFetch(fetchImpl: typeof fetch): Promise<Quad[]> {
+      vi.stubGlobal('fetch', vi.fn(fetchImpl));
+      const ns = subset('http://example.org/id/', 10);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed([URI]),
+      });
+      return collect(transform(stream(ns.quads), context));
+    }
+
+    function htmlResponse(body: string): Response {
+      return new Response(body, {
+        status: 200,
+        headers: {'content-type': 'text/html'},
+      });
+    }
+
+    it('classifies an unreachable host as network-error', async () => {
+      const out = await runWithFetch(async () => {
+        throw new Error('ECONNREFUSED');
+      });
+      expect(failureReasonFor(out, URI)).toBe(
+        `${SUBJECT_RESOLUTION_FAILURE_BASE}network-error`,
+      );
+    });
+
+    it('classifies an abort/timeout as timeout', async () => {
+      const out = await runWithFetch(async () => {
+        const error = new Error('aborted');
+        error.name = 'TimeoutError';
+        throw error;
+      });
+      expect(failureReasonFor(out, URI)).toBe(
+        `${SUBJECT_RESOLUTION_FAILURE_BASE}timeout`,
+      );
+    });
+
+    it('classifies a non-2xx response as http-error', async () => {
+      const out = await runWithFetch(
+        async () => new Response('', {status: 404}),
+      );
+      expect(failureReasonFor(out, URI)).toBe(
+        `${SUBJECT_RESOLUTION_FAILURE_BASE}http-error`,
+      );
+    });
+
+    it('classifies a non-HTML content type as wrong-content-type', async () => {
+      const out = await runWithFetch(
+        async () =>
+          new Response('{}', {
+            status: 200,
+            headers: {'content-type': 'application/json'},
+          }),
+      );
+      expect(failureReasonFor(out, URI)).toBe(
+        `${SUBJECT_RESOLUTION_FAILURE_BASE}wrong-content-type`,
+      );
+    });
+
+    it('classifies HTML without a self-reference as no-self-reference', async () => {
+      const out = await runWithFetch(async () =>
+        htmlResponse('<html>no link here</html>'),
+      );
+      expect(failureReasonFor(out, URI)).toBe(
+        `${SUBJECT_RESOLUTION_FAILURE_BASE}no-self-reference`,
+      );
+    });
+
+    it('classifies an unreadable body as network-error', async () => {
+      const out = await runWithFetch(
+        async () =>
+          ({
+            ok: true,
+            headers: {get: () => 'text/html'},
+            text: async () => {
+              throw new Error('stream closed');
+            },
+          }) as unknown as Response,
+      );
+      expect(failureReasonFor(out, URI)).toBe(
+        `${SUBJECT_RESOLUTION_FAILURE_BASE}network-error`,
+      );
+    });
+
+    it('reports a resolving, self-referencing page as resolved', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      const out = await runWithFetch(async () =>
+        htmlResponse(`<html><a href="${URI}">permalink</a></html>`),
+      );
+      expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(out.some(q => q.predicate.equals(PROV_QUALIFIED_USAGE))).toBe(
+        false,
+      );
     });
   });
 });
