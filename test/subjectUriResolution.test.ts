@@ -9,6 +9,7 @@ import {
   type ResolveUri,
   type SampleUris,
 } from '../src/subjectUriResolution.js';
+import {failureReasonFor} from './failures.js';
 
 const {namedNode, literal, quad} = DataFactory;
 
@@ -128,8 +129,6 @@ const SUBJECT_RESOLUTION_FAILURE_BASE =
 const PROV_QUALIFIED_USAGE = namedNode(
   'http://www.w3.org/ns/prov#qualifiedUsage',
 );
-const PROV_ENTITY = namedNode('http://www.w3.org/ns/prov#entity');
-const FAILURE_REASON = namedNode('https://def.nde.nl/failure#reason');
 
 const sampleFixed =
   (uris: string[]): SampleUris =>
@@ -139,17 +138,6 @@ const sampleFixed =
 const resolveByName: ResolveUri = async uri =>
   uri.includes('good') ? null : 'http-error';
 const noOrg: LookupOrg = async () => undefined;
-
-/** The `failure:reason` IRI of the usage whose `prov:entity` is `url`. */
-function failureReasonFor(quads: Quad[], url: string): string | undefined {
-  const usage = quads.find(
-    q => q.predicate.equals(PROV_ENTITY) && q.object.equals(namedNode(url)),
-  )?.subject;
-  if (!usage) return undefined;
-  return quads.find(
-    q => q.subject.equals(usage) && q.predicate.equals(FAILURE_REASON),
-  )?.object.value;
-}
 
 describe('subjectUriResolution', () => {
   it('passes the subsets through and appends sampled/resolved measurements', async () => {

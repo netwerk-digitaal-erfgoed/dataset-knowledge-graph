@@ -8,7 +8,11 @@ import {
   type ManifestValidation,
   type ManifestValidationReason,
 } from '@lde/iiif-validator';
-import {failureUsageQuads, type SampleFailure} from './failureUsage.js';
+import {
+  failureReasonIri,
+  failureUsageQuads,
+  type SampleFailure,
+} from './failureUsage.js';
 
 const {namedNode, literal, blankNode, quad} = DataFactory;
 
@@ -87,7 +91,23 @@ export const MANIFEST_VALIDATION_FAILURE_REASONS: Record<
 export function manifestValidationFailureIri(
   reason: ManifestValidationFailureReason,
 ) {
-  return namedNode(`${MANIFEST_VALIDATION_FAILURE_BASE}${reason}`);
+  return failureReasonIri(MANIFEST_VALIDATION_FAILURE_BASE, reason);
+}
+
+/**
+ * The in-scheme failure reason for a non-valid verdict. A rejected validator
+ * (its contract says this never happens) and the contract-violating
+ * `valid: false` paired with the `valid-manifest` success reason both fall back
+ * to `network-error`, so the emitted `failure:reason` is never an undefined
+ * `manifest-validation-failure#` term. Narrowing out `valid-manifest` lets the
+ * return type check without a cast.
+ */
+function failureReason(
+  verdict: PromiseSettledResult<ManifestValidation>,
+): ManifestValidationFailureReason {
+  if (verdict.status !== 'fulfilled') return 'network-error';
+  const {reason} = verdict.value;
+  return reason === 'valid-manifest' ? 'network-error' : reason;
 }
 
 const DEFAULT_VALIDATOR_SOFTWARE = namedNode(
@@ -193,9 +213,7 @@ export class IiifValidationExecutor implements Executor {
 
     // Pair each sampled manifest with its verdict: a valid manifest counts
     // towards `validated`, every other outcome becomes a persisted failure
-    // carrying the validator’s reason. A rejected validator (which its contract
-    // says never happens) surfaces defensively as `network-error` so the URL is
-    // not silently dropped.
+    // carrying the validator’s reason (see {@link failureReason}).
     let validated = 0;
     const failures: SampleFailure[] = [];
     sampledManifests.forEach((url, index) => {
@@ -204,11 +222,10 @@ export class IiifValidationExecutor implements Executor {
         validated++;
         return;
       }
-      const reason: ManifestValidationFailureReason =
-        verdict.status === 'fulfilled'
-          ? (verdict.value.reason as ManifestValidationFailureReason)
-          : 'network-error';
-      failures.push({url, reasonIri: manifestValidationFailureIri(reason)});
+      failures.push({
+        url,
+        reasonIri: manifestValidationFailureIri(failureReason(verdict)),
+      });
     });
 
     yield* this.measurementQuads(

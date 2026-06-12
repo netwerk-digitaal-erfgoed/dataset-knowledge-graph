@@ -14,6 +14,19 @@ const PROV_ENTITY = namedNode('http://www.w3.org/ns/prov#entity');
 /** Predicate naming why a sampled resource failed; see the `failure` module. */
 const FAILURE_REASON = namedNode('https://def.nde.nl/failure#reason');
 
+/**
+ * Build a failure-reason concept IRI from its scheme base and the reason’s
+ * local name — the `<scheme-base><reason>` convention shared by every failure
+ * concept scheme. Callers keep their own typed base constant and reason union;
+ * the naming convention lives here, next to the shape it labels.
+ */
+export function failureReasonIri(
+  schemeBase: string,
+  reason: string,
+): NamedNode {
+  return namedNode(`${schemeBase}${reason}`);
+}
+
 /** A sampled resource that failed, paired with its typed failure reason. */
 export interface SampleFailure {
   /** The failed resource’s URI/URL. */

@@ -4,7 +4,11 @@ import {SparqlEndpointFetcher, type IBindings} from 'fetch-sparql-endpoint';
 import type {Quad} from '@rdfjs/types';
 import {assertSafeIri, type Dataset, type Distribution} from '@lde/dataset';
 import type {ExecutorContext, QuadTransform} from '@lde/pipeline';
-import {failureUsageQuads, type SampleFailure} from './failureUsage.js';
+import {
+  failureReasonIri,
+  failureUsageQuads,
+  type SampleFailure,
+} from './failureUsage.js';
 
 const {namedNode, literal, blankNode, quad} = DataFactory;
 
@@ -63,7 +67,7 @@ export type SubjectResolutionFailure =
 
 /** Map a failure reason to its `subject-resolution-failure#` concept IRI. */
 function subjectResolutionFailureIri(reason: SubjectResolutionFailure) {
-  return namedNode(`${SUBJECT_RESOLUTION_FAILURE_BASE}${reason}`);
+  return failureReasonIri(SUBJECT_RESOLUTION_FAILURE_BASE, reason);
 }
 
 const PID_SCHEME_BASE = 'https://def.nde.nl/pid-scheme#';
