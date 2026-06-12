@@ -509,15 +509,20 @@ ARK/Handle resolution traverses a multi-hop global chain (`n2t.net → arks.org 
 institutional host → landing page`), so a single slow or briefly rate-limited hop
 must not be mistaken for a broken PID. Outcomes are therefore split in two:
 
-- **definitive** – a `4xx` such as `404`/`410`, a non-HTML body, or a `200` page
-  that does not advertise its URI: a genuine, dataset-attributable defect. Counted
-  against the ratio and [enumerated](#failed-samples) with its reason.
-- **transient** – a timeout, network error, or `429`/`5xx` (per-request budget
-  15 s): a blip in the resolver chain, not a property of the dataset. Retried with
-  exponential backoff (2 extra attempts); if still failing the URI is **excluded
-  from the sample entirely** – neither counted as a non-resolution nor persisted.
-  When *every* sampled URI is transiently unreachable, nothing is emitted and the
-  next run retries, rather than reporting a misleading `0/0`.
+- **definitive** – a non-retryable `4xx` such as `404`/`410`, a non-HTML body, or
+  a `200` page that does not advertise its URI: a genuine, dataset-attributable
+  defect. Counted against the ratio and [enumerated](#failed-samples) with its
+  reason.
+- **transient** – a timeout, network error, or a retryable HTTP status
+  (`408`/`425`/`429`/`5xx`) (per-request budget 15 s): a blip in the resolver
+  chain, not a property of the dataset. Retried with exponential backoff (2 extra
+  attempts); if still failing the URI is **excluded from the sample entirely** –
+  neither counted as a non-resolution nor persisted. When *every* sampled URI is
+  transiently unreachable, the sampled/resolved ratio is omitted (the next run
+  retries) rather than reporting a misleading `0/0`; the declared PID facts
+  (`dcterms:conformsTo`, `dcterms:publisher`), knowable from the namespace alone,
+  still emit. A whole-sample budget (60 s) caps the retry storm so a flaky
+  resolver cannot stall the run.
 
 So a network blip during a crawl can no longer report a healthy dataset as
 partially broken.

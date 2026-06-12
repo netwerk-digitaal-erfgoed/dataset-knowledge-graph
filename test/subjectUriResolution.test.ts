@@ -425,6 +425,53 @@ describe('subjectUriResolution', () => {
     );
   });
 
+  it('still declares the PID scheme when every sample is transiently unreachable', async () => {
+    // An ARK namespace whose resolver chain is down this run: the declared
+    // conformance fact is knowable from the namespace alone, so it survives even
+    // though no ratio can be measured.
+    const ns = subset('https://n2t.net/ark:/60537/', 312000);
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: sampleFixed(['https://n2t.net/ark:/60537/a']),
+      resolve: async () => 'timeout',
+      lookupOrg: noOrg,
+      sleep: async () => {},
+    });
+
+    const out = await collect(transform(stream(ns.quads), context));
+
+    expect(
+      out.some(
+        q =>
+          q.predicate.equals(DCTERMS_CONFORMS_TO) &&
+          q.object.equals(ARK_SCHEME),
+      ),
+    ).toBe(true);
+    // ...but no sampled/resolved ratio, which would be a misleading 0/0.
+    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
+  });
+
+  it('still declares the PID scheme when the sample is empty', async () => {
+    const ns = subset('https://n2t.net/ark:/60537/', 312000);
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: sampleFixed([]),
+      resolve: resolveByName,
+      lookupOrg: noOrg,
+    });
+
+    const out = await collect(transform(stream(ns.quads), context));
+
+    expect(
+      out.some(
+        q =>
+          q.predicate.equals(DCTERMS_CONFORMS_TO) &&
+          q.object.equals(ARK_SCHEME),
+      ),
+    ).toBe(true);
+    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
+  });
+
   it('keeps the VoID output when sampling fails', async () => {
     const ns = subset('http://example.org/id/', 10);
     const transform = subjectUriResolution({
@@ -710,6 +757,17 @@ describe('subjectUriResolution', () => {
       const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(
         async () => new Response('', {status: 503}),
+      );
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
+    });
+
+    it('excludes a persistent 408 Request Timeout as a transient blip', async () => {
+      // A 408 is a transient 4xx — a proxy cutting a slow upstream — so it must
+      // be retried and excluded, not scored as a definitive non-resolution.
+      const ns = subset('http://example.org/id/', 10);
+      const out = await runWithFetch(
+        async () => new Response('', {status: 408}),
       );
       expect(failureReasonFor(out, URI)).toBeUndefined();
       expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
