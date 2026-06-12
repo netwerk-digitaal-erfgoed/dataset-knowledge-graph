@@ -503,8 +503,29 @@ following redirects (ARK and Handle URIs are resolver links that redirect to an
 institutional landing page). A URI counts as resolved when the final response is
 `200`, is `text/html`, and the landing page advertises the original URI back to
 the user (raw or HTML-entity-escaped) – which matters precisely because we landed
-on a different, redirected URL. Dereferencing is throttled (≤ 4 concurrent),
-with no retries: a broken URI is one tick in a ratio.
+on a different, redirected URL. Dereferencing is throttled (≤ 4 concurrent).
+
+ARK/Handle resolution traverses a multi-hop global chain (`n2t.net → arks.org →
+institutional host → landing page`), so a single slow or briefly rate-limited hop
+must not be mistaken for a broken PID. Outcomes are therefore split in two:
+
+- **definitive** – a non-retryable `4xx` such as `404`/`410`, a non-HTML body, or
+  a `200` page that does not advertise its URI: a genuine, dataset-attributable
+  defect. Counted against the ratio and [enumerated](#failed-samples) with its
+  reason.
+- **transient** – a timeout, network error, or a retryable HTTP status
+  (`408`/`425`/`429`/`5xx`) (per-request budget 15 s): a blip in the resolver
+  chain, not a property of the dataset. Retried with exponential backoff (2 extra
+  attempts); if still failing the URI is **excluded from the sample entirely** –
+  neither counted as a non-resolution nor persisted. When *every* sampled URI is
+  transiently unreachable, the sampled/resolved ratio is omitted (the next run
+  retries) rather than reporting a misleading `0/0`; the declared PID facts
+  (`dcterms:conformsTo`, `dcterms:publisher`), knowable from the namespace alone,
+  still emit. A whole-sample budget (60 s) caps the retry storm so a flaky
+  resolver cannot stall the run.
+
+So a network blip during a crawl can no longer report a healthy dataset as
+partially broken.
 
 The measurements hang off the namespace’s `void:subset` node (not the
 dataset, unlike IIIF), so the whole persistent-identifier story is reachable in
@@ -565,7 +586,7 @@ namespace.
 
 | Metric IRI | Type | Meaning |
 |---|---|---|
-| `…/metric#subject-uris-sampled` | `xsd:integer` | Number of subject URIs dereferenced – the denominator `N`, capped at the sample size (10). |
+| `…/metric#subject-uris-sampled` | `xsd:integer` | The denominator `N`: subject URIs that produced a *definitive* verdict (resolved or definitively broken), capped at the sample size (10). Transiently unreachable URIs are excluded, so `N` may be below the sample size. |
 | `…/metric#subject-uris-resolved` | `xsd:integer` | How many of the sampled URIs `k` resolved to a self-describing landing page. |
 
 Combining the chosen namespace, the optional scheme and org, and the resolved
@@ -706,7 +727,7 @@ The reason is a SKOS concept from the scheme matching the check:
 
 | Check | Scheme | Concepts |
 |---|---|---|
-| Subject-URI resolution | [`subject-resolution-failure`](https://def.nde.nl/subject-resolution-failure) | `timeout`, `network-error`, `http-error`, `wrong-content-type`, `no-self-reference` |
+| Subject-URI resolution | [`subject-resolution-failure`](https://def.nde.nl/subject-resolution-failure) | `http-error`, `wrong-content-type`, `no-self-reference` (the *definitive* reasons; the transient `timeout`, `network-error`, `server-error` are retried then excluded, so they are never persisted) |
 | IIIF manifest validation | [`manifest-validation-failure`](https://def.nde.nl/manifest-validation-failure) | `timeout`, `network-error`, `http-error`, `invalid-json`, `binary-content`, `not-a-manifest`, `does-not-load` |
 
 The `manifest-validation-failure` concept local names mirror the

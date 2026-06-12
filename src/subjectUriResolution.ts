@@ -57,13 +57,40 @@ const SUBJECT_RESOLUTION_FAILURE_BASE =
  * Why a sampled subject URI did not resolve to a self-describing landing page.
  * Mirrors the `subject-resolution-failure` concept scheme; a `null` outcome
  * (resolved) is represented out-of-band.
+ *
+ * Outcomes split into two classes (see {@link isTransientFailure}):
+ * - **definitive** — `http-error` (a non-retryable `4xx` such as `404`/`410`),
+ *   `wrong-content-type`, `no-self-reference`: a genuine, dataset-attributable
+ *   defect. Counted against the ratio and persisted in the PROV trail.
+ * - **transient** — `timeout`, `network-error`, `server-error` (a retryable HTTP
+ *   status: `408`/`425`/`429`/`5xx`): a blip in the multi-hop PID-resolver
+ *   chain, not a property of the dataset.
+ *   Retried with backoff; if still failing it is excluded from the sample
+ *   entirely (neither counted nor persisted).
  */
 export type SubjectResolutionFailure =
   | 'timeout'
   | 'network-error'
+  | 'server-error'
   | 'http-error'
   | 'wrong-content-type'
   | 'no-self-reference';
+
+/**
+ * Transient failures: a slow or briefly unavailable hop in the resolver chain,
+ * not a broken PID. Retried, then excluded from the denominator rather than
+ * scored as a non-resolution — so a single network blip during a crawl cannot
+ * report a healthy dataset as partially broken.
+ */
+const TRANSIENT_FAILURES: ReadonlySet<SubjectResolutionFailure> = new Set([
+  'timeout',
+  'network-error',
+  'server-error',
+]);
+
+function isTransientFailure(reason: SubjectResolutionFailure): boolean {
+  return TRANSIENT_FAILURES.has(reason);
+}
 
 /** Map a failure reason to its `subject-resolution-failure#` concept IRI. */
 function subjectResolutionFailureIri(reason: SubjectResolutionFailure) {
@@ -135,8 +162,40 @@ const DEFAULT_CONCURRENCY = 4;
  */
 const SAMPLE_TIMEOUT_MS = 60_000;
 
-/** Per-request budget for dereferencing a sampled URI and the arks.org lookup. */
-const DEREFERENCE_TIMEOUT_MS = 10_000;
+/**
+ * Per-request budget for dereferencing a sampled URI and the arks.org lookup.
+ * Kept generous because ARK/Handle resolution traverses a multi-hop global
+ * chain (`n2t.net → arks.org → institutional host → landing page`); a single
+ * slow or briefly rate-limited hop must not trip a false non-resolution.
+ */
+const DEREFERENCE_TIMEOUT_MS = 15_000;
+
+/**
+ * Extra attempts for a transient dereference failure before giving up. Combined
+ * with {@link retryDelay}, the effective budget for a flaky resolver chain
+ * spans several timeouts, not one.
+ */
+const DEFAULT_RETRIES = 2;
+
+/**
+ * Overall wall-clock budget for dereferencing the whole sample, independent of
+ * the per-request {@link DEREFERENCE_TIMEOUT_MS}. Caps a flaky namespace’s retry
+ * storm: once it elapses, in-flight fetches abort and no further retries are
+ * scheduled, so the transform — which runs outside the Pipeline’s adaptive
+ * timeout — cannot stall the run for minutes.
+ */
+const DEREFERENCE_PHASE_BUDGET_MS = 60_000;
+
+/** Exponential backoff before retry attempt `attempt` (0-based): 500 ms, 1 s, … */
+function retryDelay(attempt: number): number {
+  return 500 * 2 ** attempt;
+}
+
+/** Injectable sleep so tests drive the retry loop without real delays. */
+export type Sleep = (milliseconds: number) => Promise<void>;
+
+const defaultSleep: Sleep = milliseconds =>
+  new Promise(resolve => setTimeout(resolve, milliseconds));
 
 /** Samples up to `sampleSize` distinct subject IRIs from `uriSpace`. */
 export type SampleUris = (
@@ -149,10 +208,14 @@ export type SampleUris = (
  * Resolves a sampled URI and classifies the outcome: `null` when it lands on a
  * self-describing page (a `200`, `text/html` response whose body advertises the
  * original URI), otherwise the {@link SubjectResolutionFailure} describing why
- * it did not.
+ * it did not. The optional `signal` carries the overall
+ * {@link DEREFERENCE_PHASE_BUDGET_MS phase budget}; honour it on the underlying
+ * request so a flaky chain aborts rather than running its full per-request
+ * timeout once the budget is spent.
  */
 export type ResolveUri = (
   uri: string,
+  signal?: AbortSignal,
 ) => Promise<SubjectResolutionFailure | null>;
 
 /** Looks up the issuing organisation’s name for an ARK NAAN, if available. */
@@ -173,6 +236,10 @@ export interface SubjectUriResolutionOptions {
   sampleUris?: SampleUris;
   /** Resolution check. Injectable for testing; defaults to an HTTP fetch. */
   resolve?: ResolveUri;
+  /** Extra attempts for a transient failure before giving up. @default 2 */
+  retries?: number;
+  /** Backoff between retries. Injectable for testing; defaults to real delays. */
+  sleep?: Sleep;
   /** ARK organisation lookup. Injectable for testing; defaults to arks.org. */
   lookupOrg?: LookupOrg;
   /**
@@ -216,6 +283,8 @@ export function subjectUriResolution(
   const concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;
   const sampleUris = options.sampleUris ?? defaultSampleUris;
   const resolve = options.resolve ?? defaultResolve;
+  const retries = options.retries ?? DEFAULT_RETRIES;
+  const sleep = options.sleep ?? defaultSleep;
   const lookupOrg = options.lookupOrg ?? defaultLookupOrg;
   const software = options.software
     ? namedNode(options.software)
@@ -260,53 +329,105 @@ export function subjectUriResolution(
         distribution,
       });
       const limit = pLimit(concurrency);
-      const outcomes = await Promise.allSettled(
-        sampled.map(uri => limit(() => resolve(uri))),
+      // One budget shared across every dereference: once it elapses, in-flight
+      // fetches abort and resolveWithRetry stops scheduling retries.
+      const phaseSignal = AbortSignal.timeout(DEREFERENCE_PHASE_BUDGET_MS);
+      const outcomes = await Promise.all(
+        sampled.map(uri =>
+          limit(() =>
+            resolveWithRetry(uri, resolve, retries, sleep, phaseSignal),
+          ),
+        ),
       );
 
-      // Pair each sampled URI with its settled outcome: a `null` classification
-      // counts as resolved, any reason becomes a persisted failure. An
-      // unexpected rejection is mapped defensively to `network-error` so the URI
-      // still surfaces rather than vanishing from both the count and the trail.
+      // Classify each settled outcome. A `null` resolves; a *definitive* reason
+      // is a real defect — counted and persisted. A *transient* reason survived
+      // every retry, so the resolver chain (not the dataset) is at fault: drop
+      // the URI from the sample entirely rather than scoring it as broken.
       let resolved = 0;
       const failures: SampleFailure[] = [];
       sampled.forEach((uri, index) => {
-        const outcome = outcomes[index];
-        const reason: SubjectResolutionFailure | null =
-          outcome.status === 'fulfilled' ? outcome.value : 'network-error';
+        const reason = outcomes[index];
         if (reason === null) {
           resolved++;
-        } else {
+        } else if (!isTransientFailure(reason)) {
           failures.push({
             url: uri,
             reasonIri: subjectResolutionFailureIri(reason),
           });
         }
       });
+      // The denominator counts only definitively-judged URIs; transient ones are
+      // excluded from both branches above.
+      const measurable = resolved + failures.length;
 
+      const subset = namedNode(winner.subset);
       const scheme = detectPidScheme(winner.uriSpace);
       const org =
         scheme === 'ark'
           ? await lookupArkOrg(winner.uriSpace, lookupOrg)
           : undefined;
 
-      measurements = [
-        ...measurementQuads(
-          namedNode(winner.subset),
-          sampled.length,
-          resolved,
-          failures,
-          scheme,
-          org,
-          software,
-        ),
-      ];
+      // Declared facts (PID scheme, issuing org) are knowable from the namespace
+      // alone, so they are emitted even when nothing was measurable this run —
+      // either an empty sample or every URI transiently unreachable. The
+      // sampled/resolved ratio is appended only when there is something to
+      // report, so the diagnostic queries never see a misleading 0/0.
+      const declared = [...declaredFactQuads(subset, scheme, org)];
+      measurements =
+        measurable === 0
+          ? declared
+          : [
+              ...declared,
+              ...measurementQuads(
+                subset,
+                measurable,
+                resolved,
+                failures,
+                software,
+              ),
+            ];
     } catch {
       return;
     }
 
     yield* measurements;
   };
+}
+
+/**
+ * Resolve a URI, retrying a {@link isTransientFailure transient} outcome with
+ * exponential backoff up to `retries` times. Returns the final outcome: `null`
+ * (resolved), a definitive failure, or — once retries are exhausted — the last
+ * transient failure. An unexpected rejection from `resolve` is treated as a
+ * transient `network-error`, so a flaky check is retried rather than surfacing a
+ * stray non-resolution. Stops early once `signal` (the overall phase budget)
+ * aborts, so a flaky chain cannot keep retrying past the run’s budget.
+ */
+async function resolveWithRetry(
+  uri: string,
+  resolve: ResolveUri,
+  retries: number,
+  sleep: Sleep,
+  signal: AbortSignal,
+): Promise<SubjectResolutionFailure | null> {
+  let outcome: SubjectResolutionFailure | null;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      outcome = await resolve(uri, signal);
+    } catch {
+      outcome = 'network-error';
+    }
+    if (
+      outcome === null ||
+      !isTransientFailure(outcome) ||
+      attempt >= retries ||
+      signal.aborted
+    ) {
+      return outcome;
+    }
+    await sleep(retryDelay(attempt));
+  }
 }
 
 /** Pick the subset with the most entities whose namespace is not a terminology source. */
@@ -374,23 +495,33 @@ async function lookupArkOrg(
   }
 }
 
-function* measurementQuads(
+/**
+ * Declared facts about the namespace, knowable from the namespace string alone
+ * and independent of whether the sample resolved: `dcterms:conformsTo` a PID
+ * scheme (only when recognised) and the ARK issuing org as `dcterms:publisher`.
+ * Emitted even when nothing was measurable, so they survive an empty sample or a
+ * fully-unreachable resolver chain.
+ */
+function* declaredFactQuads(
   subset: ReturnType<typeof namedNode>,
-  sampled: number,
-  resolved: number,
-  failures: readonly SampleFailure[],
   scheme: PidScheme | undefined,
   org: string | undefined,
-  software: ReturnType<typeof namedNode>,
 ): Generator<Quad> {
-  // Declared facts — only for a recognised PID scheme.
   if (scheme !== undefined) {
     yield quad(subset, DCTERMS_CONFORMS_TO, PID_SCHEMES[scheme]);
   }
   if (org !== undefined) {
     yield quad(subset, DCTERMS_PUBLISHER, literal(org));
   }
+}
 
+function* measurementQuads(
+  subset: ReturnType<typeof namedNode>,
+  sampled: number,
+  resolved: number,
+  failures: readonly SampleFailure[],
+  software: ReturnType<typeof namedNode>,
+): Generator<Quad> {
   // PROV: the sampling/dereferencing activity, with a qualified usage per
   // failed sample naming the URI and why it did not resolve.
   const activity = blankNode();
@@ -531,18 +662,22 @@ const defaultSampleUris: SampleUris = async (
  * because we landed on a different, redirected URL. Returns `null` on success,
  * otherwise the {@link SubjectResolutionFailure} classifying the breakage.
  */
-const defaultResolve: ResolveUri = async uri => {
+const defaultResolve: ResolveUri = async (uri, signal) => {
+  // The request aborts on whichever fires first: its own per-request timeout or
+  // the overall phase budget carried by `signal`.
+  const timeout = AbortSignal.timeout(DEREFERENCE_TIMEOUT_MS);
+  const abort = signal ? AbortSignal.any([timeout, signal]) : timeout;
   let response: Response;
   try {
     response = await fetch(uri, {
       redirect: 'follow',
       headers: {accept: 'text/html'},
-      signal: AbortSignal.timeout(DEREFERENCE_TIMEOUT_MS),
+      signal: abort,
     });
   } catch (error) {
     return classifyFetchError(error);
   }
-  if (!response.ok) return 'http-error';
+  if (!response.ok) return classifyHttpStatus(response.status);
   if (!(response.headers.get('content-type') ?? '').includes('text/html')) {
     return 'wrong-content-type';
   }
@@ -568,6 +703,24 @@ function classifyFetchError(error: unknown): SubjectResolutionFailure {
   return name === 'TimeoutError' || name === 'AbortError'
     ? 'timeout'
     : 'network-error';
+}
+
+/**
+ * Status codes that signal a temporary condition the resolver chain may recover
+ * from: `408` Request Timeout, `425` Too Early, `429` Too Many Requests, and any
+ * `5xx`. Everything else non-2xx (a `4xx` such as `404`/`410`) is definitive.
+ */
+const TRANSIENT_HTTP_STATUSES: ReadonlySet<number> = new Set([408, 425, 429]);
+
+/**
+ * Split a non-2xx status into a transient `server-error` (the server says “try
+ * later”; see {@link TRANSIENT_HTTP_STATUSES}) and a definitive `http-error`
+ * (the resource is genuinely gone).
+ */
+function classifyHttpStatus(status: number): SubjectResolutionFailure {
+  return TRANSIENT_HTTP_STATUSES.has(status) || status >= 500
+    ? 'server-error'
+    : 'http-error';
 }
 
 /**

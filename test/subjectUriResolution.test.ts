@@ -324,7 +324,7 @@ describe('subjectUriResolution', () => {
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
   });
 
-  it('counts a resolution that throws as unresolved and surfaces it as network-error', async () => {
+  it('excludes a persistently throwing resolution as a transient blip', async () => {
     const ns = subset('http://example.org/id/', 10);
     const transform = subjectUriResolution({
       terminologyPrefixes: [],
@@ -336,16 +336,140 @@ describe('subjectUriResolution', () => {
         if (uri.includes('throws')) throw new Error('boom');
         return null;
       },
+      sleep: async () => {},
     });
 
     const out = await collect(transform(stream(ns.quads), context));
 
-    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(2);
+    // The rejection is treated as a transient network-error: retried, then
+    // dropped from the denominator rather than dragging the ratio down.
+    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
     expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
-    // The rejected URI still surfaces, classified defensively.
-    expect(failureReasonFor(out, 'http://example.org/id/throws')).toBe(
-      `${SUBJECT_RESOLUTION_FAILURE_BASE}network-error`,
+    expect(
+      failureReasonFor(out, 'http://example.org/id/throws'),
+    ).toBeUndefined();
+  });
+
+  it('retries a transient failure and counts the eventual success', async () => {
+    const ns = subset('http://example.org/id/', 10);
+    let attempts = 0;
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: sampleFixed(['http://example.org/id/flaky']),
+      // Times out once, then resolves — exactly the crawl-time blip the retry
+      // exists to absorb.
+      resolve: async () => (attempts++ === 0 ? 'timeout' : null),
+      sleep: async () => {},
+    });
+
+    const out = await collect(transform(stream(ns.quads), context));
+
+    expect(attempts).toBe(2);
+    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
+    expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+  });
+
+  it('counts definitive failures while excluding transient ones (Chabot case)', async () => {
+    // A healthy ARK dataset where one sample blips transiently and another is
+    // genuinely broken: the blip is dropped, the broken one is scored.
+    const ns = subset('https://n2t.net/ark:/89268/', 1156);
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: sampleFixed([
+        'https://n2t.net/ark:/89268/good-1',
+        'https://n2t.net/ark:/89268/good-2',
+        'https://n2t.net/ark:/89268/blip-3',
+        'https://n2t.net/ark:/89268/gone-4',
+      ]),
+      resolve: async uri => {
+        if (uri.includes('good')) return null;
+        if (uri.includes('blip')) return 'timeout'; // transient, survives retries
+        return 'no-self-reference'; // definitive
+      },
+      lookupOrg: noOrg,
+      sleep: async () => {},
+    });
+
+    const out = await collect(transform(stream(ns.quads), context));
+
+    // 3 measurable (2 resolved + 1 definitive failure); the transient blip is
+    // excluded from the denominator entirely.
+    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(3);
+    expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(2);
+    expect(failureReasonFor(out, 'https://n2t.net/ark:/89268/gone-4')).toBe(
+      `${SUBJECT_RESOLUTION_FAILURE_BASE}no-self-reference`,
     );
+    expect(
+      failureReasonFor(out, 'https://n2t.net/ark:/89268/blip-3'),
+    ).toBeUndefined();
+  });
+
+  it('emits no ratio when every sample is transiently unreachable', async () => {
+    const ns = subset('http://example.org/id/', 10);
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: sampleFixed([
+        'http://example.org/id/a',
+        'http://example.org/id/b',
+      ]),
+      resolve: async () => 'timeout',
+      sleep: async () => {},
+    });
+
+    const out = await collect(transform(stream(ns.quads), context));
+
+    // Nothing measurable this run: the subsets pass through, no ratio emitted.
+    expect(out).toHaveLength(ns.quads.length);
+    expect(out.some(q => q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT))).toBe(
+      false,
+    );
+  });
+
+  it('still declares the PID scheme when every sample is transiently unreachable', async () => {
+    // An ARK namespace whose resolver chain is down this run: the declared
+    // conformance fact is knowable from the namespace alone, so it survives even
+    // though no ratio can be measured.
+    const ns = subset('https://n2t.net/ark:/60537/', 312000);
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: sampleFixed(['https://n2t.net/ark:/60537/a']),
+      resolve: async () => 'timeout',
+      lookupOrg: noOrg,
+      sleep: async () => {},
+    });
+
+    const out = await collect(transform(stream(ns.quads), context));
+
+    expect(
+      out.some(
+        q =>
+          q.predicate.equals(DCTERMS_CONFORMS_TO) &&
+          q.object.equals(ARK_SCHEME),
+      ),
+    ).toBe(true);
+    // ...but no sampled/resolved ratio, which would be a misleading 0/0.
+    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
+  });
+
+  it('still declares the PID scheme when the sample is empty', async () => {
+    const ns = subset('https://n2t.net/ark:/60537/', 312000);
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: sampleFixed([]),
+      resolve: resolveByName,
+      lookupOrg: noOrg,
+    });
+
+    const out = await collect(transform(stream(ns.quads), context));
+
+    expect(
+      out.some(
+        q =>
+          q.predicate.equals(DCTERMS_CONFORMS_TO) &&
+          q.object.equals(ARK_SCHEME),
+      ),
+    ).toBe(true);
+    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
   });
 
   it('keeps the VoID output when sampling fails', async () => {
@@ -585,13 +709,17 @@ describe('subjectUriResolution', () => {
 
     const URI = 'http://example.org/id/x';
 
-    /** Drive the default resolve (no injected `resolve`) over a single URI. */
+    /**
+     * Drive the default resolve (no injected `resolve`) over a single URI. A
+     * no-op `sleep` keeps the transient-retry backoff from adding real delays.
+     */
     async function runWithFetch(fetchImpl: typeof fetch): Promise<Quad[]> {
       vi.stubGlobal('fetch', vi.fn(fetchImpl));
       const ns = subset('http://example.org/id/', 10);
       const transform = subjectUriResolution({
         terminologyPrefixes: [],
         sampleUris: sampleFixed([URI]),
+        sleep: async () => {},
       });
       return collect(transform(stream(ns.quads), context));
     }
@@ -603,33 +731,58 @@ describe('subjectUriResolution', () => {
       });
     }
 
-    it('classifies an unreachable host as network-error', async () => {
+    it('excludes a persistently unreachable host as a transient blip', async () => {
+      const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(async () => {
         throw new Error('ECONNREFUSED');
       });
-      expect(failureReasonFor(out, URI)).toBe(
-        `${SUBJECT_RESOLUTION_FAILURE_BASE}network-error`,
-      );
+      // A network error is transient: retried, then dropped from the sample
+      // entirely rather than scored as a non-resolution.
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
     });
 
-    it('classifies an abort/timeout as timeout', async () => {
+    it('excludes a persistent abort/timeout as a transient blip', async () => {
+      const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(async () => {
         const error = new Error('aborted');
         error.name = 'TimeoutError';
         throw error;
       });
-      expect(failureReasonFor(out, URI)).toBe(
-        `${SUBJECT_RESOLUTION_FAILURE_BASE}timeout`,
-      );
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
     });
 
-    it('classifies a non-2xx response as http-error', async () => {
+    it('excludes a persistent 5xx as a transient blip', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      const out = await runWithFetch(
+        async () => new Response('', {status: 503}),
+      );
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
+    });
+
+    it('excludes a persistent 408 Request Timeout as a transient blip', async () => {
+      // A 408 is a transient 4xx — a proxy cutting a slow upstream — so it must
+      // be retried and excluded, not scored as a definitive non-resolution.
+      const ns = subset('http://example.org/id/', 10);
+      const out = await runWithFetch(
+        async () => new Response('', {status: 408}),
+      );
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
+    });
+
+    it('classifies a definitive non-2xx response as http-error', async () => {
+      const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(
         async () => new Response('', {status: 404}),
       );
+      // A 404 is definitive: counted against the ratio and persisted.
       expect(failureReasonFor(out, URI)).toBe(
         `${SUBJECT_RESOLUTION_FAILURE_BASE}http-error`,
       );
+      expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
     });
 
     it('classifies a non-HTML content type as wrong-content-type', async () => {
@@ -654,7 +807,8 @@ describe('subjectUriResolution', () => {
       );
     });
 
-    it('classifies an unreadable body as network-error', async () => {
+    it('excludes an unreadable body as a transient blip', async () => {
+      const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(
         async () =>
           ({
@@ -665,9 +819,10 @@ describe('subjectUriResolution', () => {
             },
           }) as unknown as Response,
       );
-      expect(failureReasonFor(out, URI)).toBe(
-        `${SUBJECT_RESOLUTION_FAILURE_BASE}network-error`,
-      );
+      // A `200 text/html` whose body cannot be read is a transport failure
+      // (network-error): retried, then excluded rather than scored.
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
     });
 
     it('reports a resolving, self-referencing page as resolved', async () => {
