@@ -5,6 +5,8 @@ import {Dataset, Distribution} from '@lde/dataset';
 import {NotSupported, type Executor} from '@lde/pipeline';
 import {
   IiifValidationExecutor,
+  MANIFEST_VALIDATION_FAILURE_REASONS,
+  manifestValidationFailureIri,
   type ValidateManifest,
 } from '../src/iiifValidationExecutor.js';
 
@@ -34,6 +36,24 @@ const MANIFESTS_SAMPLED_METRIC = namedNode(`${METRIC_BASE}manifests-sampled`);
 const MANIFESTS_VALIDATED_METRIC = namedNode(
   `${METRIC_BASE}manifests-validated`,
 );
+const PROV_QUALIFIED_USAGE = namedNode(
+  'http://www.w3.org/ns/prov#qualifiedUsage',
+);
+const PROV_ENTITY = namedNode('http://www.w3.org/ns/prov#entity');
+const FAILURE_REASON = namedNode('https://def.nde.nl/failure#reason');
+const MANIFEST_VALIDATION_FAILURE_BASE =
+  'https://def.nde.nl/manifest-validation-failure#';
+
+/** The `failure:reason` IRI of the usage whose `prov:entity` is `url`. */
+function failureReasonFor(quads: Quad[], url: string): string | undefined {
+  const usage = quads.find(
+    q => q.predicate.equals(PROV_ENTITY) && q.object.equals(namedNode(url)),
+  )?.subject;
+  if (!usage) return undefined;
+  return quads.find(
+    q => q.subject.equals(usage) && q.predicate.equals(FAILURE_REASON),
+  )?.object.value;
+}
 
 /** Find the integer value of the measurement of the given metric. */
 function measurementValue(quads: Quad[], metric: string): number | undefined {
@@ -177,9 +197,25 @@ describe('IiifValidationExecutor', () => {
           q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT),
       ),
     ).toHaveLength(2);
+
+    // Only the failed manifest is enumerated, as a qualified usage carrying its
+    // reason; the validated one is covered by the count alone.
+    expect(
+      out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
+    ).toHaveLength(1);
+    expect(failureReasonFor(out, 'http://example.org/bad/2')).toBe(
+      `${MANIFEST_VALIDATION_FAILURE_BASE}http-error`,
+    );
+    expect(failureReasonFor(out, 'http://example.org/good/1')).toBeUndefined();
   });
 
-  it('records validated = 0 when every sampled manifest fails (k = 0)', async () => {
+  it('records validated = 0 and the validator’s reason per failure (k = 0)', async () => {
+    // Distinct reasons confirm the executor reads the verdict’s reason rather
+    // than hard-coding one.
+    const validateWithReasons: ValidateManifest = async (url: string) =>
+      url.endsWith('/1')
+        ? {valid: false, reason: 'not-a-manifest'}
+        : {valid: false, reason: 'invalid-json'};
     const inner = innerYielding([
       ...voidQuads(),
       sampleQuad('http://example.org/bad/1'),
@@ -187,7 +223,7 @@ describe('IiifValidationExecutor', () => {
     ]);
 
     const executor = new IiifValidationExecutor(inner, {
-      validate: validateByName,
+      validate: validateWithReasons,
     });
     const out = await collect(await executor.execute(dataset, distribution));
 
@@ -201,6 +237,17 @@ describe('IiifValidationExecutor', () => {
     ).toBe(true);
     expect(measurementValue(out, MANIFESTS_SAMPLED_METRIC.value)).toBe(2);
     expect(measurementValue(out, MANIFESTS_VALIDATED_METRIC.value)).toBe(0);
+
+    // Both manifests are enumerated, each with its own typed reason.
+    expect(
+      out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
+    ).toHaveLength(2);
+    expect(failureReasonFor(out, 'http://example.org/bad/1')).toBe(
+      `${MANIFEST_VALIDATION_FAILURE_BASE}not-a-manifest`,
+    );
+    expect(failureReasonFor(out, 'http://example.org/bad/2')).toBe(
+      `${MANIFEST_VALIDATION_FAILURE_BASE}invalid-json`,
+    );
   });
 
   it('counts a manifest that throws during dereferencing as not validated', async () => {
@@ -253,5 +300,38 @@ describe('IiifValidationExecutor', () => {
     const result = await executor.execute(dataset, distribution);
 
     expect(result).toBeInstanceOf(NotSupported);
+  });
+});
+
+describe('manifest-validation-failure lockstep', () => {
+  // The published `manifest-validation-failure` concept scheme; the build must
+  // keep this in lockstep with the validator’s `ManifestValidationReason` enum.
+  // The TypeScript `Record` type in the source enforces it at compile time; this
+  // runtime test documents the expected concepts and the IRI mapping, so a drift
+  // in either direction is visible.
+  const EXPECTED_CONCEPTS = [
+    'timeout',
+    'network-error',
+    'http-error',
+    'invalid-json',
+    'binary-content',
+    'not-a-manifest',
+    'does-not-load',
+  ];
+
+  it('defines a concept for every validator failure reason', () => {
+    expect(Object.keys(MANIFEST_VALIDATION_FAILURE_REASONS).sort()).toEqual(
+      [...EXPECTED_CONCEPTS].sort(),
+    );
+  });
+
+  it('maps each reason to its manifest-validation-failure# IRI', () => {
+    for (const reason of EXPECTED_CONCEPTS) {
+      expect(
+        manifestValidationFailureIri(
+          reason as keyof typeof MANIFEST_VALIDATION_FAILURE_REASONS,
+        ).value,
+      ).toBe(`https://def.nde.nl/manifest-validation-failure#${reason}`);
+    }
   });
 });

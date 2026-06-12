@@ -3,7 +3,12 @@ import pLimit from 'p-limit';
 import type {Quad} from '@rdfjs/types';
 import type {Dataset, Distribution} from '@lde/dataset';
 import {NotSupported, type Executor, type ExecuteOptions} from '@lde/pipeline';
-import {validateManifest, type ManifestValidation} from '@lde/iiif-validator';
+import {
+  validateManifest,
+  type ManifestValidation,
+  type ManifestValidationReason,
+} from '@lde/iiif-validator';
+import {failureUsageQuads, type SampleFailure} from './failureUsage.js';
 
 const {namedNode, literal, blankNode, quad} = DataFactory;
 
@@ -42,6 +47,48 @@ const MANIFESTS_VALIDATED_METRIC = namedNode(
  * the IRI hard-coded in `queries/analysis/iiif.rq`.
  */
 const MANIFEST_SAMPLE = namedNode('https://def.nde.nl/iiif#manifest-sample');
+
+const MANIFEST_VALIDATION_FAILURE_BASE =
+  'https://def.nde.nl/manifest-validation-failure#';
+
+/**
+ * A non-success {@link ManifestValidationReason} — a manifest failure reason.
+ * Excludes the validator’s `valid-manifest` success value, the one reason with
+ * no failure concept.
+ */
+export type ManifestValidationFailureReason = Exclude<
+  ManifestValidationReason,
+  'valid-manifest'
+>;
+
+/**
+ * Lockstep guard between the `@lde/iiif-validator` reason enum and the
+ * published `manifest-validation-failure` concept scheme. Keying a `Record` on
+ * every failure reason forces an entry per reason, so a new validator reason
+ * fails the TypeScript build here rather than silently emitting a
+ * `manifest-validation-failure#` term the vocabulary never defined. The concept
+ * local names equal the enum strings, so the IRI is a plain concatenation with
+ * no lookup table to drift.
+ */
+export const MANIFEST_VALIDATION_FAILURE_REASONS: Record<
+  ManifestValidationFailureReason,
+  true
+> = {
+  timeout: true,
+  'network-error': true,
+  'http-error': true,
+  'invalid-json': true,
+  'binary-content': true,
+  'not-a-manifest': true,
+  'does-not-load': true,
+};
+
+/** Map a manifest failure reason to its `manifest-validation-failure#` IRI. */
+export function manifestValidationFailureIri(
+  reason: ManifestValidationFailureReason,
+) {
+  return namedNode(`${MANIFEST_VALIDATION_FAILURE_BASE}${reason}`);
+}
 
 const DEFAULT_VALIDATOR_SOFTWARE = namedNode(
   'https://www.npmjs.com/package/@lde/iiif-validator',
@@ -143,15 +190,33 @@ export class IiifValidationExecutor implements Executor {
     const verdicts = await Promise.allSettled(
       sampledManifests.map(url => limit(() => this.validate(url))),
     );
-    const validated = verdicts.filter(
-      verdict => verdict.status === 'fulfilled' && verdict.value.valid,
-    ).length;
+
+    // Pair each sampled manifest with its verdict: a valid manifest counts
+    // towards `validated`, every other outcome becomes a persisted failure
+    // carrying the validator’s reason. A rejected validator (which its contract
+    // says never happens) surfaces defensively as `network-error` so the URL is
+    // not silently dropped.
+    let validated = 0;
+    const failures: SampleFailure[] = [];
+    sampledManifests.forEach((url, index) => {
+      const verdict = verdicts[index];
+      if (verdict.status === 'fulfilled' && verdict.value.valid) {
+        validated++;
+        return;
+      }
+      const reason: ManifestValidationFailureReason =
+        verdict.status === 'fulfilled'
+          ? (verdict.value.reason as ManifestValidationFailureReason)
+          : 'network-error';
+      failures.push({url, reasonIri: manifestValidationFailureIri(reason)});
+    });
 
     yield* this.measurementQuads(
       dataset,
       namedNode(iiifSubset),
       sampledManifests.length,
       validated,
+      failures,
     );
   }
 
@@ -160,16 +225,19 @@ export class IiifValidationExecutor implements Executor {
     iiifSubset: ReturnType<typeof namedNode>,
     sampled: number,
     validated: number,
+    failures: readonly SampleFailure[],
   ): Generator<Quad> {
     const activity = blankNode();
     const sampledMeasurement = blankNode();
     const validatedMeasurement = blankNode();
 
-    // PROV: the dereferencing activity.
+    // PROV: the dereferencing activity, with a qualified usage per failed
+    // manifest naming the URL and why validation failed.
     yield quad(activity, RDF_TYPE, PROV_ACTIVITY);
     yield quad(activity, PROV_USED, namedNode(dataset.iri.toString()));
     yield quad(activity, PROV_USED, IIIF_PRESENTATION);
     yield quad(activity, PROV_WAS_ASSOCIATED_WITH, this.validatorSoftware);
+    yield* failureUsageQuads(activity, failures);
 
     // The measurements describe the IIIF capability subset, which already
     // carries `dcterms:conformsTo <iiif-presentation>` — so they hang off the
