@@ -1,5 +1,6 @@
 import {DataFactory} from 'n3';
-import type {BlankNode, NamedNode, Quad} from '@rdfjs/types';
+import type {NamedNode, Quad} from '@rdfjs/types';
+import {hashSuffix, skolemIri} from '@lde/dataset';
 
 const {namedNode, quad} = DataFactory;
 
@@ -49,17 +50,24 @@ export interface SampleFailure {
  * `subset → dqv:hasQualityMeasurement → measurement → prov:wasGeneratedBy →
  * activity → prov:qualifiedUsage → usage`.
  *
+ * The `activity` must be a skolem IRI (see `skolemIri` in `@lde/dataset`), and
+ * each usage is derived from it keyed on the failed URL. Usages are IRIs, not
+ * blank nodes, so usages from different stages cannot collide when their output
+ * is merged into the dataset’s graph (see issue #352).
+ *
  * Shared by the subject-URI resolution transform and the IIIF validation
  * executor so the failure shape lives in exactly one place. Emits nothing for
  * an empty failure list.
  */
 export function* failureUsageQuads(
-  activity: BlankNode,
+  activity: NamedNode,
   failures: readonly SampleFailure[],
 ): Generator<Quad> {
   for (const {url, reasonIri} of failures) {
     const entity = namedNode(url);
-    const usage = DataFactory.blankNode();
+    const usage = namedNode(
+      skolemIri(activity.value, 'usage', hashSuffix(url)),
+    );
 
     // `prov:used` accompanies each qualified usage, per PROV convention; the
     // used-set lists only the failed resources, which PROV permits.

@@ -31,7 +31,7 @@
   },
   "homepage": "https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph",
   "dependencies": {
-    "@lde/dataset": "^0.7.5",
+    "@lde/dataset": "^0.8.0",
     "@lde/dataset-registry-client": "^0.8.1",
     "@lde/iiif-validator": "^0.1.4",
     "@lde/pipeline": "^0.30.12",
