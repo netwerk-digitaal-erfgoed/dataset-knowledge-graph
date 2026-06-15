@@ -38,9 +38,14 @@ CONSTRUCT {
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/text/turtle>
     )
 
-    # Exclude dataset descriptions that are no longer valid.
+    # Exclude datasets whose registration source is gone (the registration URL
+    # itself became unreachable). Datasets that merely failed description
+    # validation (registry/invalid) are kept: their data distributions may still
+    # be sound, and each distribution is validated at fetch time anyway. The
+    # register marks both cases with schema:validUntil, so filter on the more
+    # specific schema:additionalType to keep the invalid ones.
     FILTER(NOT EXISTS {
-        ?registrationUrl schema:validUntil [] .
+        ?registrationUrl schema:additionalType <https://data.netwerkdigitaalerfgoed.nl/registry/gone> .
     })
 
     # In case of a catalog, exclude datasets that are no longer part of the catalog.

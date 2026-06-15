@@ -1,14 +1,15 @@
 # The keep-set for store reconciliation: every dataset URI that currently exists
-# in the Dataset Register and is still valid. Any DKG graph whose dataset URI is
-# NOT returned here is an orphan (the dataset was removed from the register or
-# its registration expired) and gets pruned.
+# in the Dataset Register and whose registration source is not gone. Any DKG
+# graph whose dataset URI is NOT returned here is an orphan (the dataset was
+# removed from the register or its registration source became unreachable) and
+# gets pruned.
 #
 # This deliberately mirrors only the identity and validity checks of
-# dataset-with-rdf-distribution.rq (validUntil + catalog freshness), and OMITS
-# its distribution-type and endpoint filters. A dataset that is registered and
-# valid but merely skipped this run (no RDF distribution, an unreliable or
-# timed-out endpoint) must stay in the keep-set so its last-good summary is
-# preserved rather than deleted.
+# dataset-with-rdf-distribution.rq (not-gone + catalog freshness), and OMITS its
+# distribution-type and endpoint filters. A dataset that is registered and not
+# gone but merely skipped this run (no RDF distribution, an unreliable or
+# timed-out endpoint, or a description that failed validation) must stay in the
+# keep-set so its last-good summary is preserved rather than deleted.
 PREFIX dcat: <http://www.w3.org/ns/dcat#>
 PREFIX schema: <https://schema.org/>
 
@@ -16,9 +17,11 @@ SELECT DISTINCT ?dataset WHERE {
     ?dataset a dcat:Dataset ;
         schema:subjectOf ?registrationUrl .
 
-    # Exclude dataset descriptions that are no longer valid.
+    # Exclude datasets whose registration source is gone (the registration URL
+    # itself became unreachable). Datasets that merely failed description
+    # validation (registry/invalid) are kept, mirroring the selection query.
     FILTER(NOT EXISTS {
-        ?registrationUrl schema:validUntil [] .
+        ?registrationUrl schema:additionalType <https://data.netwerkdigitaalerfgoed.nl/registry/gone> .
     })
 
     # In case of a catalog, exclude datasets that are no longer part of the catalog.
