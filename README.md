@@ -1028,23 +1028,28 @@ crash mid-run leaves the already-processed files intact for the next rebuild.
 
 The writer only rewrites the files of the datasets selected in this run, so a
 dataset that has since been **removed from the register** or whose registration
-has **expired** (`schema:validUntil`) is no longer selected — and its file
-lingers as a stale “ghost”, surfacing in downstream consumers such as the
+source is **gone** (`schema:additionalType` `registry/gone`, the registration
+URL itself became unreachable) is no longer selected — and its file lingers as a
+stale “ghost”, surfacing in downstream consumers such as the
 [data stories](https://datastories.demo.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph/)
 once the index is rebuilt.
 
 After writing, the pipeline reconciles the cache against the register: it asks
-the register for the set of dataset URIs that currently exist and are valid (the
-keep-set, see [`queries/selection/registered-dataset.rq`](queries/selection/registered-dataset.rq)),
+the register for the set of dataset URIs that currently exist and are not gone
+(the keep-set, see [`queries/selection/registered-dataset.rq`](queries/selection/registered-dataset.rq)),
 then deletes every `.nq` file whose dataset is not in that set (both its summary
 and validation file).
 
 The keep-set deliberately applies only the register’s identity and validity
-checks (`validUntil` + catalog freshness), **not** the distribution-type or
-endpoint filters of the selection query: a dataset that is registered and valid
-but merely skipped this run (no RDF distribution, an unreliable or timed-out
-endpoint) stays in the keep-set, so its last-good file is preserved rather than
-deleted. If the register returns an empty keep-set (e.g. an outage), the step
+checks (not-gone + catalog freshness), **not** the distribution-type or
+endpoint filters of the selection query: a dataset that is registered and not
+gone but merely skipped this run (no RDF distribution, an unreliable or timed-out
+endpoint, or a description that failed validation) stays in the keep-set, so its
+last-good file is preserved rather than deleted. Datasets that the register marks
+**invalid** (`registry/invalid`) — their description failed validation but the
+registration source is still reachable — remain selected: their data
+distributions may still be sound, and each distribution is validated at fetch
+time regardless. If the register returns an empty keep-set (e.g. an outage), the step
 fails closed and prunes nothing rather than emptying the cache. Reconciliation
 failures are logged, not fatal: the files for this run are already written, and
 the next run reconciles whatever is left.
