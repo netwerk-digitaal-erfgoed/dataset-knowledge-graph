@@ -612,34 +612,97 @@ function* booleanMeasurement(
 }
 
 /**
- * Default sampler: a `SELECT DISTINCT ?s … LIMIT n` short-circuited on the
- * namespace prefix, run as a plain SPARQL SELECT against the distribution's
- * endpoint. The fetcher's own timeout fast-fails a slow endpoint, since the
- * transform runs outside the stage runner where the Pipeline's adaptive policy
- * would normally apply. The distribution's subject filter and named graph are
- * woven into the query, mirroring the VoID class selector.
+ * SPARQL `FILTER NOT EXISTS` fragment that drops any sampled subject the IIIF
+ * criterion already assesses as a manifest: either the subject is itself a
+ * manifest node (it bears an IIIF `schema:encodingFormat`) or it is the
+ * `schema:contentUrl` such a node dereferences to. Without it, an ARK+IIIF
+ * publisher’s manifest URLs (e.g. `…/ark:/85849/{uuid}/iiif.json`) can be
+ * sampled here and fail as `wrong-content-type` — a manifest correctly serves
+ * JSON, not `text/html` — while simultaneously passing the IIIF criterion: one
+ * URL both green (IIIF) and red (persistent identifier). Excluding them leaves
+ * manifests to the IIIF criterion alone and resolves the contradiction.
+ *
+ * The manifest match mirrors `queries/analysis/iiif.rq` (the encodingFormat
+ * literal is the full SCHEMA-AP-NDE profile pattern *or* the bare
+ * `application/ld+json`; the dereference target is `schema:contentUrl` when
+ * present, else the encodingFormat-bearing node), and is tolerant of
+ * `http`/`https` schema.org like that query.
+ *
+ * The `http`/`https` predicates are enumerated with `VALUES` rather than a
+ * property-path alternation (`a|b`): the latter is mis-evaluated by the query
+ * engine inside `FILTER NOT EXISTS` — when no triple uses the predicate at all,
+ * the whole `NOT EXISTS` collapses to false and drops every subject.
  */
-const defaultSampleUris: SampleUris = async (
-  uriSpace,
-  sampleSize,
-  {distribution},
-) => {
-  const subjectFilter = distribution.subjectFilter ?? '';
+const IIIF_MANIFEST_EXCLUSION = `FILTER NOT EXISTS {
+    VALUES ?encodingFormatPredicate {
+      <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
+    }
+    # ?s is itself the manifest node …
+    { ?s ?encodingFormatPredicate ?iiifFormat . }
+    UNION
+    # … or ?s is the schema:contentUrl the manifest node dereferences to.
+    {
+      VALUES ?contentUrlPredicate {
+        <https://schema.org/contentUrl> <http://schema.org/contentUrl>
+      }
+      ?manifestNode ?contentUrlPredicate ?s ;
+        ?encodingFormatPredicate ?iiifFormat .
+    }
+    FILTER(isLiteral(?iiifFormat) && (
+      (STRSTARTS(STR(?iiifFormat), "application/ld+json;profile='http://iiif.io/api/presentation/")
+        && STRENDS(STR(?iiifFormat), "/context.json'"))
+      || STR(?iiifFormat) = "application/ld+json"
+    ))
+  }`;
+
+/**
+ * Build the subject-URI sample query: a `SELECT DISTINCT ?s … LIMIT n`
+ * short-circuited on the namespace prefix, with the distribution's subject
+ * filter and named graph woven in (mirroring the VoID class selector) and
+ * {@link IIIF_MANIFEST_EXCLUSION known IIIF manifests} filtered out. Exported so
+ * the manifest exclusion can be exercised against an in-memory store.
+ */
+export function buildSampleQuery(
+  uriSpace: string,
+  sampleSize: number,
+  subjectFilter: string,
+  namedGraph?: string,
+): string {
   let fromClause = '';
-  if (distribution.namedGraph) {
-    assertSafeIri(distribution.namedGraph);
-    fromClause = `FROM <${distribution.namedGraph}>`;
+  if (namedGraph) {
+    assertSafeIri(namedGraph);
+    fromClause = `FROM <${namedGraph}>`;
   }
-  const query = [
+  return [
     'SELECT DISTINCT ?s',
     fromClause,
     'WHERE {',
     `  ${subjectFilter}`,
     '  ?s ?p ?o .',
     `  FILTER(ISIRI(?s) && STRSTARTS(STR(?s), ${sparqlString(uriSpace)}))`,
+    `  ${IIIF_MANIFEST_EXCLUSION}`,
     '}',
     `LIMIT ${sampleSize}`,
   ].join('\n');
+}
+
+/**
+ * Default sampler: runs {@link buildSampleQuery} as a plain SPARQL SELECT
+ * against the distribution's endpoint. The fetcher's own timeout fast-fails a
+ * slow endpoint, since the transform runs outside the stage runner where the
+ * Pipeline's adaptive policy would normally apply.
+ */
+const defaultSampleUris: SampleUris = async (
+  uriSpace,
+  sampleSize,
+  {distribution},
+) => {
+  const query = buildSampleQuery(
+    uriSpace,
+    sampleSize,
+    distribution.subjectFilter ?? '',
+    distribution.namedGraph,
+  );
 
   const fetcher = new SparqlEndpointFetcher({timeout: SAMPLE_TIMEOUT_MS});
   // fetchBindings yields IBindings (object mode), not the string/Buffer the
