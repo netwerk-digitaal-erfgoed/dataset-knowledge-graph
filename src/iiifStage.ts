@@ -1,6 +1,10 @@
 import {resolve} from 'node:path';
 import {Stage, SparqlConstructExecutor, readQueryFile} from '@lde/pipeline';
 import {IiifValidationExecutor} from './iiifValidationExecutor.js';
+import {
+  iiifManifestFormatFilter,
+  iiifConformantFormatFilter,
+} from './iiifManifestDetection.js';
 
 const QUERY_FILE = resolve('queries/analysis/iiif.rq');
 
@@ -44,10 +48,16 @@ export async function iiifStage(
   options: IiifStageOptions = {},
 ): Promise<Stage> {
   const sampleSize = options.manifestSampleSize ?? DEFAULT_MANIFEST_SAMPLE_SIZE;
-  const query = (await readQueryFile(QUERY_FILE)).replaceAll(
-    '#limit#',
-    String(sampleSize),
-  );
+  // The manifest detection rule lives in iiifManifestDetection.ts, shared with
+  // the subject-URI sampler so the two cannot drift; weave it into the query
+  // here, the same way #limit# is substituted.
+  const query = (await readQueryFile(QUERY_FILE))
+    .replaceAll('#limit#', String(sampleSize))
+    .replaceAll('#manifestFormatFilter#', iiifManifestFormatFilter('format'))
+    .replaceAll(
+      '#conformantFormatFilter#',
+      iiifConformantFormatFilter('format'),
+    );
   // `deduplicate` collapses the constant subset/conformsTo/entities triples,
   // which the COUNT × sample cross-join repeats once per sampled row.
   const detection = new SparqlConstructExecutor({query, deduplicate: true});

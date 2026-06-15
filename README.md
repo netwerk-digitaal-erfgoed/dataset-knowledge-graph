@@ -505,6 +505,17 @@ institutional landing page). A URI counts as resolved when the final response is
 the user (raw or HTML-entity-escaped) – which matters precisely because we landed
 on a different, redirected URL. Dereferencing is throttled (≤ 4 concurrent).
 
+URLs the dataset already exposes as
+[IIIF manifests](#iiif-presentation-manifests) are **excluded from the sample**:
+a manifest correctly serves JSON, not `text/html`, so it would fail this check as
+`wrong-content-type` while simultaneously passing the IIIF criterion – one URL
+both green (IIIF) and red (persistent identifier). An ARK+IIIF publisher whose
+subject sample includes manifest URLs (e.g. `…/ark:/85849/{uuid}/iiif.json`) hits
+this. Excluding them leaves manifests to the IIIF criterion alone, with no loss of
+coverage; the exclusion mirrors the manifest detection in
+`queries/analysis/iiif.rq` (the `schema:encodingFormat` IIIF media type, on the
+subject itself or on the node whose `schema:contentUrl` it is).
+
 ARK/Handle resolution traverses a multi-hop global chain (`n2t.net → arks.org →
 institutional host → landing page`), so a single slow or briefly rate-limited hop
 must not be mistaken for a broken PID. Outcomes are therefore split in two:
