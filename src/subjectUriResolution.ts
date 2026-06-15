@@ -9,6 +9,7 @@ import {
   failureUsageQuads,
   type SampleFailure,
 } from './failureUsage.js';
+import {iiifManifestFormatFilter} from './iiifManifestDetection.js';
 
 const {namedNode, literal, blankNode, quad} = DataFactory;
 
@@ -622,11 +623,11 @@ function* booleanMeasurement(
  * URL both green (IIIF) and red (persistent identifier). Excluding them leaves
  * manifests to the IIIF criterion alone and resolves the contradiction.
  *
- * The manifest match mirrors `queries/analysis/iiif.rq` (the encodingFormat
- * literal is the full SCHEMA-AP-NDE profile pattern *or* the bare
- * `application/ld+json`; the dereference target is `schema:contentUrl` when
- * present, else the encodingFormat-bearing node), and is tolerant of
- * `http`/`https` schema.org like that query.
+ * The manifest test is the shared {@link iiifManifestFormatFilter} — the same
+ * encodingFormat rule the IIIF criterion uses — so the two cannot drift. The
+ * dereference target mirrors `queries/analysis/iiif.rq`: `schema:contentUrl`
+ * when present, else the encodingFormat-bearing node. Tolerant of `http`/`https`
+ * schema.org like that query.
  *
  * The `http`/`https` predicates are enumerated with `VALUES` rather than a
  * property-path alternation (`a|b`): the latter is mis-evaluated by the query
@@ -648,11 +649,7 @@ const IIIF_MANIFEST_EXCLUSION = `FILTER NOT EXISTS {
       ?manifestNode ?contentUrlPredicate ?s ;
         ?encodingFormatPredicate ?iiifFormat .
     }
-    FILTER(isLiteral(?iiifFormat) && (
-      (STRSTARTS(STR(?iiifFormat), "application/ld+json;profile='http://iiif.io/api/presentation/")
-        && STRENDS(STR(?iiifFormat), "/context.json'"))
-      || STR(?iiifFormat) = "application/ld+json"
-    ))
+    FILTER(${iiifManifestFormatFilter('iiifFormat')})
   }`;
 
 /**
