@@ -42,11 +42,7 @@ WHERE {
         SELECT (COUNT(DISTINCT ?s) AS ?count) {
             #subjectFilter#
             ?s schema:encodingFormat|<http://schema.org/encodingFormat> ?format .
-            FILTER(isLiteral(?format) && (
-                (STRSTARTS(STR(?format), "application/ld+json;profile='http://iiif.io/api/presentation/")
-                    && STRENDS(STR(?format), "/context.json'"))
-                || STR(?format) = "application/ld+json"
-            ))
+            FILTER(#manifestFormatFilter#)
         }
     }
     {
@@ -56,9 +52,7 @@ WHERE {
         SELECT (COUNT(DISTINCT ?s) AS ?conformantCount) {
             #subjectFilter#
             ?s schema:encodingFormat|<http://schema.org/encodingFormat> ?format .
-            FILTER(isLiteral(?format)
-                && STRSTARTS(STR(?format), "application/ld+json;profile='http://iiif.io/api/presentation/")
-                && STRENDS(STR(?format), "/context.json'"))
+            FILTER(#conformantFormatFilter#)
         }
     }
     # OPTIONAL so detection survives an empty sample: if every matched manifest
@@ -76,11 +70,7 @@ WHERE {
         SELECT DISTINCT ?manifest {
             #subjectFilter#
             ?s schema:encodingFormat|<http://schema.org/encodingFormat> ?format .
-            FILTER(isLiteral(?format) && (
-                (STRSTARTS(STR(?format), "application/ld+json;profile='http://iiif.io/api/presentation/")
-                    && STRENDS(STR(?format), "/context.json'"))
-                || STR(?format) = "application/ld+json"
-            ))
+            FILTER(#manifestFormatFilter#)
             OPTIONAL {
                 ?s schema:contentUrl|<http://schema.org/contentUrl> ?contentUrl .
             }

@@ -6,6 +6,10 @@ import {DataFactory, Parser, Store} from 'n3';
 import type {Quad} from '@rdfjs/types';
 import {QueryEngine} from '@comunica/query-sparql-rdfjs-lite';
 import {iiifStage} from '../src/iiifStage.js';
+import {
+  iiifManifestFormatFilter,
+  iiifConformantFormatFilter,
+} from '../src/iiifManifestDetection.js';
 import {Stage} from '@lde/pipeline';
 
 const {namedNode} = DataFactory;
@@ -45,10 +49,16 @@ beforeAll(async () => {
 
 function buildQuery(subjectFilter = '', limit = 10): string {
   // Mirror iiifStage's and SparqlConstructExecutor's substitutions: the
-  // #limit# sample cap (threaded by iiifStage), the subjectFilter pattern,
-  // and ?dataset → the dataset IRI literal.
+  // #limit# sample cap and the shared manifest/conformant format filters
+  // (threaded by iiifStage), the subjectFilter pattern, and ?dataset → the
+  // dataset IRI literal.
   return queryTemplate
     .replaceAll('#limit#', String(limit))
+    .replaceAll('#manifestFormatFilter#', iiifManifestFormatFilter('format'))
+    .replaceAll(
+      '#conformantFormatFilter#',
+      iiifConformantFormatFilter('format'),
+    )
     .replaceAll('#subjectFilter#', subjectFilter)
     .replaceAll('?dataset', `<${DATASET_IRI}>`);
 }
