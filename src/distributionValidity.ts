@@ -1,39 +1,14 @@
 import {DataFactory} from 'n3';
+import {dqv, prov, rdf, xsd} from '@tpluscode/rdf-ns-builders';
 import type {Quad} from '@rdfjs/types';
 import {skolemIri} from '@lde/dataset';
 import type {ValidityVerdict} from '@lde/distribution-health';
 import {failureReasonIri, failureUsageQuads} from './failureUsage.js';
+import {metric, probe} from './namespaces.js';
 
 const {namedNode, literal, quad} = DataFactory;
 
-const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
-const DQV_QUALITY_MEASUREMENT = namedNode(
-  'http://www.w3.org/ns/dqv#QualityMeasurement',
-);
-const DQV_COMPUTED_ON = namedNode('http://www.w3.org/ns/dqv#computedOn');
-const DQV_IS_MEASUREMENT_OF = namedNode(
-  'http://www.w3.org/ns/dqv#isMeasurementOf',
-);
-const DQV_VALUE = namedNode('http://www.w3.org/ns/dqv#value');
-const PROV_ACTIVITY = namedNode('http://www.w3.org/ns/prov#Activity');
-const PROV_WAS_GENERATED_BY = namedNode(
-  'http://www.w3.org/ns/prov#wasGeneratedBy',
-);
-const PROV_WAS_ASSOCIATED_WITH = namedNode(
-  'http://www.w3.org/ns/prov#wasAssociatedWith',
-);
-const PROV_GENERATED_AT_TIME = namedNode(
-  'http://www.w3.org/ns/prov#generatedAtTime',
-);
-const XSD_BOOLEAN = namedNode('http://www.w3.org/2001/XMLSchema#boolean');
-const XSD_DATE_TIME = namedNode('http://www.w3.org/2001/XMLSchema#dateTime');
-
-const VALIDITY_METRIC = namedNode(
-  'https://def.nde.nl/metric#distribution-rdf-valid',
-);
-const SOURCE_FINGERPRINT = namedNode(
-  'https://def.nde.nl/probe#sourceFingerprint',
-);
+const VALIDITY_METRIC = metric['distribution-rdf-valid'];
 const VALIDITY_FAILURE_SCHEME =
   'https://def.nde.nl/distribution-validity-failure#';
 
@@ -70,34 +45,30 @@ export function* distributionValidityQuads(
     skolemIri(distribution.value, 'validity-activity'),
   );
 
-  yield quad(measurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT);
-  yield quad(measurement, DQV_COMPUTED_ON, distribution);
-  yield quad(measurement, DQV_IS_MEASUREMENT_OF, VALIDITY_METRIC);
+  yield quad(measurement, rdf.type, dqv.QualityMeasurement);
+  yield quad(measurement, dqv.computedOn, distribution);
+  yield quad(measurement, dqv.isMeasurementOf, VALIDITY_METRIC);
   yield quad(
     measurement,
-    DQV_VALUE,
-    literal(verdict.valid ? 'true' : 'false', XSD_BOOLEAN),
+    dqv.value,
+    literal(verdict.valid ? 'true' : 'false', xsd.boolean),
   );
   yield quad(
     measurement,
-    PROV_GENERATED_AT_TIME,
-    literal(provenance.generatedAt.toISOString(), XSD_DATE_TIME),
+    prov.generatedAtTime,
+    literal(provenance.generatedAt.toISOString(), xsd.dateTime),
   );
-  yield quad(measurement, PROV_WAS_GENERATED_BY, activity);
+  yield quad(measurement, prov.wasGeneratedBy, activity);
   if (verdict.validatedFingerprint !== null) {
     yield quad(
       measurement,
-      SOURCE_FINGERPRINT,
+      probe.sourceFingerprint,
       literal(verdict.validatedFingerprint),
     );
   }
 
-  yield quad(activity, RDF_TYPE, PROV_ACTIVITY);
-  yield quad(
-    activity,
-    PROV_WAS_ASSOCIATED_WITH,
-    namedNode(provenance.producer),
-  );
+  yield quad(activity, rdf.type, prov.Activity);
+  yield quad(activity, prov.wasAssociatedWith, namedNode(provenance.producer));
 
   if (!verdict.valid && verdict.reason !== undefined) {
     yield* failureUsageQuads(activity, [

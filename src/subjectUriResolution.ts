@@ -1,7 +1,8 @@
 import {DataFactory} from 'n3';
 import pLimit from 'p-limit';
 import {SparqlEndpointFetcher, type IBindings} from 'fetch-sparql-endpoint';
-import type {Quad} from '@rdfjs/types';
+import type {NamedNode, Quad} from '@rdfjs/types';
+import {_void, dcterms, dqv, prov, rdf, xsd} from '@tpluscode/rdf-ns-builders';
 import {
   assertSafeIri,
   skolemIri,
@@ -14,47 +15,10 @@ import {
   failureUsageQuads,
   type SampleFailure,
 } from './failureUsage.js';
+import {metric} from './namespaces.js';
 import {iiifManifestFormatFilter} from './iiifManifestDetection.js';
 
 const {namedNode, literal, quad} = DataFactory;
-
-const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
-const VOID_URI_SPACE = namedNode('http://rdfs.org/ns/void#uriSpace');
-const VOID_ENTITIES = namedNode('http://rdfs.org/ns/void#entities');
-const DCTERMS_CONFORMS_TO = namedNode('http://purl.org/dc/terms/conformsTo');
-const DCTERMS_PUBLISHER = namedNode('http://purl.org/dc/terms/publisher');
-const DQV_HAS_QUALITY_MEASUREMENT = namedNode(
-  'http://www.w3.org/ns/dqv#hasQualityMeasurement',
-);
-const DQV_QUALITY_MEASUREMENT = namedNode(
-  'http://www.w3.org/ns/dqv#QualityMeasurement',
-);
-const DQV_COMPUTED_ON = namedNode('http://www.w3.org/ns/dqv#computedOn');
-const DQV_IS_MEASUREMENT_OF = namedNode(
-  'http://www.w3.org/ns/dqv#isMeasurementOf',
-);
-const DQV_VALUE = namedNode('http://www.w3.org/ns/dqv#value');
-const PROV_ACTIVITY = namedNode('http://www.w3.org/ns/prov#Activity');
-const PROV_USED = namedNode('http://www.w3.org/ns/prov#used');
-const PROV_WAS_ASSOCIATED_WITH = namedNode(
-  'http://www.w3.org/ns/prov#wasAssociatedWith',
-);
-const PROV_WAS_GENERATED_BY = namedNode(
-  'http://www.w3.org/ns/prov#wasGeneratedBy',
-);
-const XSD_INTEGER = namedNode('http://www.w3.org/2001/XMLSchema#integer');
-const XSD_BOOLEAN = namedNode('http://www.w3.org/2001/XMLSchema#boolean');
-
-const METRIC_BASE = 'https://def.nde.nl/metric#';
-const SUBJECT_URIS_SAMPLED_METRIC = namedNode(
-  `${METRIC_BASE}subject-uris-sampled`,
-);
-const SUBJECT_URIS_RESOLVED_METRIC = namedNode(
-  `${METRIC_BASE}subject-uris-resolved`,
-);
-const SUBJECT_NAMESPACE_DURABLE_METRIC = namedNode(
-  `${METRIC_BASE}subject-namespace-durable`,
-);
 
 const SUBJECT_RESOLUTION_FAILURE_BASE =
   'https://def.nde.nl/subject-resolution-failure#';
@@ -302,9 +266,9 @@ export function subjectUriResolution(
     const entitiesBySubset = new Map<string, number>();
     for await (const q of quads) {
       yield q;
-      if (q.predicate.equals(VOID_URI_SPACE)) {
+      if (q.predicate.equals(_void.uriSpace)) {
         uriSpaceBySubset.set(q.subject.value, q.object.value);
-      } else if (q.predicate.equals(VOID_ENTITIES)) {
+      } else if (q.predicate.equals(_void.entities)) {
         entitiesBySubset.set(q.subject.value, Number(q.object.value));
       }
     }
@@ -509,24 +473,24 @@ async function lookupArkOrg(
  * fully-unreachable resolver chain.
  */
 function* declaredFactQuads(
-  subset: ReturnType<typeof namedNode>,
+  subset: NamedNode,
   scheme: PidScheme | undefined,
   org: string | undefined,
 ): Generator<Quad> {
   if (scheme !== undefined) {
-    yield quad(subset, DCTERMS_CONFORMS_TO, PID_SCHEMES[scheme]);
+    yield quad(subset, dcterms.conformsTo, PID_SCHEMES[scheme]);
   }
   if (org !== undefined) {
-    yield quad(subset, DCTERMS_PUBLISHER, literal(org));
+    yield quad(subset, dcterms.publisher, literal(org));
   }
 }
 
 function* measurementQuads(
-  subset: ReturnType<typeof namedNode>,
+  subset: NamedNode,
   sampled: number,
   resolved: number,
   failures: readonly SampleFailure[],
-  software: ReturnType<typeof namedNode>,
+  software: NamedNode,
 ): Generator<Quad> {
   // PROV: the sampling/dereferencing activity, with a qualified usage per
   // failed sample naming the URI and why it did not resolve. Every structural
@@ -543,20 +507,20 @@ function* measurementQuads(
   const resolvedMeasurement = namedNode(
     skolemIri(subset.value, 'measurement', 'subject-uris-resolved'),
   );
-  yield quad(subset, DQV_HAS_QUALITY_MEASUREMENT, sampledMeasurement);
-  yield quad(subset, DQV_HAS_QUALITY_MEASUREMENT, resolvedMeasurement);
+  yield quad(subset, dqv.hasQualityMeasurement, sampledMeasurement);
+  yield quad(subset, dqv.hasQualityMeasurement, resolvedMeasurement);
 
   yield* integerMeasurement(
     sampledMeasurement,
     subset,
-    SUBJECT_URIS_SAMPLED_METRIC,
+    metric['subject-uris-sampled'],
     sampled,
     activity,
   );
   yield* integerMeasurement(
     resolvedMeasurement,
     subset,
-    SUBJECT_URIS_RESOLVED_METRIC,
+    metric['subject-uris-resolved'],
     resolved,
     activity,
   );
@@ -568,8 +532,8 @@ function* measurementQuads(
  * its own PROV activity so it survives a sampling/endpoint failure.
  */
 function* nonDurableMeasurement(
-  subset: ReturnType<typeof namedNode>,
-  software: ReturnType<typeof namedNode>,
+  subset: NamedNode,
+  software: NamedNode,
 ): Generator<Quad> {
   const activity = namedNode(skolemIri(subset.value, 'durability-activity'));
   yield* activityQuads(activity, subset, software);
@@ -577,52 +541,52 @@ function* nonDurableMeasurement(
   const measurement = namedNode(
     skolemIri(subset.value, 'measurement', 'subject-namespace-durable'),
   );
-  yield quad(subset, DQV_HAS_QUALITY_MEASUREMENT, measurement);
+  yield quad(subset, dqv.hasQualityMeasurement, measurement);
   yield* booleanMeasurement(
     measurement,
     subset,
-    SUBJECT_NAMESPACE_DURABLE_METRIC,
+    metric['subject-namespace-durable'],
     false,
     activity,
   );
 }
 
 function* activityQuads(
-  activity: ReturnType<typeof namedNode>,
-  used: ReturnType<typeof namedNode>,
-  software: ReturnType<typeof namedNode>,
+  activity: NamedNode,
+  used: NamedNode,
+  software: NamedNode,
 ): Generator<Quad> {
-  yield quad(activity, RDF_TYPE, PROV_ACTIVITY);
-  yield quad(activity, PROV_USED, used);
-  yield quad(activity, PROV_WAS_ASSOCIATED_WITH, software);
+  yield quad(activity, rdf.type, prov.Activity);
+  yield quad(activity, prov.used, used);
+  yield quad(activity, prov.wasAssociatedWith, software);
 }
 
 function* integerMeasurement(
-  measurement: ReturnType<typeof namedNode>,
-  computedOn: ReturnType<typeof namedNode>,
-  metric: ReturnType<typeof namedNode>,
+  measurement: NamedNode,
+  computedOn: NamedNode,
+  metricNode: NamedNode,
   value: number,
-  activity: ReturnType<typeof namedNode>,
+  activity: NamedNode,
 ): Generator<Quad> {
-  yield quad(measurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT);
-  yield quad(measurement, DQV_COMPUTED_ON, computedOn);
-  yield quad(measurement, DQV_IS_MEASUREMENT_OF, metric);
-  yield quad(measurement, DQV_VALUE, literal(String(value), XSD_INTEGER));
-  yield quad(measurement, PROV_WAS_GENERATED_BY, activity);
+  yield quad(measurement, rdf.type, dqv.QualityMeasurement);
+  yield quad(measurement, dqv.computedOn, computedOn);
+  yield quad(measurement, dqv.isMeasurementOf, metricNode);
+  yield quad(measurement, dqv.value, literal(String(value), xsd.integer));
+  yield quad(measurement, prov.wasGeneratedBy, activity);
 }
 
 function* booleanMeasurement(
-  measurement: ReturnType<typeof namedNode>,
-  computedOn: ReturnType<typeof namedNode>,
-  metric: ReturnType<typeof namedNode>,
+  measurement: NamedNode,
+  computedOn: NamedNode,
+  metricNode: NamedNode,
   value: boolean,
-  activity: ReturnType<typeof namedNode>,
+  activity: NamedNode,
 ): Generator<Quad> {
-  yield quad(measurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT);
-  yield quad(measurement, DQV_COMPUTED_ON, computedOn);
-  yield quad(measurement, DQV_IS_MEASUREMENT_OF, metric);
-  yield quad(measurement, DQV_VALUE, literal(String(value), XSD_BOOLEAN));
-  yield quad(measurement, PROV_WAS_GENERATED_BY, activity);
+  yield quad(measurement, rdf.type, dqv.QualityMeasurement);
+  yield quad(measurement, dqv.computedOn, computedOn);
+  yield quad(measurement, dqv.isMeasurementOf, metricNode);
+  yield quad(measurement, dqv.value, literal(String(value), xsd.boolean));
+  yield quad(measurement, prov.wasGeneratedBy, activity);
 }
 
 /**

@@ -1,5 +1,6 @@
 import {resolve} from 'node:path';
 import {DataFactory} from 'n3';
+import {_void, xsd} from '@tpluscode/rdf-ns-builders';
 import type {Quad} from '@rdfjs/types';
 import type {Dataset, Distribution} from '@lde/dataset';
 import {
@@ -10,15 +11,11 @@ import {
   type Executor,
   type ExecuteOptions,
 } from '@lde/pipeline';
+import {probe} from './namespaces.js';
 
-const {namedNode, literal, quad} = DataFactory;
+const {literal, quad} = DataFactory;
 
 const QUERY_FILE = resolve('queries/analysis/media.rq');
-
-const VOID_ENTITIES = namedNode('http://rdfs.org/ns/void#entities');
-const PROBE_DETECTS = namedNode('https://def.nde.nl/probe#detects');
-const PROBE_MEDIA = namedNode('https://def.nde.nl/probe#media');
-const XSD_INTEGER = namedNode('http://www.w3.org/2001/XMLSchema#integer');
 
 /**
  * Detect whether a dataset exposes any media and emit a `void:subset` marked
@@ -76,11 +73,11 @@ export class MediaSubsetExecutor implements Executor {
     let maxEntities = 0;
     for await (const q of quads) {
       // The media subset is the subject carrying the probe marker.
-      if (q.predicate.equals(PROBE_DETECTS) && q.object.equals(PROBE_MEDIA)) {
+      if (q.predicate.equals(probe.detects) && q.object.equals(probe.media)) {
         mediaSubset = q.subject;
       }
       // Every void:entities in this stage is a media partition count.
-      if (q.predicate.equals(VOID_ENTITIES)) {
+      if (q.predicate.equals(_void.entities)) {
         maxEntities = Math.max(maxEntities, Number(q.object.value));
       }
       yield q;
@@ -93,8 +90,8 @@ export class MediaSubsetExecutor implements Executor {
 
     yield quad(
       mediaSubset,
-      VOID_ENTITIES,
-      literal(String(maxEntities), XSD_INTEGER),
+      _void.entities,
+      literal(String(maxEntities), xsd.integer),
     );
   }
 }

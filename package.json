@@ -42,6 +42,8 @@
     "@lde/pipeline-void": "^0.28.18",
     "@lde/sparql-qlever": "^0.14.9",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.19.22",
+    "@rdfjs/namespace": "^2.0.1",
+    "@tpluscode/rdf-ns-builders": "^5.0.0",
     "env-schema": "^7.0.0",
     "fetch-sparql-endpoint": "^7.1.0",
     "n3": "^2.0.1",
