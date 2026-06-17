@@ -2,7 +2,7 @@ import {DataFactory} from 'n3';
 import pLimit from 'p-limit';
 import {SparqlEndpointFetcher, type IBindings} from 'fetch-sparql-endpoint';
 import type {NamedNode, Quad} from '@rdfjs/types';
-import {_void, dcterms, dqv, prov, rdf, xsd} from '@tpluscode/rdf-ns-builders';
+import {_void, dcterms, dqv} from '@tpluscode/rdf-ns-builders';
 import {
   assertSafeIri,
   skolemIri,
@@ -16,6 +16,11 @@ import {
   type SampleFailure,
 } from './failureUsage.js';
 import {metric} from './namespaces.js';
+import {
+  booleanMeasurement,
+  integerMeasurement,
+  provActivity,
+} from './measurements.js';
 import {iiifManifestFormatFilter} from './iiifManifestDetection.js';
 
 const {namedNode, literal, quad} = DataFactory;
@@ -497,7 +502,7 @@ function* measurementQuads(
   // node is a skolem IRI derived from the (unique) subset, not a blank node, so
   // it cannot collide with another stage’s nodes in the dataset graph (#352).
   const activity = namedNode(skolemIri(subset.value, 'resolution-activity'));
-  yield* activityQuads(activity, subset, software);
+  yield* provActivity(activity, subset, software);
   yield* failureUsageQuads(activity, failures);
 
   // Validated facts — the sampled/resolved ratio, for any namespace.
@@ -536,7 +541,7 @@ function* nonDurableMeasurement(
   software: NamedNode,
 ): Generator<Quad> {
   const activity = namedNode(skolemIri(subset.value, 'durability-activity'));
-  yield* activityQuads(activity, subset, software);
+  yield* provActivity(activity, subset, software);
 
   const measurement = namedNode(
     skolemIri(subset.value, 'measurement', 'subject-namespace-durable'),
@@ -549,44 +554,6 @@ function* nonDurableMeasurement(
     false,
     activity,
   );
-}
-
-function* activityQuads(
-  activity: NamedNode,
-  used: NamedNode,
-  software: NamedNode,
-): Generator<Quad> {
-  yield quad(activity, rdf.type, prov.Activity);
-  yield quad(activity, prov.used, used);
-  yield quad(activity, prov.wasAssociatedWith, software);
-}
-
-function* integerMeasurement(
-  measurement: NamedNode,
-  computedOn: NamedNode,
-  metricNode: NamedNode,
-  value: number,
-  activity: NamedNode,
-): Generator<Quad> {
-  yield quad(measurement, rdf.type, dqv.QualityMeasurement);
-  yield quad(measurement, dqv.computedOn, computedOn);
-  yield quad(measurement, dqv.isMeasurementOf, metricNode);
-  yield quad(measurement, dqv.value, literal(String(value), xsd.integer));
-  yield quad(measurement, prov.wasGeneratedBy, activity);
-}
-
-function* booleanMeasurement(
-  measurement: NamedNode,
-  computedOn: NamedNode,
-  metricNode: NamedNode,
-  value: boolean,
-  activity: NamedNode,
-): Generator<Quad> {
-  yield quad(measurement, rdf.type, dqv.QualityMeasurement);
-  yield quad(measurement, dqv.computedOn, computedOn);
-  yield quad(measurement, dqv.isMeasurementOf, metricNode);
-  yield quad(measurement, dqv.value, literal(String(value), xsd.boolean));
-  yield quad(measurement, prov.wasGeneratedBy, activity);
 }
 
 /**

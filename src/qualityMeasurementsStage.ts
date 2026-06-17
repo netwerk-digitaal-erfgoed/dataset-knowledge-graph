@@ -4,6 +4,7 @@ import {dcterms, dqv, prov, rdf, xsd} from '@tpluscode/rdf-ns-builders';
 import type {Dataset} from '@lde/dataset';
 import {Stage, type Executor, type Validator} from '@lde/pipeline';
 import {metric} from './namespaces.js';
+import {integerMeasurement, provActivity} from './measurements.js';
 
 const {namedNode, literal, blankNode, quad} = DataFactory;
 
@@ -57,10 +58,7 @@ export function qualityMeasurementsStage(
 
       const quads: Quad[] = [
         // PROV: validation activity.
-        quad(activity, rdf.type, prov.Activity),
-        quad(activity, prov.used, subject),
-        quad(activity, prov.used, profile),
-        quad(activity, prov.wasAssociatedWith, validatorSoftware),
+        ...provActivity(activity, [subject, profile], validatorSoftware),
 
         // Dataset → measurements.
         quad(subject, dqv.hasQualityMeasurement, conformanceMeasurement),
@@ -85,34 +83,22 @@ export function qualityMeasurementsStage(
         quad(conformanceMeasurement, prov.wasGeneratedBy, activity),
 
         // Coverage: number of quads the validator inspected.
-        quad(quadsValidatedMeasurement, rdf.type, dqv.QualityMeasurement),
-        quad(quadsValidatedMeasurement, dqv.computedOn, subject),
-        quad(
+        ...integerMeasurement(
           quadsValidatedMeasurement,
-          dqv.isMeasurementOf,
+          subject,
           metric['quads-validated'],
+          report.quadsValidated,
+          activity,
         ),
-        quad(
-          quadsValidatedMeasurement,
-          dqv.value,
-          literal(String(report.quadsValidated), xsd.integer),
-        ),
-        quad(quadsValidatedMeasurement, prov.wasGeneratedBy, activity),
 
         // Coverage: configured sample cap per target class.
-        quad(samplesPerClassMeasurement, rdf.type, dqv.QualityMeasurement),
-        quad(samplesPerClassMeasurement, dqv.computedOn, subject),
-        quad(
+        ...integerMeasurement(
           samplesPerClassMeasurement,
-          dqv.isMeasurementOf,
+          subject,
           metric['samples-per-class'],
+          options.samplesPerClass,
+          activity,
         ),
-        quad(
-          samplesPerClassMeasurement,
-          dqv.value,
-          literal(String(options.samplesPerClass), xsd.integer),
-        ),
-        quad(samplesPerClassMeasurement, prov.wasGeneratedBy, activity),
       ];
 
       return (async function* () {
