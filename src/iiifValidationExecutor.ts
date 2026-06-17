@@ -1,7 +1,7 @@
 import {DataFactory} from 'n3';
 import pLimit from 'p-limit';
 import type {Quad} from '@rdfjs/types';
-import type {Dataset, Distribution} from '@lde/dataset';
+import {skolemIri, type Dataset, type Distribution} from '@lde/dataset';
 import {NotSupported, type Executor, type ExecuteOptions} from '@lde/pipeline';
 import {
   validateManifest,
@@ -14,7 +14,7 @@ import {
   type SampleFailure,
 } from './failureUsage.js';
 
-const {namedNode, literal, blankNode, quad} = DataFactory;
+const {namedNode, literal, quad} = DataFactory;
 
 const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
 const DQV_HAS_QUALITY_MEASUREMENT = namedNode(
@@ -244,9 +244,18 @@ export class IiifValidationExecutor implements Executor {
     validated: number,
     failures: readonly SampleFailure[],
   ): Generator<Quad> {
-    const activity = blankNode();
-    const sampledMeasurement = blankNode();
-    const validatedMeasurement = blankNode();
+    // Every structural node is a skolem IRI derived from the (unique) IIIF
+    // subset, not a blank node, so it cannot collide with another stage’s nodes
+    // when merged into the dataset graph (see issue #352).
+    const activity = namedNode(
+      skolemIri(iiifSubset.value, 'validation-activity'),
+    );
+    const sampledMeasurement = namedNode(
+      skolemIri(iiifSubset.value, 'measurement', 'manifests-sampled'),
+    );
+    const validatedMeasurement = namedNode(
+      skolemIri(iiifSubset.value, 'measurement', 'manifests-validated'),
+    );
 
     // PROV: the dereferencing activity, with a qualified usage per failed
     // manifest naming the URL and why validation failed.
@@ -290,11 +299,11 @@ export class IiifValidationExecutor implements Executor {
   }
 
   private *integerMeasurement(
-    measurement: ReturnType<typeof blankNode>,
+    measurement: ReturnType<typeof namedNode>,
     computedOn: ReturnType<typeof namedNode>,
     metric: ReturnType<typeof namedNode>,
     value: number,
-    activity: ReturnType<typeof blankNode>,
+    activity: ReturnType<typeof namedNode>,
   ): Generator<Quad> {
     yield quad(measurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT);
     yield quad(measurement, DQV_COMPUTED_ON, computedOn);

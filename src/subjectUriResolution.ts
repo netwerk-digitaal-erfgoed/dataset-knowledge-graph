@@ -2,7 +2,12 @@ import {DataFactory} from 'n3';
 import pLimit from 'p-limit';
 import {SparqlEndpointFetcher, type IBindings} from 'fetch-sparql-endpoint';
 import type {Quad} from '@rdfjs/types';
-import {assertSafeIri, type Dataset, type Distribution} from '@lde/dataset';
+import {
+  assertSafeIri,
+  skolemIri,
+  type Dataset,
+  type Distribution,
+} from '@lde/dataset';
 import type {ExecutorContext, QuadTransform} from '@lde/pipeline';
 import {
   failureReasonIri,
@@ -11,7 +16,7 @@ import {
 } from './failureUsage.js';
 import {iiifManifestFormatFilter} from './iiifManifestDetection.js';
 
-const {namedNode, literal, blankNode, quad} = DataFactory;
+const {namedNode, literal, quad} = DataFactory;
 
 const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
 const VOID_URI_SPACE = namedNode('http://rdfs.org/ns/void#uriSpace');
@@ -524,14 +529,20 @@ function* measurementQuads(
   software: ReturnType<typeof namedNode>,
 ): Generator<Quad> {
   // PROV: the sampling/dereferencing activity, with a qualified usage per
-  // failed sample naming the URI and why it did not resolve.
-  const activity = blankNode();
+  // failed sample naming the URI and why it did not resolve. Every structural
+  // node is a skolem IRI derived from the (unique) subset, not a blank node, so
+  // it cannot collide with another stage’s nodes in the dataset graph (#352).
+  const activity = namedNode(skolemIri(subset.value, 'resolution-activity'));
   yield* activityQuads(activity, subset, software);
   yield* failureUsageQuads(activity, failures);
 
   // Validated facts — the sampled/resolved ratio, for any namespace.
-  const sampledMeasurement = blankNode();
-  const resolvedMeasurement = blankNode();
+  const sampledMeasurement = namedNode(
+    skolemIri(subset.value, 'measurement', 'subject-uris-sampled'),
+  );
+  const resolvedMeasurement = namedNode(
+    skolemIri(subset.value, 'measurement', 'subject-uris-resolved'),
+  );
   yield quad(subset, DQV_HAS_QUALITY_MEASUREMENT, sampledMeasurement);
   yield quad(subset, DQV_HAS_QUALITY_MEASUREMENT, resolvedMeasurement);
 
@@ -560,10 +571,12 @@ function* nonDurableMeasurement(
   subset: ReturnType<typeof namedNode>,
   software: ReturnType<typeof namedNode>,
 ): Generator<Quad> {
-  const activity = blankNode();
+  const activity = namedNode(skolemIri(subset.value, 'durability-activity'));
   yield* activityQuads(activity, subset, software);
 
-  const measurement = blankNode();
+  const measurement = namedNode(
+    skolemIri(subset.value, 'measurement', 'subject-namespace-durable'),
+  );
   yield quad(subset, DQV_HAS_QUALITY_MEASUREMENT, measurement);
   yield* booleanMeasurement(
     measurement,
@@ -575,7 +588,7 @@ function* nonDurableMeasurement(
 }
 
 function* activityQuads(
-  activity: ReturnType<typeof blankNode>,
+  activity: ReturnType<typeof namedNode>,
   used: ReturnType<typeof namedNode>,
   software: ReturnType<typeof namedNode>,
 ): Generator<Quad> {
@@ -585,11 +598,11 @@ function* activityQuads(
 }
 
 function* integerMeasurement(
-  measurement: ReturnType<typeof blankNode>,
+  measurement: ReturnType<typeof namedNode>,
   computedOn: ReturnType<typeof namedNode>,
   metric: ReturnType<typeof namedNode>,
   value: number,
-  activity: ReturnType<typeof blankNode>,
+  activity: ReturnType<typeof namedNode>,
 ): Generator<Quad> {
   yield quad(measurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT);
   yield quad(measurement, DQV_COMPUTED_ON, computedOn);
@@ -599,11 +612,11 @@ function* integerMeasurement(
 }
 
 function* booleanMeasurement(
-  measurement: ReturnType<typeof blankNode>,
+  measurement: ReturnType<typeof namedNode>,
   computedOn: ReturnType<typeof namedNode>,
   metric: ReturnType<typeof namedNode>,
   value: boolean,
-  activity: ReturnType<typeof blankNode>,
+  activity: ReturnType<typeof namedNode>,
 ): Generator<Quad> {
   yield quad(measurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT);
   yield quad(measurement, DQV_COMPUTED_ON, computedOn);

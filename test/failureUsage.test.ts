@@ -3,7 +3,7 @@ import {DataFactory} from 'n3';
 import type {Quad} from '@rdfjs/types';
 import {failureUsageQuads} from '../src/failureUsage.js';
 
-const {namedNode, blankNode} = DataFactory;
+const {namedNode} = DataFactory;
 
 const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
 const PROV_USED = namedNode('http://www.w3.org/ns/prov#used');
@@ -27,7 +27,7 @@ function collect(quads: Iterable<Quad>): Quad[] {
 
 describe('failureUsageQuads', () => {
   it('emits the qualified-usage shape for each failure', () => {
-    const activity = blankNode('activity');
+    const activity = namedNode('http://example.org/dataset#subset-activity');
     const out = collect(
       failureUsageQuads(activity, [
         {url: 'http://example.org/id/1', reasonIri: TIMEOUT},
@@ -92,8 +92,33 @@ describe('failureUsageQuads', () => {
   });
 
   it('emits nothing for an empty failure list', () => {
-    expect(collect(failureUsageQuads(blankNode('activity'), []))).toHaveLength(
-      0,
+    expect(
+      collect(failureUsageQuads(namedNode('http://example.org/a'), [])),
+    ).toHaveLength(0);
+  });
+
+  it('derives usage IRIs so the same URL under different activities cannot collide (issue #352)', () => {
+    // Two stages record the same URL on their own (distinct) activities. The
+    // usages must be distinct IRIs, or they merge into one node in the graph.
+    const failure = {url: 'http://example.org/id/1', reasonIri: TIMEOUT};
+    const resolutionActivity = namedNode(
+      'http://example.org/dataset#subset-a-activity',
     );
+    const validationActivity = namedNode(
+      'http://example.org/dataset#subset-b-activity',
+    );
+
+    const usageOf = (activity: ReturnType<typeof namedNode>) =>
+      collect(failureUsageQuads(activity, [failure])).find(q =>
+        q.predicate.equals(PROV_ENTITY),
+      )?.subject;
+
+    const a = usageOf(resolutionActivity);
+    const b = usageOf(validationActivity);
+    expect(a?.termType).toBe('NamedNode');
+    expect(b?.termType).toBe('NamedNode');
+    expect(a!.value).not.toBe(b!.value);
+    // Stable across runs for the same activity + URL.
+    expect(usageOf(resolutionActivity)!.value).toBe(a!.value);
   });
 });
