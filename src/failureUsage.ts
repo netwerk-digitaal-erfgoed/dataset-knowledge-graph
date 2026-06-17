@@ -14,6 +14,8 @@ const PROV_ENTITY = namedNode('http://www.w3.org/ns/prov#entity');
 
 /** Predicate naming why a sampled resource failed; see the `failure` module. */
 const FAILURE_REASON = namedNode('https://def.nde.nl/failure#reason');
+/** Predicate carrying a best-effort free-text diagnostic alongside the reason. */
+const FAILURE_MESSAGE = namedNode('https://def.nde.nl/failure#message');
 
 /**
  * Build a failure-reason concept IRI from its scheme base and the reason’s
@@ -34,6 +36,11 @@ export interface SampleFailure {
   url: string;
   /** SKOS concept naming why it failed (the value of `failure:reason`). */
   reasonIri: NamedNode;
+  /**
+   * Optional best-effort free-text diagnostic (the value of `failure:message`),
+   * for example a parser error. Omitted when none is available.
+   */
+  message?: string;
 }
 
 /**
@@ -63,7 +70,7 @@ export function* failureUsageQuads(
   activity: NamedNode,
   failures: readonly SampleFailure[],
 ): Generator<Quad> {
-  for (const {url, reasonIri} of failures) {
+  for (const {url, reasonIri, message} of failures) {
     const entity = namedNode(url);
     const usage = namedNode(
       skolemIri(activity.value, 'usage', hashSuffix(url)),
@@ -77,5 +84,8 @@ export function* failureUsageQuads(
     yield quad(usage, RDF_TYPE, PROV_USAGE);
     yield quad(usage, PROV_ENTITY, entity);
     yield quad(usage, FAILURE_REASON, reasonIri);
+    if (message !== undefined) {
+      yield quad(usage, FAILURE_MESSAGE, DataFactory.literal(message));
+    }
   }
 }

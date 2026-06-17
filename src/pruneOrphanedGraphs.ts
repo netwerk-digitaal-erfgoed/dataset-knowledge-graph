@@ -130,6 +130,8 @@ export interface FileGraphPrunerOptions {
   summaryDir: string;
   /** Directory holding the per-dataset SHACL validation `.nq` files. */
   validationDir: string;
+  /** Directory holding the per-dataset RDF-validity `.nq` files. */
+  validityDir: string;
 }
 
 /**
@@ -137,12 +139,12 @@ export interface FileGraphPrunerOptions {
  * supplies the keep-set, the cache directories supply the files to enumerate and
  * delete.
  *
- * Both the summary and the validation writer name their file after the *dataset*
- * IRI (the graph IRI only sets each quad’s graph, not the filename), so a single
- * {@link FileWriter} reproduces the basename for both directories. Reusing
- * `getOutputPath` keeps that naming a single source of truth — the keep-set
- * paths are exactly what the pipeline wrote, including the replacement character
- * and extension.
+ * The summary, validation and validity writers all name their file after the
+ * *dataset* IRI (the graph IRI only sets each quad’s graph, not the filename), so
+ * a single {@link FileWriter} reproduces the basename for every directory.
+ * Reusing `getOutputPath` keeps that naming a single source of truth — the
+ * keep-set paths are exactly what the pipeline wrote, including the replacement
+ * character and extension.
  */
 export function fileGraphPrunerDependencies(
   options: FileGraphPrunerOptions,
@@ -153,6 +155,10 @@ export function fileGraphPrunerDependencies(
   });
   const validationWriter = new FileWriter({
     outputDir: options.validationDir,
+    format: 'n-quads',
+  });
+  const validityWriter = new FileWriter({
+    outputDir: options.validityDir,
     format: 'n-quads',
   });
 
@@ -181,12 +187,14 @@ export function fileGraphPrunerDependencies(
         const dataset = new Dataset({iri: new URL(iri), distributions: []});
         keep.add(summaryWriter.getOutputPath(dataset));
         keep.add(validationWriter.getOutputPath(dataset));
+        keep.add(validityWriter.getOutputPath(dataset));
       }
       return keep;
     },
     selectStoreGraphs: async () => [
       ...(await listNqFiles(options.summaryDir)),
       ...(await listNqFiles(options.validationDir)),
+      ...(await listNqFiles(options.validityDir)),
     ],
     keyOf: filePath => filePath,
     dropGraph: filePath => rm(filePath, {force: true}),

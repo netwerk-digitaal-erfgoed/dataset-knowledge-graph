@@ -39,18 +39,26 @@ describe('fileGraphPrunerDependencies', () => {
   let root: string;
   let summaryDir: string;
   let validationDir: string;
+  let validityDir: string;
   let summaryWriter: FileWriter;
   let validationWriter: FileWriter;
+  let validityWriter: FileWriter;
 
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), 'file-pruner-test-'));
     summaryDir = join(root, 'nq');
     validationDir = join(root, 'validation', 'nq');
+    validityDir = join(root, 'validity', 'nq');
     await mkdir(summaryDir, {recursive: true});
     await mkdir(validationDir, {recursive: true});
+    await mkdir(validityDir, {recursive: true});
     summaryWriter = new FileWriter({outputDir: summaryDir, format: 'n-quads'});
     validationWriter = new FileWriter({
       outputDir: validationDir,
+      format: 'n-quads',
+    });
+    validityWriter = new FileWriter({
+      outputDir: validityDir,
       format: 'n-quads',
     });
     registered.iris = [];
@@ -70,6 +78,11 @@ describe('fileGraphPrunerDependencies', () => {
       new Dataset({iri: new URL(iri), distributions: []}),
     );
   }
+  function validityPath(iri: string): string {
+    return validityWriter.getOutputPath(
+      new Dataset({iri: new URL(iri), distributions: []}),
+    );
+  }
 
   async function seedDataset(iri: string): Promise<void> {
     await writeFile(summaryPath(iri), `<${iri}> a <urn:Dataset> <${iri}> .\n`);
@@ -77,6 +90,7 @@ describe('fileGraphPrunerDependencies', () => {
       validationPath(iri),
       `<${iri}> a <urn:Report> <${iri}> .\n`,
     );
+    await writeFile(validityPath(iri), `<${iri}> a <urn:Verdict> <${iri}> .\n`);
   }
 
   function prune() {
@@ -85,11 +99,12 @@ describe('fileGraphPrunerDependencies', () => {
         registryEndpoint: REGISTRY,
         summaryDir,
         validationDir,
+        validityDir,
       }),
     );
   }
 
-  it('deletes both files of an orphan and keeps the registered dataset', async () => {
+  it('deletes all files of an orphan and keeps the registered dataset', async () => {
     const kept = 'http://data.bibliotheken.nl/id/dataset/rise-alba';
     const orphan = 'http://data.dc4eu.nl/dataset/removed';
     await seedDataset(kept);
@@ -100,10 +115,16 @@ describe('fileGraphPrunerDependencies', () => {
 
     expect(await exists(summaryPath(kept))).toBe(true);
     expect(await exists(validationPath(kept))).toBe(true);
+    expect(await exists(validityPath(kept))).toBe(true);
     expect(await exists(summaryPath(orphan))).toBe(false);
     expect(await exists(validationPath(orphan))).toBe(false);
+    expect(await exists(validityPath(orphan))).toBe(false);
     expect(result.prunedGraphs.sort()).toEqual(
-      [summaryPath(orphan), validationPath(orphan)].sort(),
+      [
+        summaryPath(orphan),
+        validationPath(orphan),
+        validityPath(orphan),
+      ].sort(),
     );
   });
 
@@ -118,6 +139,20 @@ describe('fileGraphPrunerDependencies', () => {
     const result = await prune();
 
     expect(await exists(summaryPath(kept))).toBe(true);
+    expect(result.prunedGraphs).toEqual([]);
+  });
+
+  it('keeps a registered dataset that has only a validity file (failed import, no summary)', async () => {
+    const kept = 'http://example.org/dataset/failed-import';
+    await writeFile(
+      validityPath(kept),
+      `<${kept}> a <urn:Verdict> <${kept}> .\n`,
+    );
+    registered.iris = [kept];
+
+    const result = await prune();
+
+    expect(await exists(validityPath(kept))).toBe(true);
     expect(result.prunedGraphs).toEqual([]);
   });
 
