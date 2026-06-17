@@ -8,15 +8,16 @@ import {
   type ManifestValidation,
   type ManifestValidationReason,
 } from '@lde/iiif-validator';
-import {dqv, prov, rdf, xsd} from '@tpluscode/rdf-ns-builders';
+import {dqv} from '@tpluscode/rdf-ns-builders';
 import {
   failureReasonIri,
   failureUsageQuads,
   type SampleFailure,
 } from './failureUsage.js';
 import {metric} from './namespaces.js';
+import {integerMeasurement, provActivity} from './measurements.js';
 
-const {namedNode, literal, quad} = DataFactory;
+const {namedNode, quad} = DataFactory;
 
 const IIIF_PRESENTATION = namedNode('http://iiif.io/api/presentation/');
 
@@ -234,10 +235,11 @@ export class IiifValidationExecutor implements Executor {
 
     // PROV: the dereferencing activity, with a qualified usage per failed
     // manifest naming the URL and why validation failed.
-    yield quad(activity, rdf.type, prov.Activity);
-    yield quad(activity, prov.used, namedNode(dataset.iri.toString()));
-    yield quad(activity, prov.used, IIIF_PRESENTATION);
-    yield quad(activity, prov.wasAssociatedWith, this.validatorSoftware);
+    yield* provActivity(
+      activity,
+      [namedNode(dataset.iri.toString()), IIIF_PRESENTATION],
+      this.validatorSoftware,
+    );
     yield* failureUsageQuads(activity, failures);
 
     // The measurements describe the IIIF capability subset, which already
@@ -257,33 +259,19 @@ export class IiifValidationExecutor implements Executor {
     yield quad(datasetNode, dqv.hasQualityMeasurement, sampledMeasurement);
     yield quad(datasetNode, dqv.hasQualityMeasurement, validatedMeasurement);
 
-    yield* this.integerMeasurement(
+    yield* integerMeasurement(
       sampledMeasurement,
       iiifSubset,
       metric['manifests-sampled'],
       sampled,
       activity,
     );
-    yield* this.integerMeasurement(
+    yield* integerMeasurement(
       validatedMeasurement,
       iiifSubset,
       metric['manifests-validated'],
       validated,
       activity,
     );
-  }
-
-  private *integerMeasurement(
-    measurement: NamedNode,
-    computedOn: NamedNode,
-    metricNode: NamedNode,
-    value: number,
-    activity: NamedNode,
-  ): Generator<Quad> {
-    yield quad(measurement, rdf.type, dqv.QualityMeasurement);
-    yield quad(measurement, dqv.computedOn, computedOn);
-    yield quad(measurement, dqv.isMeasurementOf, metricNode);
-    yield quad(measurement, dqv.value, literal(String(value), xsd.integer));
-    yield quad(measurement, prov.wasGeneratedBy, activity);
   }
 }
