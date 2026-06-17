@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.1.0...v1.2.0) (2026-06-17)
+
+
+### Features
+
+* keep invalid datasets, exclude only gone ones ([#353](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/353)) ([fecc59e](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/fecc59ea1cb79bc12a32ad1348e1612bd09ef87b))
+* select datasets with TriG RDF distributions ([#350](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/350)) ([322697b](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/322697b3d4902fd9d9a9abdc06df7f3fd35cf722)), closes [#349](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/349)
+
+
+### Bug Fixes
+
+* exclude IIIF manifest URLs from the subject-URI resolution sample ([#347](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/347)) ([c4de391](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/c4de3919bc461149a2308c7a6224df8e9a3f0e80))
+* skolemize PROV provenance nodes to prevent cross-stage blank-node collisions ([#354](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/354)) ([45f2171](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/45f2171c717ec56cd28da748985f336ed13124cc))
+
 ## [1.1.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.0.0...v1.1.0) (2026-06-12)
 
 
