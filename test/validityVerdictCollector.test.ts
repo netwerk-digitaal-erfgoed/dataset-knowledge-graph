@@ -73,6 +73,40 @@ describe('ValidityVerdictCollector', () => {
     expect(collector.verdicts().every(v => v.dataset === datasetA)).toBe(true);
   });
 
+  it('keeps only the later verdict when a distribution is reported twice (shallow then deep)', () => {
+    const collector = new ValidityVerdictCollector();
+    const shallowValid: ValidityVerdict = {
+      valid: true,
+      validatedFingerprint: 'fp',
+      depth: 'shallow',
+    };
+    const deepInvalid: ValidityVerdict = {
+      valid: false,
+      reason: 'empty',
+      validatedFingerprint: 'fp',
+      depth: 'deep',
+    };
+
+    collector.datasetStart(datasetA);
+    collector.distributionValidated(
+      distribution('http://a.example/d1'),
+      shallowValid,
+    );
+    collector.distributionValidated(
+      distribution('http://a.example/d1'),
+      deepInvalid,
+    );
+
+    // One entry for the distribution, carrying the later (deep) verdict.
+    expect(collector.verdicts()).toEqual([
+      {
+        dataset: datasetA,
+        distribution: distribution('http://a.example/d1'),
+        verdict: deepInvalid,
+      },
+    ]);
+  });
+
   it('records a verdict for a failed-import dataset that produces no summary', () => {
     const collector = new ValidityVerdictCollector();
 

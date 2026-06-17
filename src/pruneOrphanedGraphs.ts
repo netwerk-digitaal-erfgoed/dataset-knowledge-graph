@@ -4,6 +4,7 @@ import {join, resolve} from 'node:path';
 import {FileWriter} from '@lde/pipeline';
 import {Dataset} from '@lde/dataset';
 import {validationGraphPrefix} from './validationGraphIri.js';
+import {validityGraphPrefix} from './validityGraphIri.js';
 
 /**
  * Reconcile the DKG output store with the Dataset Register.
@@ -44,12 +45,14 @@ export interface PruneResult {
 
 /**
  * The dataset URI a graph belongs to: a summary graph IS the dataset URI; a
- * validation graph encodes it as its final, URL-encoded path segment.
+ * validation or validity graph encodes it as its final, URL-encoded path
+ * segment (see the respective `*GraphIri` modules).
  */
 export function datasetIriForGraph(graphIri: string): string {
-  const prefix = validationGraphPrefix();
-  if (graphIri.startsWith(prefix)) {
-    return decodeURIComponent(graphIri.slice(prefix.length));
+  for (const prefix of [validationGraphPrefix(), validityGraphPrefix()]) {
+    if (graphIri.startsWith(prefix)) {
+      return decodeURIComponent(graphIri.slice(prefix.length));
+    }
   }
   return graphIri;
 }
