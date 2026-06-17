@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.2.0...v1.3.0) (2026-06-17)
+
+
+### Features
+
+* emit per-distribution RDF-validity verdicts ([#362](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/362)) ([4e48f4e](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/4e48f4ebc61befa63d21c2433575587db176188f))
+
 ## [1.2.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.1.0...v1.2.0) (2026-06-17)
 
 

@@ -7,4 +7,4 @@
  * next run. Pass it to `new Pipeline({ pipelineVersion: PIPELINE_VERSION, … })`
  * alongside a `provenanceStore` to enable skipping.
  */
-export const PIPELINE_VERSION = '1.2.0'; // x-release-please-version
+export const PIPELINE_VERSION = '1.3.0'; // x-release-please-version
