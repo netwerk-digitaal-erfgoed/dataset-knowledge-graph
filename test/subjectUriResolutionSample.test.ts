@@ -110,3 +110,22 @@ describe('buildSampleQuery IIIF manifest exclusion', () => {
     expect(await sample(turtle, 2)).toHaveLength(2);
   });
 });
+
+describe('buildSampleQuery URI space prefix exclusion', () => {
+  it('excludes the URI space prefix itself while keeping genuine subjects', async () => {
+    // The prefix appears as a subject in the data (e.g. `…/61567/dataset`
+    // strips to `…/61567/`). STRSTARTS matches it against itself, but the
+    // prefix is the namespace, not a dereferenceable resource, so it must be
+    // dropped.
+    const turtle = `
+      <${URI_SPACE}> schema:name "The ARK namespace" .
+      <${URI_SPACE}aaa> schema:name "Work A" .
+      <${URI_SPACE}bbb> schema:name "Work B" .
+    `;
+
+    expect(await sample(turtle)).toEqual([
+      `${URI_SPACE}aaa`,
+      `${URI_SPACE}bbb`,
+    ]);
+  });
+});

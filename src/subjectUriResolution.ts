@@ -668,9 +668,11 @@ const IIIF_MANIFEST_EXCLUSION = `FILTER NOT EXISTS {
 /**
  * Build the subject-URI sample query: a `SELECT DISTINCT ?s … LIMIT n`
  * short-circuited on the namespace prefix, with the distribution's subject
- * filter and named graph woven in (mirroring the VoID class selector) and
- * {@link IIIF_MANIFEST_EXCLUSION known IIIF manifests} filtered out. Exported so
- * the manifest exclusion can be exercised against an in-memory store.
+ * filter and named graph woven in (mirroring the VoID class selector), the
+ * {@link IIIF_MANIFEST_EXCLUSION known IIIF manifests} filtered out, and the
+ * URI space prefix itself excluded (it matches its own `STRSTARTS` but is the
+ * namespace, not a dereferenceable resource). Exported so the exclusions can be
+ * exercised against an in-memory store.
  */
 export function buildSampleQuery(
   uriSpace: string,
@@ -689,7 +691,7 @@ export function buildSampleQuery(
     'WHERE {',
     `  ${subjectFilter}`,
     '  ?s ?p ?o .',
-    `  FILTER(ISIRI(?s) && STRSTARTS(STR(?s), ${sparqlString(uriSpace)}))`,
+    `  FILTER(ISIRI(?s) && STRSTARTS(STR(?s), ${sparqlString(uriSpace)}) && STR(?s) != ${sparqlString(uriSpace)})`,
     `  ${IIIF_MANIFEST_EXCLUSION}`,
     '}',
     `LIMIT ${sampleSize}`,
