@@ -13,6 +13,7 @@ const PROV_QUALIFIED_USAGE = namedNode(
 const PROV_USAGE = namedNode('http://www.w3.org/ns/prov#Usage');
 const PROV_ENTITY = namedNode('http://www.w3.org/ns/prov#entity');
 const FAILURE_REASON = namedNode('https://def.nde.nl/failure#reason');
+const FAILURE_MESSAGE = namedNode('https://def.nde.nl/failure#message');
 
 const TIMEOUT = namedNode(
   'https://def.nde.nl/subject-resolution-failure#timeout',
@@ -120,5 +121,37 @@ describe('failureUsageQuads', () => {
     expect(a!.value).not.toBe(b!.value);
     // Stable across runs for the same activity + URL.
     expect(usageOf(resolutionActivity)!.value).toBe(a!.value);
+  });
+
+  it('emits failure:message on the usage when a failure carries one', () => {
+    const activity = namedNode('http://example.org/dataset#subset-activity');
+    const out = collect(
+      failureUsageQuads(activity, [
+        {
+          url: 'http://example.org/data.rdf',
+          reasonIri: TIMEOUT,
+          message: 'QName not allowed for property: rdf:Description',
+        },
+      ]),
+    );
+
+    const usage = out.find(q => q.predicate.equals(PROV_ENTITY))?.subject;
+    const messages = out.filter(
+      q => q.subject.equals(usage!) && q.predicate.equals(FAILURE_MESSAGE),
+    );
+    expect(messages).toHaveLength(1);
+    expect(messages[0].object.value).toBe(
+      'QName not allowed for property: rdf:Description',
+    );
+  });
+
+  it('omits failure:message when a failure has none', () => {
+    const out = collect(
+      failureUsageQuads(
+        namedNode('http://example.org/dataset#subset-activity'),
+        [{url: 'http://example.org/data.rdf', reasonIri: TIMEOUT}],
+      ),
+    );
+    expect(out.some(q => q.predicate.equals(FAILURE_MESSAGE))).toBe(false);
   });
 });

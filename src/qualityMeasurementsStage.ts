@@ -1,40 +1,11 @@
 import {DataFactory} from 'n3';
 import type {Quad} from '@rdfjs/types';
+import {dcterms, dqv, prov, rdf, xsd} from '@tpluscode/rdf-ns-builders';
 import type {Dataset} from '@lde/dataset';
 import {Stage, type Executor, type Validator} from '@lde/pipeline';
+import {metric} from './namespaces.js';
 
 const {namedNode, literal, blankNode, quad} = DataFactory;
-
-const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
-const DQV_HAS_QUALITY_MEASUREMENT = namedNode(
-  'http://www.w3.org/ns/dqv#hasQualityMeasurement',
-);
-const DQV_QUALITY_MEASUREMENT = namedNode(
-  'http://www.w3.org/ns/dqv#QualityMeasurement',
-);
-const DQV_COMPUTED_ON = namedNode('http://www.w3.org/ns/dqv#computedOn');
-const DQV_IS_MEASUREMENT_OF = namedNode(
-  'http://www.w3.org/ns/dqv#isMeasurementOf',
-);
-const DQV_VALUE = namedNode('http://www.w3.org/ns/dqv#value');
-const DCTERMS_CONFORMS_TO = namedNode('http://purl.org/dc/terms/conformsTo');
-const PROV_ACTIVITY = namedNode('http://www.w3.org/ns/prov#Activity');
-const PROV_USED = namedNode('http://www.w3.org/ns/prov#used');
-const PROV_WAS_ASSOCIATED_WITH = namedNode(
-  'http://www.w3.org/ns/prov#wasAssociatedWith',
-);
-const PROV_WAS_GENERATED_BY = namedNode(
-  'http://www.w3.org/ns/prov#wasGeneratedBy',
-);
-const XSD_BOOLEAN = namedNode('http://www.w3.org/2001/XMLSchema#boolean');
-const XSD_INTEGER = namedNode('http://www.w3.org/2001/XMLSchema#integer');
-
-const METRIC_BASE = 'https://def.nde.nl/metric#';
-const CONFORMANCE_METRIC = namedNode(
-  `${METRIC_BASE}schema-ap-nde-sample-conformance`,
-);
-const QUADS_VALIDATED_METRIC = namedNode(`${METRIC_BASE}quads-validated`);
-const SAMPLES_PER_CLASS_METRIC = namedNode(`${METRIC_BASE}samples-per-class`);
 
 const DEFAULT_VALIDATOR_SOFTWARE = namedNode(
   'https://www.npmjs.com/package/@lde/pipeline-shacl-validator',
@@ -86,58 +57,62 @@ export function qualityMeasurementsStage(
 
       const quads: Quad[] = [
         // PROV: validation activity.
-        quad(activity, RDF_TYPE, PROV_ACTIVITY),
-        quad(activity, PROV_USED, subject),
-        quad(activity, PROV_USED, profile),
-        quad(activity, PROV_WAS_ASSOCIATED_WITH, validatorSoftware),
+        quad(activity, rdf.type, prov.Activity),
+        quad(activity, prov.used, subject),
+        quad(activity, prov.used, profile),
+        quad(activity, prov.wasAssociatedWith, validatorSoftware),
 
         // Dataset → measurements.
-        quad(subject, DQV_HAS_QUALITY_MEASUREMENT, conformanceMeasurement),
-        quad(subject, DQV_HAS_QUALITY_MEASUREMENT, quadsValidatedMeasurement),
-        quad(subject, DQV_HAS_QUALITY_MEASUREMENT, samplesPerClassMeasurement),
+        quad(subject, dqv.hasQualityMeasurement, conformanceMeasurement),
+        quad(subject, dqv.hasQualityMeasurement, quadsValidatedMeasurement),
+        quad(subject, dqv.hasQualityMeasurement, samplesPerClassMeasurement),
 
         // Conformance measurement — also carries dcterms:conformsTo so the
         // DQV navigation path reaches the profile without leaving DQV.
-        quad(conformanceMeasurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT),
-        quad(conformanceMeasurement, DQV_COMPUTED_ON, subject),
-        quad(conformanceMeasurement, DQV_IS_MEASUREMENT_OF, CONFORMANCE_METRIC),
+        quad(conformanceMeasurement, rdf.type, dqv.QualityMeasurement),
+        quad(conformanceMeasurement, dqv.computedOn, subject),
         quad(
           conformanceMeasurement,
-          DQV_VALUE,
-          literal(report.conforms ? 'true' : 'false', XSD_BOOLEAN),
+          dqv.isMeasurementOf,
+          metric['schema-ap-nde-sample-conformance'],
         ),
-        quad(conformanceMeasurement, DCTERMS_CONFORMS_TO, profile),
-        quad(conformanceMeasurement, PROV_WAS_GENERATED_BY, activity),
+        quad(
+          conformanceMeasurement,
+          dqv.value,
+          literal(report.conforms ? 'true' : 'false', xsd.boolean),
+        ),
+        quad(conformanceMeasurement, dcterms.conformsTo, profile),
+        quad(conformanceMeasurement, prov.wasGeneratedBy, activity),
 
         // Coverage: number of quads the validator inspected.
-        quad(quadsValidatedMeasurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT),
-        quad(quadsValidatedMeasurement, DQV_COMPUTED_ON, subject),
+        quad(quadsValidatedMeasurement, rdf.type, dqv.QualityMeasurement),
+        quad(quadsValidatedMeasurement, dqv.computedOn, subject),
         quad(
           quadsValidatedMeasurement,
-          DQV_IS_MEASUREMENT_OF,
-          QUADS_VALIDATED_METRIC,
+          dqv.isMeasurementOf,
+          metric['quads-validated'],
         ),
         quad(
           quadsValidatedMeasurement,
-          DQV_VALUE,
-          literal(String(report.quadsValidated), XSD_INTEGER),
+          dqv.value,
+          literal(String(report.quadsValidated), xsd.integer),
         ),
-        quad(quadsValidatedMeasurement, PROV_WAS_GENERATED_BY, activity),
+        quad(quadsValidatedMeasurement, prov.wasGeneratedBy, activity),
 
         // Coverage: configured sample cap per target class.
-        quad(samplesPerClassMeasurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT),
-        quad(samplesPerClassMeasurement, DQV_COMPUTED_ON, subject),
+        quad(samplesPerClassMeasurement, rdf.type, dqv.QualityMeasurement),
+        quad(samplesPerClassMeasurement, dqv.computedOn, subject),
         quad(
           samplesPerClassMeasurement,
-          DQV_IS_MEASUREMENT_OF,
-          SAMPLES_PER_CLASS_METRIC,
+          dqv.isMeasurementOf,
+          metric['samples-per-class'],
         ),
         quad(
           samplesPerClassMeasurement,
-          DQV_VALUE,
-          literal(String(options.samplesPerClass), XSD_INTEGER),
+          dqv.value,
+          literal(String(options.samplesPerClass), xsd.integer),
         ),
-        quad(samplesPerClassMeasurement, PROV_WAS_GENERATED_BY, activity),
+        quad(samplesPerClassMeasurement, prov.wasGeneratedBy, activity),
       ];
 
       return (async function* () {

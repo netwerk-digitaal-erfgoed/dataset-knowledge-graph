@@ -33,6 +33,9 @@ import {ConsoleReporter} from '@lde/pipeline-console-reporter';
 import {resolve} from 'node:path';
 import type {DatasetSelector} from '@lde/pipeline';
 import {validationGraphIri} from './validationGraphIri.js';
+import {validityGraphIri} from './validityGraphIri.js';
+import {ValidityVerdictCollector} from './validityVerdictCollector.js';
+import {writeDistributionValidity} from './writeDistributionValidity.js';
 
 const SCHEMA_AP_NDE_SHAPES =
   'https://raw.githubusercontent.com/netwerk-digitaal-erfgoed/schema-profile/main/shacl.ttl';
@@ -154,7 +157,25 @@ const stages = [
   }),
 ];
 
-const reporter = new ConsoleReporter();
+// Collect every RDF-validity verdict the pipeline emits — including for
+// distributions whose RDF failed to import, whose datasets produce no summary —
+// so the post-run pass below can persist them. Passed alongside the console
+// reporter so both observe the same run (Pipeline fans an array out to each).
+const validityCollector = new ValidityVerdictCollector();
+const reporter = [new ConsoleReporter(), validityCollector];
+
+// The validity verdicts are written by a post-run pass (not a stage) into their
+// own graph and cache directory, mirroring the SHACL validation reports: each
+// quad in its derived validityGraphIri graph, the file named after the dataset.
+const validityWriter = new FileWriter({
+  outputDir: config.OUTPUT_VALIDITY_CACHE_DIR,
+  format: 'n-quads',
+  graphIri: dataset => validityGraphIri(dataset.iri),
+});
+
+// The software credited with the validity verdicts (prov:wasAssociatedWith).
+const VALIDITY_PRODUCER =
+  'https://www.npmjs.com/package/@netwerk-digitaal-erfgoed/knowledge-graph';
 
 const datasetSelector: DatasetSelector = {
   async select() {
@@ -220,6 +241,26 @@ try {
     reporter,
   }).run();
 
+  // Persist the RDF-validity verdicts collected during the run. A post-run pass
+  // rather than a stage, so it also records distributions whose RDF failed to
+  // import — datasets that produced no summary. Best-effort: a write failure is
+  // logged rather than thrown, so it cannot block cache reconciliation below or
+  // the rebuild sentinel.
+  try {
+    const datasetsWithVerdicts = await writeDistributionValidity(
+      validityCollector.verdicts(),
+      validityWriter,
+      {generatedAt: new Date(), producer: VALIDITY_PRODUCER},
+    );
+    console.log(
+      `Wrote RDF-validity verdicts for ${datasetsWithVerdicts} dataset(s).`,
+    );
+  } catch (error) {
+    console.error(
+      `Writing RDF-validity verdicts skipped: ${(error as Error).message}`,
+    );
+  }
+
   // Reconcile the cache with the register: delete the `.nq` files of datasets
   // that have since been removed from the register or whose registration
   // expired, so stale “ghost” datasets stop surfacing once the served index is
@@ -231,6 +272,7 @@ try {
         registryEndpoint: DATASET_REGISTER_SPARQL_ENDPOINT,
         summaryDir: config.OUTPUT_CACHE_DIR,
         validationDir: config.OUTPUT_VALIDATION_CACHE_DIR,
+        validityDir: config.OUTPUT_VALIDITY_CACHE_DIR,
       }),
     );
     console.log(

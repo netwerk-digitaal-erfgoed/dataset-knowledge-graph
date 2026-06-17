@@ -1,6 +1,6 @@
 import {DataFactory} from 'n3';
 import pLimit from 'p-limit';
-import type {Quad} from '@rdfjs/types';
+import type {NamedNode, Quad} from '@rdfjs/types';
 import {skolemIri, type Dataset, type Distribution} from '@lde/dataset';
 import {NotSupported, type Executor, type ExecuteOptions} from '@lde/pipeline';
 import {
@@ -8,42 +8,17 @@ import {
   type ManifestValidation,
   type ManifestValidationReason,
 } from '@lde/iiif-validator';
+import {dqv, prov, rdf, xsd} from '@tpluscode/rdf-ns-builders';
 import {
   failureReasonIri,
   failureUsageQuads,
   type SampleFailure,
 } from './failureUsage.js';
+import {metric} from './namespaces.js';
 
 const {namedNode, literal, quad} = DataFactory;
 
-const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
-const DQV_HAS_QUALITY_MEASUREMENT = namedNode(
-  'http://www.w3.org/ns/dqv#hasQualityMeasurement',
-);
-const DQV_QUALITY_MEASUREMENT = namedNode(
-  'http://www.w3.org/ns/dqv#QualityMeasurement',
-);
-const DQV_COMPUTED_ON = namedNode('http://www.w3.org/ns/dqv#computedOn');
-const DQV_IS_MEASUREMENT_OF = namedNode(
-  'http://www.w3.org/ns/dqv#isMeasurementOf',
-);
-const DQV_VALUE = namedNode('http://www.w3.org/ns/dqv#value');
-const PROV_ACTIVITY = namedNode('http://www.w3.org/ns/prov#Activity');
-const PROV_USED = namedNode('http://www.w3.org/ns/prov#used');
-const PROV_WAS_ASSOCIATED_WITH = namedNode(
-  'http://www.w3.org/ns/prov#wasAssociatedWith',
-);
-const PROV_WAS_GENERATED_BY = namedNode(
-  'http://www.w3.org/ns/prov#wasGeneratedBy',
-);
-const XSD_INTEGER = namedNode('http://www.w3.org/2001/XMLSchema#integer');
 const IIIF_PRESENTATION = namedNode('http://iiif.io/api/presentation/');
-
-const METRIC_BASE = 'https://def.nde.nl/metric#';
-const MANIFESTS_SAMPLED_METRIC = namedNode(`${METRIC_BASE}manifests-sampled`);
-const MANIFESTS_VALIDATED_METRIC = namedNode(
-  `${METRIC_BASE}manifests-validated`,
-);
 
 /**
  * Predicate of the intermediate triple emitted by `iiif.rq` carrying a sampled
@@ -239,7 +214,7 @@ export class IiifValidationExecutor implements Executor {
 
   private *measurementQuads(
     dataset: Dataset,
-    iiifSubset: ReturnType<typeof namedNode>,
+    iiifSubset: NamedNode,
     sampled: number,
     validated: number,
     failures: readonly SampleFailure[],
@@ -259,18 +234,18 @@ export class IiifValidationExecutor implements Executor {
 
     // PROV: the dereferencing activity, with a qualified usage per failed
     // manifest naming the URL and why validation failed.
-    yield quad(activity, RDF_TYPE, PROV_ACTIVITY);
-    yield quad(activity, PROV_USED, namedNode(dataset.iri.toString()));
-    yield quad(activity, PROV_USED, IIIF_PRESENTATION);
-    yield quad(activity, PROV_WAS_ASSOCIATED_WITH, this.validatorSoftware);
+    yield quad(activity, rdf.type, prov.Activity);
+    yield quad(activity, prov.used, namedNode(dataset.iri.toString()));
+    yield quad(activity, prov.used, IIIF_PRESENTATION);
+    yield quad(activity, prov.wasAssociatedWith, this.validatorSoftware);
     yield* failureUsageQuads(activity, failures);
 
     // The measurements describe the IIIF capability subset, which already
     // carries `dcterms:conformsTo <iiif-presentation>` — so they hang off the
     // subset and `dqv:computedOn` it, dropping the per-measurement conformsTo
     // back-link the dataset-level modelling needed.
-    yield quad(iiifSubset, DQV_HAS_QUALITY_MEASUREMENT, sampledMeasurement);
-    yield quad(iiifSubset, DQV_HAS_QUALITY_MEASUREMENT, validatedMeasurement);
+    yield quad(iiifSubset, dqv.hasQualityMeasurement, sampledMeasurement);
+    yield quad(iiifSubset, dqv.hasQualityMeasurement, validatedMeasurement);
 
     // Backward compatibility: also link the measurements from the dataset, the
     // path the shipped dataset-register queries still read
@@ -279,36 +254,36 @@ export class IiifValidationExecutor implements Executor {
     // `void:subset/dqv:hasQualityMeasurement` before then. Drop these once
     // dataset-register has migrated (tracked in dataset-register).
     const datasetNode = namedNode(dataset.iri.toString());
-    yield quad(datasetNode, DQV_HAS_QUALITY_MEASUREMENT, sampledMeasurement);
-    yield quad(datasetNode, DQV_HAS_QUALITY_MEASUREMENT, validatedMeasurement);
+    yield quad(datasetNode, dqv.hasQualityMeasurement, sampledMeasurement);
+    yield quad(datasetNode, dqv.hasQualityMeasurement, validatedMeasurement);
 
     yield* this.integerMeasurement(
       sampledMeasurement,
       iiifSubset,
-      MANIFESTS_SAMPLED_METRIC,
+      metric['manifests-sampled'],
       sampled,
       activity,
     );
     yield* this.integerMeasurement(
       validatedMeasurement,
       iiifSubset,
-      MANIFESTS_VALIDATED_METRIC,
+      metric['manifests-validated'],
       validated,
       activity,
     );
   }
 
   private *integerMeasurement(
-    measurement: ReturnType<typeof namedNode>,
-    computedOn: ReturnType<typeof namedNode>,
-    metric: ReturnType<typeof namedNode>,
+    measurement: NamedNode,
+    computedOn: NamedNode,
+    metricNode: NamedNode,
     value: number,
-    activity: ReturnType<typeof namedNode>,
+    activity: NamedNode,
   ): Generator<Quad> {
-    yield quad(measurement, RDF_TYPE, DQV_QUALITY_MEASUREMENT);
-    yield quad(measurement, DQV_COMPUTED_ON, computedOn);
-    yield quad(measurement, DQV_IS_MEASUREMENT_OF, metric);
-    yield quad(measurement, DQV_VALUE, literal(String(value), XSD_INTEGER));
-    yield quad(measurement, PROV_WAS_GENERATED_BY, activity);
+    yield quad(measurement, rdf.type, dqv.QualityMeasurement);
+    yield quad(measurement, dqv.computedOn, computedOn);
+    yield quad(measurement, dqv.isMeasurementOf, metricNode);
+    yield quad(measurement, dqv.value, literal(String(value), xsd.integer));
+    yield quad(measurement, prov.wasGeneratedBy, activity);
   }
 }

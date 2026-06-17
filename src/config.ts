@@ -29,6 +29,16 @@ const schema = {
       type: 'string',
       default: 'output/provenance/nq',
     },
+    // Directory the per-dataset RDF-validity verdicts are written to as n-quads
+    // (each quad in its derived `validityGraphIri` graph). Written by a post-run
+    // pass rather than a stage, so it captures distributions whose RDF failed to
+    // import — datasets that produce no summary at all. Kept in a separate
+    // directory from OUTPUT_CACHE_DIR so the two file sets are pruned and indexed
+    // independently.
+    OUTPUT_VALIDITY_CACHE_DIR: {
+      type: 'string',
+      default: 'output/validity/nq',
+    },
     // Query endpoint of the served (read-only) QLever the previous run's
     // records were loaded into. The skip gate reads them from here at the start
     // of a run. Leave unset (e.g. local `npm run dev`) to disable skipping and
@@ -96,6 +106,7 @@ interface Config {
   OUTPUT_CACHE_DIR: string;
   OUTPUT_VALIDATION_CACHE_DIR: string;
   OUTPUT_PROVENANCE_CACHE_DIR: string;
+  OUTPUT_VALIDITY_CACHE_DIR: string;
   SERVED_SPARQL_ENDPOINT?: string;
   REBUILD_SENTINEL_PATH: string;
   QLEVER_ENV: 'docker' | 'native';

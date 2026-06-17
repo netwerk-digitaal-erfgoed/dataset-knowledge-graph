@@ -6,9 +6,11 @@ import {
   type GraphPrunerDependencies,
 } from '../src/pruneOrphanedGraphs.js';
 import {validationGraphIri} from '../src/validationGraphIri.js';
+import {validityGraphIri} from '../src/validityGraphIri.js';
 
 const SUMMARY_GRAPH = 'http://data.bibliotheken.nl/id/dataset/rise-alba';
 const VALIDATION_GRAPH = validationGraphIri(new URL(SUMMARY_GRAPH)).toString();
+const VALIDITY_GRAPH = validityGraphIri(new URL(SUMMARY_GRAPH)).toString();
 
 describe('datasetIriForGraph', () => {
   it('returns a summary graph IRI unchanged', () => {
@@ -17,6 +19,10 @@ describe('datasetIriForGraph', () => {
 
   it('decodes the dataset IRI from a validation graph IRI', () => {
     expect(datasetIriForGraph(VALIDATION_GRAPH)).toBe(SUMMARY_GRAPH);
+  });
+
+  it('decodes the dataset IRI from a validity graph IRI', () => {
+    expect(datasetIriForGraph(VALIDITY_GRAPH)).toBe(SUMMARY_GRAPH);
   });
 
   it('round-trips dataset IRIs containing slashes and fragments', () => {

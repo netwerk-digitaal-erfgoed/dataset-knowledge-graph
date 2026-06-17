@@ -1,19 +1,10 @@
 import {DataFactory} from 'n3';
 import type {NamedNode, Quad} from '@rdfjs/types';
+import {prov, rdf} from '@tpluscode/rdf-ns-builders';
 import {hashSuffix, skolemIri} from '@lde/dataset';
+import {failure} from './namespaces.js';
 
 const {namedNode, quad} = DataFactory;
-
-const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
-const PROV_USED = namedNode('http://www.w3.org/ns/prov#used');
-const PROV_QUALIFIED_USAGE = namedNode(
-  'http://www.w3.org/ns/prov#qualifiedUsage',
-);
-const PROV_USAGE = namedNode('http://www.w3.org/ns/prov#Usage');
-const PROV_ENTITY = namedNode('http://www.w3.org/ns/prov#entity');
-
-/** Predicate naming why a sampled resource failed; see the `failure` module. */
-const FAILURE_REASON = namedNode('https://def.nde.nl/failure#reason');
 
 /**
  * Build a failure-reason concept IRI from its scheme base and the reason’s
@@ -34,6 +25,11 @@ export interface SampleFailure {
   url: string;
   /** SKOS concept naming why it failed (the value of `failure:reason`). */
   reasonIri: NamedNode;
+  /**
+   * Optional best-effort free-text diagnostic (the value of `failure:message`),
+   * for example a parser error. Omitted when none is available.
+   */
+  message?: string;
 }
 
 /**
@@ -63,7 +59,7 @@ export function* failureUsageQuads(
   activity: NamedNode,
   failures: readonly SampleFailure[],
 ): Generator<Quad> {
-  for (const {url, reasonIri} of failures) {
+  for (const {url, reasonIri, message} of failures) {
     const entity = namedNode(url);
     const usage = namedNode(
       skolemIri(activity.value, 'usage', hashSuffix(url)),
@@ -71,11 +67,14 @@ export function* failureUsageQuads(
 
     // `prov:used` accompanies each qualified usage, per PROV convention; the
     // used-set lists only the failed resources, which PROV permits.
-    yield quad(activity, PROV_USED, entity);
-    yield quad(activity, PROV_QUALIFIED_USAGE, usage);
+    yield quad(activity, prov.used, entity);
+    yield quad(activity, prov.qualifiedUsage, usage);
 
-    yield quad(usage, RDF_TYPE, PROV_USAGE);
-    yield quad(usage, PROV_ENTITY, entity);
-    yield quad(usage, FAILURE_REASON, reasonIri);
+    yield quad(usage, rdf.type, prov.Usage);
+    yield quad(usage, prov.entity, entity);
+    yield quad(usage, failure.reason, reasonIri);
+    if (message !== undefined) {
+      yield quad(usage, failure.message, DataFactory.literal(message));
+    }
   }
 }
