@@ -37,6 +37,7 @@ const METRIC_BASE = 'https://def.nde.nl/metric#';
 const SAMPLED_METRIC = `${METRIC_BASE}subject-uris-sampled`;
 const RESOLVED_METRIC = `${METRIC_BASE}subject-uris-resolved`;
 const DURABLE_METRIC = `${METRIC_BASE}subject-namespace-durable`;
+const SAMPLING_FAILED_METRIC = `${METRIC_BASE}subject-uris-sampling-failed`;
 const ARK_SCHEME = namedNode('https://def.nde.nl/pid-scheme#ark');
 const HANDLE_SCHEME = namedNode('https://def.nde.nl/pid-scheme#handle');
 
@@ -472,7 +473,7 @@ describe('subjectUriResolution', () => {
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
   });
 
-  it('keeps the VoID output when sampling fails', async () => {
+  it('keeps the VoID output and marks the failure when sampling fails', async () => {
     const ns = subset('http://example.org/id/', 10);
     const transform = subjectUriResolution({
       terminologyPrefixes: [],
@@ -480,15 +481,78 @@ describe('subjectUriResolution', () => {
         throw new Error('endpoint timeout');
       },
       resolve: resolveByName,
+      sleep: async () => {},
     });
 
     const out = await collect(transform(stream(ns.quads), context));
 
-    // The subsets pass through; no measurements are appended.
-    expect(out).toHaveLength(ns.quads.length);
-    expect(out.some(q => q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT))).toBe(
-      false,
-    );
+    // The subsets still pass through unchanged...
+    for (const original of ns.quads) {
+      expect(out.some(q => q.equals(original))).toBe(true);
+    }
+    // ...and an explicit sampling-failed marker is emitted, so the register can
+    // tell this errored sample apart from a namespace that was never sampled.
+    expect(
+      measurementValueTerm(out, SAMPLING_FAILED_METRIC, ns.node)?.value,
+    ).toBe('true');
+    // No sampled/resolved ratio, which would be a misleading 0/0.
+    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
+  });
+
+  it('retries the sample query and measures the eventual success', async () => {
+    // The sample query times out once, then returns — exactly the crawl-time
+    // blip that previously discarded the whole check.
+    const ns = subset('http://example.org/id/', 10);
+    let attempts = 0;
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async () => {
+        if (attempts++ === 0) throw new Error('endpoint timeout');
+        return ['http://example.org/id/good'];
+      },
+      resolve: resolveByName,
+      sleep: async () => {},
+    });
+
+    const out = await collect(transform(stream(ns.quads), context));
+
+    expect(attempts).toBe(2);
+    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
+    expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+    // The retry recovered, so no failure marker.
+    expect(
+      measurementValueTerm(out, SAMPLING_FAILED_METRIC, ns.node),
+    ).toBeUndefined();
+  });
+
+  it('still declares the PID scheme and marks the failure when sampling throws', async () => {
+    // The bD64Hu case: a healthy ARK dataset whose sample query throws every
+    // attempt. The conformance fact is knowable from the namespace alone and
+    // must survive, and the failure must leave a marker rather than vanish.
+    const ns = subset('https://n2t.net/ark:/60537/', 1552002);
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async () => {
+        throw new Error('endpoint timeout');
+      },
+      resolve: resolveByName,
+      lookupOrg: noOrg,
+      sleep: async () => {},
+    });
+
+    const out = await collect(transform(stream(ns.quads), context));
+
+    expect(
+      out.some(
+        q =>
+          q.predicate.equals(DCTERMS_CONFORMS_TO) &&
+          q.object.equals(ARK_SCHEME),
+      ),
+    ).toBe(true);
+    expect(
+      measurementValueTerm(out, SAMPLING_FAILED_METRIC, ns.node)?.value,
+    ).toBe('true');
+    expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
   });
 
   describe('non-durable subject namespaces', () => {
@@ -584,6 +648,7 @@ describe('subjectUriResolution', () => {
           throw new Error('endpoint timeout');
         },
         resolve: resolveByName,
+        sleep: async () => {},
       });
 
       const out = await collect(transform(stream(ns.quads), context));
