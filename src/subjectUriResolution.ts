@@ -243,6 +243,10 @@ export interface SubjectUriResolutionOptions {
  *   when the chosen namespace matches the {@link NON_DURABLE_NAMESPACES}
  *   disallow list — emitted independently of sampling, so it survives an
  *   endpoint failure.
+ * - **sampling-failure** facts: a `subject-uris-sampling-failed = true` DQV
+ *   measurement when the sample query throws on every attempt, so a transient
+ *   endpoint blip is distinguishable from a namespace that was never sampled
+ *   (the declared facts above survive such a failure too; only the ratio drops).
  *
  * The metric names are namespace-neutral because the ratio applies to any
  * namespace; PID-ness lives only in the scheme label. If no non-terminology
@@ -288,21 +292,38 @@ export function subjectUriResolution(
       return;
     }
 
+    const subset = namedNode(winner.subset);
+
     // Durability is knowable from the namespace string alone, so flag it before
     // (and outside) the best-effort sampling block: a vendor preview domain
     // whose endpoint is slow today is exactly what we most want flagged.
     if (isNonDurable(winner.uriSpace)) {
-      yield* nonDurableMeasurement(namedNode(winner.subset), software);
+      yield* nonDurableMeasurement(subset, software);
     }
 
-    // Enrichment is best-effort: a failed sample must not drop the VoID output
-    // that already streamed through, so swallow and emit nothing extra.
-    let measurements: Quad[];
+    // Declared facts (PID scheme, issuing org) are knowable from the namespace
+    // string alone, independent of whether the sample resolves — so emit them
+    // before (and outside) the sampling block, so a sample failure cannot erase
+    // them. The ARK org lookup swallows its own errors, so awaiting it here is
+    // safe.
+    const scheme = detectPidScheme(winner.uriSpace);
+    const org =
+      scheme === 'ark'
+        ? await lookupArkOrg(winner.uriSpace, lookupOrg)
+        : undefined;
+    yield* declaredFactQuads(subset, scheme, org);
+
+    // Sampling and dereferencing are best-effort: a failure must not drop the
+    // VoID output that already streamed through. But discarding them *silently*
+    // makes a transient endpoint blip indistinguishable from a namespace that
+    // was never sampled, so retry the sample query first and, if it still fails
+    // every attempt, record an explicit marker the register can read.
     try {
-      const sampled = await sampleUris(winner.uriSpace, sampleSize, {
-        dataset,
-        distribution,
-      });
+      const sampled = await sampleUrisWithRetry(
+        () => sampleUris(winner.uriSpace, sampleSize, {dataset, distribution}),
+        retries,
+        sleep,
+      );
       const limit = pLimit(concurrency);
       // One budget shared across every dereference: once it elapses, in-flight
       // fetches abort and resolveWithRetry stops scheduling retries.
@@ -333,40 +354,26 @@ export function subjectUriResolution(
         }
       });
       // The denominator counts only definitively-judged URIs; transient ones are
-      // excluded from both branches above.
+      // excluded. With nothing measurable — an empty sample, or every URI
+      // transiently unreachable — the declared facts above stand on their own,
+      // so append no misleading 0/0 ratio (and no failure marker: the sample
+      // query itself succeeded).
       const measurable = resolved + failures.length;
-
-      const subset = namedNode(winner.subset);
-      const scheme = detectPidScheme(winner.uriSpace);
-      const org =
-        scheme === 'ark'
-          ? await lookupArkOrg(winner.uriSpace, lookupOrg)
-          : undefined;
-
-      // Declared facts (PID scheme, issuing org) are knowable from the namespace
-      // alone, so they are emitted even when nothing was measurable this run —
-      // either an empty sample or every URI transiently unreachable. The
-      // sampled/resolved ratio is appended only when there is something to
-      // report, so the diagnostic queries never see a misleading 0/0.
-      const declared = [...declaredFactQuads(subset, scheme, org)];
-      measurements =
-        measurable === 0
-          ? declared
-          : [
-              ...declared,
-              ...measurementQuads(
-                subset,
-                measurable,
-                resolved,
-                failures,
-                software,
-              ),
-            ];
+      if (measurable > 0) {
+        yield* measurementQuads(
+          subset,
+          measurable,
+          resolved,
+          failures,
+          software,
+        );
+      }
     } catch {
-      return;
+      // The sample query threw on every attempt: emit an explicit
+      // sampling-failed marker so this is distinguishable from a namespace that
+      // was never sampled, instead of vanishing silently.
+      yield* samplingFailedMeasurement(subset, software);
     }
-
-    yield* measurements;
   };
 }
 
@@ -400,6 +407,28 @@ async function resolveWithRetry(
       signal.aborted
     ) {
       return outcome;
+    }
+    await sleep(retryDelay(attempt));
+  }
+}
+
+/**
+ * Run the sample query, retrying a thrown attempt with the same backoff as the
+ * per-URI dereference. A thrown sample is an endpoint/network failure — a slow
+ * or briefly unavailable endpoint — so a single failed request should not strand
+ * the dataset on “never sampled”. After `retries` extra attempts the final error
+ * propagates, so the caller can record the failure rather than retry forever.
+ */
+async function sampleUrisWithRetry(
+  sample: () => Promise<string[]>,
+  retries: number,
+  sleep: Sleep,
+): Promise<string[]> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await sample();
+    } catch (error) {
+      if (attempt >= retries) throw error;
     }
     await sleep(retryDelay(attempt));
   }
@@ -474,8 +503,8 @@ async function lookupArkOrg(
  * Declared facts about the namespace, knowable from the namespace string alone
  * and independent of whether the sample resolved: `dcterms:conformsTo` a PID
  * scheme (only when recognised) and the ARK issuing org as `dcterms:publisher`.
- * Emitted even when nothing was measurable, so they survive an empty sample or a
- * fully-unreachable resolver chain.
+ * Emitted even when nothing was measurable, so they survive an empty sample, a
+ * fully-unreachable resolver chain, or a sample query that failed entirely.
  */
 function* declaredFactQuads(
   subset: NamedNode,
@@ -552,6 +581,36 @@ function* nonDurableMeasurement(
     subset,
     metric['subject-namespace-durable'],
     false,
+    activity,
+  );
+}
+
+/**
+ * The sampling-failure marker: `subject-uris-sampling-failed = true`, emitted
+ * only when the sample query threw on every attempt. It lets a consumer tell an
+ * *errored* sample (a transient endpoint failure this run) apart from a
+ * namespace that was never sampled — otherwise indistinguishable, both lacking
+ * any `subject-uris-sampled` ratio. Carries its own PROV activity, mirroring
+ * {@link nonDurableMeasurement}.
+ */
+function* samplingFailedMeasurement(
+  subset: NamedNode,
+  software: NamedNode,
+): Generator<Quad> {
+  const activity = namedNode(
+    skolemIri(subset.value, 'sampling-failure-activity'),
+  );
+  yield* provActivity(activity, subset, software);
+
+  const measurement = namedNode(
+    skolemIri(subset.value, 'measurement', 'subject-uris-sampling-failed'),
+  );
+  yield quad(subset, dqv.hasQualityMeasurement, measurement);
+  yield* booleanMeasurement(
+    measurement,
+    subset,
+    metric['subject-uris-sampling-failed'],
+    true,
     activity,
   );
 }
