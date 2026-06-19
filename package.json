@@ -45,7 +45,7 @@
     "@rdfjs/namespace": "^2.0.1",
     "@tpluscode/rdf-ns-builders": "^5.0.0",
     "env-schema": "^7.0.0",
-    "fetch-sparql-endpoint": "^7.1.0",
+    "fetch-sparql-endpoint": "^7.1.1",
     "n3": "^2.0.4",
     "p-limit": "^7.3.0",
     "rdf-dereference": "^5.0.0"
