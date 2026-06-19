@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.3.0...v1.3.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* retry subject-URI sampling and mark its failure instead of discarding it ([#371](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/371)) ([20008a1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/20008a128a82e71cf3d439cd319e54bbe2711463))
+
 ## [1.3.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.2.0...v1.3.0) (2026-06-17)
 
 
