@@ -36,6 +36,7 @@ const XSD_BOOLEAN = namedNode('http://www.w3.org/2001/XMLSchema#boolean');
 const METRIC_BASE = 'https://def.nde.nl/metric#';
 const SAMPLED_METRIC = `${METRIC_BASE}subject-uris-sampled`;
 const RESOLVED_METRIC = `${METRIC_BASE}subject-uris-resolved`;
+const HTML_LANDING_PAGES_METRIC = `${METRIC_BASE}subject-uris-html-landing-pages`;
 const DURABLE_METRIC = `${METRIC_BASE}subject-namespace-durable`;
 const SAMPLING_FAILED_METRIC = `${METRIC_BASE}subject-uris-sampling-failed`;
 const ARK_SCHEME = namedNode('https://def.nde.nl/pid-scheme#ark');
@@ -135,9 +136,12 @@ const sampleFixed =
   (uris: string[]): SampleUris =>
   async () =>
     uris;
-// `null` means resolved; a non-`good` URI fails with a typed reason.
+// A `good` URI resolves (to RDF, not an HTML landing page); a non-`good` URI
+// fails with a typed reason.
 const resolveByName: ResolveUri = async uri =>
-  uri.includes('good') ? null : 'http-error';
+  uri.includes('good')
+    ? {kind: 'resolved', landingPage: false}
+    : {kind: 'failed', reason: 'http-error'};
 const noOrg: LookupOrg = async () => undefined;
 
 describe('subjectUriResolution', () => {
@@ -164,13 +168,16 @@ describe('subjectUriResolution', () => {
     // Measurements are computed on the subset node, not the dataset.
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(3);
     expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(2);
+    // Both resolved to RDF, not an HTML landing page, so the landing-page count
+    // is 0 — emitted regardless, so the advisory can tell 0 from absent.
+    expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(0);
     expect(
       out.filter(
         q =>
           q.subject.equals(ns.node) &&
           q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT),
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
 
     // Only the failed sample is enumerated, as a qualified usage carrying its
     // typed reason; the two resolved samples are covered by the count alone.
@@ -373,7 +380,7 @@ describe('subjectUriResolution', () => {
       ]),
       resolve: async uri => {
         if (uri.includes('throws')) throw new Error('boom');
-        return null;
+        return {kind: 'resolved', landingPage: false};
       },
       sleep: async () => {},
     });
@@ -397,7 +404,10 @@ describe('subjectUriResolution', () => {
       sampleUris: sampleFixed(['http://example.org/id/flaky']),
       // Times out once, then resolves — exactly the crawl-time blip the retry
       // exists to absorb.
-      resolve: async () => (attempts++ === 0 ? 'timeout' : null),
+      resolve: async () =>
+        attempts++ === 0
+          ? {kind: 'failed', reason: 'timeout'}
+          : {kind: 'resolved', landingPage: false},
       sleep: async () => {},
     });
 
@@ -421,9 +431,9 @@ describe('subjectUriResolution', () => {
         'https://n2t.net/ark:/89268/gone-4',
       ]),
       resolve: async uri => {
-        if (uri.includes('good')) return null;
-        if (uri.includes('blip')) return 'timeout'; // transient, survives retries
-        return 'no-self-reference'; // definitive
+        if (uri.includes('good')) return {kind: 'resolved', landingPage: false};
+        if (uri.includes('blip')) return {kind: 'failed', reason: 'timeout'}; // transient, survives retries
+        return {kind: 'failed', reason: 'wrong-content-type'}; // definitive
       },
       lookupOrg: noOrg,
       sleep: async () => {},
@@ -436,7 +446,7 @@ describe('subjectUriResolution', () => {
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(3);
     expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(2);
     expect(failureReasonFor(out, 'https://n2t.net/ark:/89268/gone-4')).toBe(
-      `${SUBJECT_RESOLUTION_FAILURE_BASE}no-self-reference`,
+      `${SUBJECT_RESOLUTION_FAILURE_BASE}wrong-content-type`,
     );
     expect(
       failureReasonFor(out, 'https://n2t.net/ark:/89268/blip-3'),
@@ -451,7 +461,7 @@ describe('subjectUriResolution', () => {
         'http://example.org/id/a',
         'http://example.org/id/b',
       ]),
-      resolve: async () => 'timeout',
+      resolve: async () => ({kind: 'failed', reason: 'timeout'}),
       sleep: async () => {},
     });
 
@@ -472,7 +482,7 @@ describe('subjectUriResolution', () => {
     const transform = subjectUriResolution({
       terminologyPrefixes: [],
       sampleUris: sampleFixed(['https://n2t.net/ark:/60537/a']),
-      resolve: async () => 'timeout',
+      resolve: async () => ({kind: 'failed', reason: 'timeout'}),
       lookupOrg: noOrg,
       sleep: async () => {},
     });
@@ -753,14 +763,15 @@ describe('subjectUriResolution', () => {
       expect(measurementValueTerm(out, DURABLE_METRIC, ns.node)?.value).toBe(
         'false',
       );
-      // The subset carries all three measurements.
+      // The subset carries all four measurements (sampled, resolved,
+      // html-landing-pages, durable).
       expect(
         out.filter(
           q =>
             q.subject.equals(ns.node) &&
             q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT),
         ),
-      ).toHaveLength(3);
+      ).toHaveLength(4);
     });
   });
 
@@ -888,12 +899,58 @@ describe('subjectUriResolution', () => {
       expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
     });
 
-    it('classifies a non-HTML content type as wrong-content-type', async () => {
+    it('classifies a 2xx that is neither HTML nor RDF as wrong-content-type', async () => {
+      const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(
         async () =>
-          new Response('{}', {
+          new Response('{"error": "not found"}', {
             status: 200,
             headers: {'content-type': 'application/json'},
+          }),
+      );
+      // A JSON error page is neither HTML nor RDF: a definitive failure.
+      expect(failureReasonFor(out, URI)).toBe(
+        `${SUBJECT_RESOLUTION_FAILURE_BASE}wrong-content-type`,
+      );
+      expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
+    });
+
+    it('resolves an RDF response, not counting it as a landing page', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      const out = await runWithFetch(
+        async () =>
+          new Response(`<${URI}> <http://schema.org/name> "X" .`, {
+            status: 200,
+            headers: {'content-type': 'text/turtle'},
+          }),
+      );
+      // RDF resolves (counts toward the ratio) but is not an HTML landing page.
+      expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+      expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(0);
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+    });
+
+    it('resolves a generically-typed body that parses as RDF', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      const out = await runWithFetch(
+        async () =>
+          new Response(`<${URI}> <http://schema.org/name> "X" .`, {
+            status: 200,
+            headers: {'content-type': 'text/plain'},
+          }),
+      );
+      // A misconfigured server serving Turtle as text/plain still resolves: the
+      // body is parsed as a fallback when the content type is too generic.
+      expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+    });
+
+    it('fails a generically-typed body that is not RDF', async () => {
+      const out = await runWithFetch(
+        async () =>
+          new Response('just some plain words', {
+            status: 200,
+            headers: {'content-type': 'text/plain'},
           }),
       );
       expect(failureReasonFor(out, URI)).toBe(
@@ -901,13 +958,16 @@ describe('subjectUriResolution', () => {
       );
     });
 
-    it('classifies HTML without a self-reference as no-self-reference', async () => {
+    it('resolves HTML without a self-reference, not as a landing page', async () => {
+      const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(async () =>
         htmlResponse('<html>no link here</html>'),
       );
-      expect(failureReasonFor(out, URI)).toBe(
-        `${SUBJECT_RESOLUTION_FAILURE_BASE}no-self-reference`,
-      );
+      // HTML that does not advertise its own URI still resolves; it is just not
+      // counted as a landing page.
+      expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+      expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(0);
+      expect(failureReasonFor(out, URI)).toBeUndefined();
     });
 
     it('excludes an unreadable body as a transient blip', async () => {
@@ -928,12 +988,14 @@ describe('subjectUriResolution', () => {
       expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
     });
 
-    it('reports a resolving, self-referencing page as resolved', async () => {
+    it('reports a self-referencing HTML page as a resolved landing page', async () => {
       const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(async () =>
         htmlResponse(`<html><a href="${URI}">permalink</a></html>`),
       );
       expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+      // A self-referencing HTML page is the promoted landing page.
+      expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(1);
       expect(failureReasonFor(out, URI)).toBeUndefined();
       expect(out.some(q => q.predicate.equals(PROV_QUALIFIED_USAGE))).toBe(
         false,
