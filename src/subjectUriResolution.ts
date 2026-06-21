@@ -434,7 +434,17 @@ async function sampleUrisWithRetry(
   }
 }
 
-/** Pick the subset with the most entities whose namespace is not a terminology source. */
+/**
+ * Pick the subset with the most entities whose namespace is not a terminology
+ * source — unless that namespace is itself a recognised ARK/Handle PID scheme.
+ *
+ * A NAAN registered as a Network of Terms source can also be the publisher’s own
+ * persistent-identifier namespace: the Gouda Tijdmachine dataset mints its
+ * resources under `https://n2t.net/ark:/60537/`, which the `goudatijdmachine-
+ * straten` terminology source declares as a terms prefix too. Excluding it would
+ * pick a referenced vendor namespace instead and lose the ARK detection, so
+ * PID-ness overrides the terminology exclusion (#373).
+ */
 function pickWinner(
   uriSpaceBySubset: ReadonlyMap<string, string>,
   entitiesBySubset: ReadonlyMap<string, number>,
@@ -442,7 +452,10 @@ function pickWinner(
 ): {subset: string; uriSpace: string} | undefined {
   let best: {subset: string; uriSpace: string; entities: number} | undefined;
   for (const [subset, uriSpace] of uriSpaceBySubset) {
-    if (terminologyPrefixes.some(prefix => uriSpace.startsWith(prefix))) {
+    if (
+      detectPidScheme(uriSpace) === undefined &&
+      terminologyPrefixes.some(prefix => uriSpace.startsWith(prefix))
+    ) {
       continue;
     }
     const entities = entitiesBySubset.get(subset) ?? 0;

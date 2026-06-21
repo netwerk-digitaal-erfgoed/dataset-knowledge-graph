@@ -206,6 +206,44 @@ describe('subjectUriResolution', () => {
     expect(seen).toEqual(['http://example.org/id/']);
   });
 
+  it('keeps an ARK PID namespace even when it is also a terminology prefix', async () => {
+    // The Gouda Tijdmachine dataset mints its resources under ark:/60537/, a NAAN
+    // the `goudatijdmachine-straten` Network of Terms source declares as a terms
+    // prefix too. The bigger vendor namespace must not be picked over it: PID-ness
+    // overrides the terminology exclusion (#373).
+    const ark = subset('https://n2t.net/ark:/60537/', 1552002);
+    const vendor = subset(
+      'https://www.goudatijdmachine.nl/omeka/api/resources/',
+      1518244,
+    );
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: ['https://n2t.net/ark:/60537/'],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return ['https://n2t.net/ark:/60537/good-1'];
+      },
+      resolve: resolveByName,
+      lookupOrg: noOrg,
+    });
+
+    const out = await collect(
+      transform(stream([...ark.quads, ...vendor.quads]), context),
+    );
+
+    // The ARK namespace is sampled, not the larger vendor one …
+    expect(seen).toEqual(['https://n2t.net/ark:/60537/']);
+    // … and its PID scheme is declared.
+    expect(
+      out.some(
+        q =>
+          q.subject.equals(ark.node) &&
+          q.predicate.equals(DCTERMS_CONFORMS_TO) &&
+          q.object.equals(ARK_SCHEME),
+      ),
+    ).toBe(true);
+  });
+
   it('emits nothing extra when only terminology namespaces survive', async () => {
     const terminology = subset('http://data.rkd.nl/artists/', 900000);
     const transform = subjectUriResolution({
