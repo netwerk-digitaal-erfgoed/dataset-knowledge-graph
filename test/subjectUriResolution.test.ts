@@ -958,6 +958,40 @@ describe('subjectUriResolution', () => {
       );
     });
 
+    it('resolves JSON-LD served under a plain application/json content type', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      const jsonLd = JSON.stringify({
+        '@id': URI,
+        'http://schema.org/name': 'X',
+      });
+      const out = await runWithFetch(
+        async () =>
+          new Response(jsonLd, {
+            status: 200,
+            // A common misconfiguration: JSON-LD served as application/json
+            // rather than application/ld+json. It must still resolve as RDF.
+            headers: {'content-type': 'application/json'},
+          }),
+      );
+      expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+    });
+
+    it('fails an RDF content type whose body is not RDF', async () => {
+      const out = await runWithFetch(
+        async () =>
+          // The server claims Turtle but serves an HTML error page; the body is
+          // parsed, not trusted on the header, so this is wrong-content-type.
+          new Response('<html><body>Not found</body></html>', {
+            status: 200,
+            headers: {'content-type': 'text/turtle'},
+          }),
+      );
+      expect(failureReasonFor(out, URI)).toBe(
+        `${SUBJECT_RESOLUTION_FAILURE_BASE}wrong-content-type`,
+      );
+    });
+
     it('resolves HTML without a self-reference, not as a landing page', async () => {
       const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(async () =>

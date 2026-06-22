@@ -48,7 +48,8 @@
     "fetch-sparql-endpoint": "^7.1.1",
     "n3": "^2.0.4",
     "p-limit": "^7.3.0",
-    "rdf-dereference": "^5.0.0"
+    "rdf-dereference": "^5.0.0",
+    "rdf-parse": "^5.0.0"
   },
   "devDependencies": {
     "@comunica/query-sparql-rdfjs-lite": "^5.2.3",

@@ -1,4 +1,6 @@
-import {DataFactory, Parser} from 'n3';
+import {Readable} from 'node:stream';
+import {DataFactory} from 'n3';
+import {rdfParser} from 'rdf-parse';
 import pLimit from 'p-limit';
 import {SparqlEndpointFetcher, type IBindings} from 'fetch-sparql-endpoint';
 import type {NamedNode, Quad} from '@rdfjs/types';
@@ -782,38 +784,9 @@ const RESOLVE_ACCEPT =
   'application/trig;q=0.8,application/n-quads;q=0.8';
 
 /**
- * Content types that mark a response as RDF on their own, so it resolves without
- * parsing the body. Matched on the media type alone (parameters stripped).
- */
-const RDF_MEDIA_TYPES: ReadonlySet<string> = new Set([
-  'text/turtle',
-  'application/trig',
-  'application/n-triples',
-  'application/n-quads',
-  'application/ld+json',
-  'application/rdf+xml',
-  'text/n3',
-  'application/n3',
-]);
-
-/**
- * Content types too generic to trust either way — a misconfigured server may
- * serve Turtle as `text/plain` or send no type at all. These get a best-effort
- * RDF parse of the body (see {@link parsesAsRdf}) rather than being rejected on
- * the header alone. Anything outside this set that is neither HTML nor a
- * {@link RDF_MEDIA_TYPES known RDF type} (e.g. `image/png`) is not RDF, so it is
- * rejected without the cost of a parse.
- */
-const AMBIGUOUS_MEDIA_TYPES: ReadonlySet<string> = new Set([
-  '',
-  'text/plain',
-  'application/octet-stream',
-]);
-
-/**
- * Cap on the body we attempt to parse as RDF, so a large `application/octet-stream`
- * cannot turn a sample check into a memory or CPU sink. Generous: a few sampled
- * resources, parsed at most once each.
+ * Cap on the bytes handed to the RDF parser, so parsing a large body cannot turn
+ * a sample check into a CPU sink. Generous: a few sampled resources, parsed at
+ * most once each.
  */
 const MAX_PARSE_BYTES = 2_000_000;
 
@@ -826,18 +799,84 @@ function mediaTypeOf(response: Response): string {
 }
 
 /**
- * Whether `body` parses as RDF. Uses the N3 parser, which covers the Turtle
- * family (Turtle, TriG, N-Triples, N-Quads, N3) — the serialisations a server is
- * apt to mislabel as plain text or octet-stream. JSON-LD and RDF/XML are
- * recognised by their {@link RDF_MEDIA_TYPES content type} instead, so they need
- * no parse here. A single quad is enough; a syntax error means “not RDF”.
+ * Map a response media type to a content type rdf-parse understands, or `null`
+ * when the response is plainly non-RDF binary (so a doomed parse is skipped).
+ * rdf-parse does not sniff — it needs an explicit content type — so a generic or
+ * mislabelled type is mapped to a best-effort serialisation rather than rejected
+ * on the header alone: a JSON body is tried as JSON-LD, an XML body as RDF/XML,
+ * and anything else text-ish (`text/plain`, octet-stream, no type) as Turtle
+ * (which also accepts N-Triples). A type rdf-parse already knows passes through
+ * unchanged. The body is then parsed to confirm it really is RDF (see
+ * {@link bodyParsesAsRdf}), so a server that merely *claims* an RDF content type
+ * cannot resolve on the header alone.
  */
-function parsesAsRdf(body: string): boolean {
-  try {
-    return new Parser().parse(body.slice(0, MAX_PARSE_BYTES)).length > 0;
-  } catch {
-    return false;
+function rdfParseContentType(mediaType: string): string | null {
+  if (
+    mediaType.startsWith('image/') ||
+    mediaType.startsWith('video/') ||
+    mediaType.startsWith('audio/') ||
+    mediaType.startsWith('font/') ||
+    mediaType === 'application/pdf' ||
+    mediaType === 'application/zip'
+  ) {
+    return null;
   }
+  if (mediaType === 'application/json' || mediaType.endsWith('+json')) {
+    return 'application/ld+json';
+  }
+  if (
+    mediaType === 'application/xml' ||
+    mediaType === 'text/xml' ||
+    mediaType.endsWith('+xml')
+  ) {
+    return 'application/rdf+xml';
+  }
+  if (
+    mediaType === '' ||
+    mediaType === 'text/plain' ||
+    mediaType === 'application/octet-stream'
+  ) {
+    return 'text/turtle';
+  }
+  return mediaType;
+}
+
+/**
+ * Whether `body` parses as at least one RDF quad under `contentType`, capped at
+ * {@link MAX_PARSE_BYTES}. Uses rdf-parse — the parser behind the project's
+ * `rdf-dereference` — so every serialisation it supports (the Turtle family,
+ * JSON-LD, RDF/XML) is recognised, not just the Turtle family. `baseIri`
+ * resolves relative IRIs (the response's final, redirected URL). A parser error,
+ * or zero quads, means “not RDF”.
+ */
+function bodyParsesAsRdf(
+  body: string,
+  contentType: string,
+  baseIri: string,
+): Promise<boolean> {
+  return new Promise(resolve => {
+    let parsed: Readable;
+    try {
+      parsed = rdfParser.parse(
+        Readable.from([body.slice(0, MAX_PARSE_BYTES)]),
+        {
+          contentType,
+          baseIRI: baseIri,
+        },
+      ) as unknown as Readable;
+    } catch {
+      resolve(false);
+      return;
+    }
+    let found = false;
+    parsed.on('data', () => {
+      found = true;
+      parsed.destroy();
+    });
+    parsed.on('error', () => resolve(false));
+    parsed.on('end', () => resolve(found));
+    parsed.on('close', () => resolve(found));
+  });
 }
 
 /**
@@ -883,21 +922,24 @@ const defaultResolve: ResolveUri = async (uri, signal) => {
       landingPage: body.includes(uri) || body.includes(htmlEscape(uri)),
     };
   }
-  if (RDF_MEDIA_TYPES.has(mediaType)) {
-    return {kind: 'resolved', landingPage: false};
+  // Not HTML: confirm the body parses as RDF. rdf-parse needs the content type,
+  // so a generic or mislabelled one is mapped to a best-effort serialisation
+  // (see rdfParseContentType); a plainly non-RDF binary type is rejected without
+  // a parse. The parse — not the header — is the authority, so a server that only
+  // claims an RDF content type but serves an error/HTML body does not resolve.
+  const parseContentType = rdfParseContentType(mediaType);
+  if (parseContentType === null) {
+    return {kind: 'failed', reason: 'wrong-content-type'};
   }
-  if (AMBIGUOUS_MEDIA_TYPES.has(mediaType)) {
-    let body: string;
-    try {
-      body = await response.text();
-    } catch {
-      return {kind: 'failed', reason: 'network-error'};
-    }
-    if (parsesAsRdf(body)) {
-      return {kind: 'resolved', landingPage: false};
-    }
+  let body: string;
+  try {
+    body = await response.text();
+  } catch {
+    return {kind: 'failed', reason: 'network-error'};
   }
-  return {kind: 'failed', reason: 'wrong-content-type'};
+  return (await bodyParsesAsRdf(body, parseContentType, response.url || uri))
+    ? {kind: 'resolved', landingPage: false}
+    : {kind: 'failed', reason: 'wrong-content-type'};
 };
 
 /**
