@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.4.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.3.1...v1.4.0) (2026-06-22)
+
+
+### Features
+
+* **subject-uri-resolution:** accept RDF responses, promote HTML landing pages ([#377](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/377)) ([89bf13b](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/89bf13ba8e12e3353cb2caca791de649fc086200))
+
+
+### Bug Fixes
+
+* **config:** derive output dirs from a single OUTPUT_DIR so RDF-validity verdicts are served ([#376](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/376)) ([84fde05](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/84fde056d036925bfe300d87a7c2ec108797368e))
+* keep an ARK/Handle PID namespace even when it is a terminology prefix ([#374](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/374)) ([ca04eb1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/ca04eb1d128cc7a431628fe5cb8af52c90704016))
+
 ## [1.3.1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.3.0...v1.3.1) (2026-06-19)
 
 
