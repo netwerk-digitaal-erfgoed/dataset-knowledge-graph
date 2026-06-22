@@ -3,42 +3,33 @@ import {envSchema} from 'env-schema';
 const schema = {
   type: 'object',
   properties: {
-    // Directory the per-dataset summary n-quads are written to (one file per
-    // analysed dataset, each quad in a named graph = the dataset IRI). This is
-    // the DKG's output store: a long-running, read-only QLever co-located on the
-    // same node rebuilds its index from these files. In production this points
-    // at the shared PVC mount; the default keeps `npm run dev` self-contained.
-    OUTPUT_CACHE_DIR: {
+    // Base output directory. The per-purpose subdirectories below are derived
+    // from it (see the derivation after the schema), and the served QLever
+    // indexes every `*.nq` beneath it: one file per dataset, each quad in its
+    // named graph. In production this is the shared PVC mount (`/data`); the
+    // default keeps `npm run dev` self-contained.
+    //
+    // A single configured root keeps the directory layout here, rather than
+    // duplicated across the deployment manifests and the QLever index glob, so a
+    // new per-dataset output type needs no deployment change: it lands in a new
+    // subdirectory and the recursive index glob picks it up. (The RDF-validity
+    // verdicts went unserved precisely because a new per-directory env var and
+    // the glob had to be kept in sync by hand.)
+    OUTPUT_DIR: {
       type: 'string',
-      default: 'output/nq',
+      default: 'output',
     },
-    // Directory the per-dataset SHACL validation reports are written to as
-    // n-quads (each quad in its derived `validationGraphIri` graph). Kept in a
-    // separate directory from OUTPUT_CACHE_DIR so the two file sets are pruned
-    // and indexed independently.
-    OUTPUT_VALIDATION_CACHE_DIR: {
-      type: 'string',
-      default: 'output/validation/nq',
-    },
-    // Directory the per-dataset processing records are written to as n-quads
-    // (each in the provenance graph, keyed by dataset IRI), so a future run can
-    // skip datasets unchanged since the last run. Kept separate from
-    // OUTPUT_CACHE_DIR so the file sets are pruned and indexed independently;
-    // the served QLever indexes it alongside the others.
-    OUTPUT_PROVENANCE_CACHE_DIR: {
-      type: 'string',
-      default: 'output/provenance/nq',
-    },
-    // Directory the per-dataset RDF-validity verdicts are written to as n-quads
-    // (each quad in its derived `validityGraphIri` graph). Written by a post-run
-    // pass rather than a stage, so it captures distributions whose RDF failed to
-    // import — datasets that produce no summary at all. Kept in a separate
-    // directory from OUTPUT_CACHE_DIR so the two file sets are pruned and indexed
-    // independently.
-    OUTPUT_VALIDITY_CACHE_DIR: {
-      type: 'string',
-      default: 'output/validity/nq',
-    },
+    // Optional per-purpose overrides, normally unset: each defaults to a
+    // subdirectory of OUTPUT_DIR (summaries, validation, provenance, validity).
+    // The directories hold n-quads but carry no `nq` segment: the format is the
+    // same everywhere, and the index glob already matches on the `.nq`
+    // extension, so a Turtle inspection copy alongside is never indexed. Kept as
+    // escape hatches for relocating a single file set, and so an explicit
+    // per-directory env still wins.
+    OUTPUT_CACHE_DIR: {type: 'string'},
+    OUTPUT_VALIDATION_CACHE_DIR: {type: 'string'},
+    OUTPUT_PROVENANCE_CACHE_DIR: {type: 'string'},
+    OUTPUT_VALIDITY_CACHE_DIR: {type: 'string'},
     // Query endpoint of the served (read-only) QLever the previous run's
     // records were loaded into. The skip gate reads them from here at the start
     // of a run. Leave unset (e.g. local `npm run dev`) to disable skipping and
@@ -46,14 +37,12 @@ const schema = {
     SERVED_SPARQL_ENDPOINT: {
       type: 'string',
     },
-    // Marker file the pipeline writes (atomically) after every run — success or
-    // partial failure — to signal the serving QLever to rebuild its index from
-    // whatever n-quads were produced. Decoupling the rebuild from the pipeline's
-    // exit status means a partially-failed run still publishes the set it did
-    // process. In production this sits on the shared PVC the serving pod polls.
+    // Marker file the pipeline writes (atomically) after every run, success or
+    // partial failure, to signal the serving QLever to rebuild its index from
+    // whatever n-quads were produced. Defaults to
+    // `<OUTPUT_DIR>/summaries/.rebuild`.
     REBUILD_SENTINEL_PATH: {
       type: 'string',
-      default: 'output/nq/.rebuild',
     },
     QLEVER_ENV: {
       type: 'string',
@@ -103,6 +92,7 @@ const schema = {
 } as const;
 
 interface Config {
+  OUTPUT_DIR: string;
   OUTPUT_CACHE_DIR: string;
   OUTPUT_VALIDATION_CACHE_DIR: string;
   OUTPUT_PROVENANCE_CACHE_DIR: string;
@@ -117,7 +107,40 @@ interface Config {
   SPARQL_REQUEST_TIMEOUT_MS: number;
 }
 
-export const config = envSchema({
+// Raw env shape: the per-purpose directories (and the rebuild sentinel) are
+// optional here because each is derived from OUTPUT_DIR when left unset.
+type RawConfig = Omit<
+  Config,
+  | 'OUTPUT_CACHE_DIR'
+  | 'OUTPUT_VALIDATION_CACHE_DIR'
+  | 'OUTPUT_PROVENANCE_CACHE_DIR'
+  | 'OUTPUT_VALIDITY_CACHE_DIR'
+  | 'REBUILD_SENTINEL_PATH'
+> & {
+  OUTPUT_CACHE_DIR?: string;
+  OUTPUT_VALIDATION_CACHE_DIR?: string;
+  OUTPUT_PROVENANCE_CACHE_DIR?: string;
+  OUTPUT_VALIDITY_CACHE_DIR?: string;
+  REBUILD_SENTINEL_PATH?: string;
+};
+
+const raw = envSchema({
   schema,
   dotenv: true,
-}) as unknown as Config;
+}) as unknown as RawConfig;
+
+// Derive each per-purpose directory from OUTPUT_DIR unless explicitly
+// overridden, so the layout has a single source of truth (see OUTPUT_DIR above).
+const base = raw.OUTPUT_DIR;
+export const config: Config = {
+  ...raw,
+  OUTPUT_CACHE_DIR: raw.OUTPUT_CACHE_DIR ?? `${base}/summaries`,
+  OUTPUT_VALIDATION_CACHE_DIR:
+    raw.OUTPUT_VALIDATION_CACHE_DIR ?? `${base}/validation`,
+  OUTPUT_PROVENANCE_CACHE_DIR:
+    raw.OUTPUT_PROVENANCE_CACHE_DIR ?? `${base}/provenance`,
+  OUTPUT_VALIDITY_CACHE_DIR:
+    raw.OUTPUT_VALIDITY_CACHE_DIR ?? `${base}/validity`,
+  REBUILD_SENTINEL_PATH:
+    raw.REBUILD_SENTINEL_PATH ?? `${base}/summaries/.rebuild`,
+};
