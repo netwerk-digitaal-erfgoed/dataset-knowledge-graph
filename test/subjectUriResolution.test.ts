@@ -4,6 +4,7 @@ import type {NamedNode, Quad} from '@rdfjs/types';
 import {Dataset, Distribution} from '@lde/dataset';
 import type {ExecutorContext} from '@lde/pipeline';
 import {
+  MAX_BODY_BYTES,
   subjectUriResolution,
   type LookupOrg,
   type ResolveUri,
@@ -990,6 +991,41 @@ describe('subjectUriResolution', () => {
       expect(failureReasonFor(out, URI)).toBe(
         `${SUBJECT_RESOLUTION_FAILURE_BASE}wrong-content-type`,
       );
+    });
+
+    it('resolves a large RDF body without reading it all', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      // A valid triple up front, then far more than the read cap of padding. The
+      // parse short-circuits on the first quad, so the whole body is never read.
+      const body =
+        `<${URI}> <http://schema.org/name> "X" .\n` +
+        `# ${'p'.repeat(MAX_BODY_BYTES * 2)}`;
+      const out = await runWithFetch(
+        async () =>
+          new Response(body, {
+            status: 200,
+            headers: {'content-type': 'text/turtle'},
+          }),
+      );
+      expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+      expect(failureReasonFor(out, URI)).toBeUndefined();
+    });
+
+    it('does not see a self-reference past the body read cap', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      // The self-referencing link sits beyond MAX_BODY_BYTES, so the bounded read
+      // never reaches it: the page still resolves, but not as a landing page.
+      const body = `${'x'.repeat(MAX_BODY_BYTES + 1000)}<a href="${URI}">permalink</a>`;
+      const out = await runWithFetch(
+        async () =>
+          new Response(body, {
+            status: 200,
+            headers: {'content-type': 'text/html'},
+          }),
+      );
+      expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+      expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(0);
+      expect(failureReasonFor(out, URI)).toBeUndefined();
     });
 
     it('resolves HTML without a self-reference, not as a landing page', async () => {

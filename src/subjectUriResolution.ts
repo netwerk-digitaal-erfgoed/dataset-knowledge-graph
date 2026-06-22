@@ -784,11 +784,12 @@ const RESOLVE_ACCEPT =
   'application/trig;q=0.8,application/n-quads;q=0.8';
 
 /**
- * Cap on the bytes handed to the RDF parser, so parsing a large body cannot turn
- * a sample check into a CPU sink. Generous: a few sampled resources, parsed at
- * most once each.
+ * Cap on how many bytes of a response body we read, so a single sampled URI that
+ * returns a huge body (a misconfigured multi-GB dump, an unbounded stream) cannot
+ * turn a sample check into a memory or CPU sink. Generous: enough to hold any
+ * real landing page or to parse a sampled resource's RDF.
  */
-const MAX_PARSE_BYTES = 2_000_000;
+export const MAX_BODY_BYTES = 2_000_000;
 
 /** The media type of a response, lower-cased with any parameters stripped. */
 function mediaTypeOf(response: Response): string {
@@ -796,6 +797,44 @@ function mediaTypeOf(response: Response): string {
     .split(';')[0]
     .trim()
     .toLowerCase();
+}
+
+/**
+ * Read at most {@link MAX_BODY_BYTES} bytes of the response body as UTF-8 text,
+ * then cancel the rest of the stream (releasing the connection). Bounds memory
+ * for the self-reference scan and the RDF parse regardless of the body's size or
+ * a missing Content-Length. Falls back to `response.text()` when the body is not
+ * a readable stream (e.g. a stubbed Response in tests). Rejects on a transport
+ * error, which the caller treats as a transient `network-error`.
+ */
+async function readBoundedText(response: Response): Promise<string> {
+  const body = response.body;
+  if (!body) {
+    return response.text();
+  }
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  let bytesRead = 0;
+  try {
+    for (;;) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      // Take only up to the remaining budget from this chunk, so a body that
+      // arrives in one large chunk is still bounded, not appended whole.
+      const remaining = MAX_BODY_BYTES - bytesRead;
+      const chunk =
+        value.byteLength > remaining ? value.subarray(0, remaining) : value;
+      // stream: true so a multi-byte character split across chunks decodes correctly.
+      text += decoder.decode(chunk, {stream: true});
+      bytesRead += chunk.byteLength;
+      if (bytesRead >= MAX_BODY_BYTES) break;
+    }
+  } finally {
+    // Stop downloading the remainder and free the socket for reuse.
+    await reader.cancel().catch(() => {});
+  }
+  return text + decoder.decode();
 }
 
 /**
@@ -842,12 +881,12 @@ function rdfParseContentType(mediaType: string): string | null {
 }
 
 /**
- * Whether `body` parses as at least one RDF quad under `contentType`, capped at
- * {@link MAX_PARSE_BYTES}. Uses rdf-parse — the parser behind the project's
- * `rdf-dereference` — so every serialisation it supports (the Turtle family,
- * JSON-LD, RDF/XML) is recognised, not just the Turtle family. `baseIri`
- * resolves relative IRIs (the response's final, redirected URL). A parser error,
- * or zero quads, means “not RDF”.
+ * Whether `body` parses as at least one RDF quad under `contentType`. Uses
+ * rdf-parse — the parser behind the project's `rdf-dereference` — so every
+ * serialisation it supports (the Turtle family, JSON-LD, RDF/XML) is recognised,
+ * not just the Turtle family. `body` is already bounded by {@link readBoundedText}.
+ * `baseIri` resolves relative IRIs (the response's final, redirected URL). A
+ * parser error, or zero quads, means “not RDF”.
  */
 function bodyParsesAsRdf(
   body: string,
@@ -857,13 +896,10 @@ function bodyParsesAsRdf(
   return new Promise(resolve => {
     let parsed: Readable;
     try {
-      parsed = rdfParser.parse(
-        Readable.from([body.slice(0, MAX_PARSE_BYTES)]),
-        {
-          contentType,
-          baseIRI: baseIri,
-        },
-      ) as unknown as Readable;
+      parsed = rdfParser.parse(Readable.from([body]), {
+        contentType,
+        baseIRI: baseIri,
+      }) as unknown as Readable;
     } catch {
       resolve(false);
       return;
@@ -911,7 +947,7 @@ const defaultResolve: ResolveUri = async (uri, signal) => {
   if (mediaType === 'text/html') {
     let body: string;
     try {
-      body = await response.text();
+      body = await readBoundedText(response);
     } catch {
       // A `200 text/html` whose body cannot be read is a transport failure.
       return {kind: 'failed', reason: 'network-error'};
@@ -933,7 +969,7 @@ const defaultResolve: ResolveUri = async (uri, signal) => {
   }
   let body: string;
   try {
-    body = await response.text();
+    body = await readBoundedText(response);
   } catch {
     return {kind: 'failed', reason: 'network-error'};
   }
