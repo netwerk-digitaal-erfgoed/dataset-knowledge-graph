@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.4.0...v2.0.0) (2026-06-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **subject-uri-resolution:** persist every sampled URI outcome and resolve HTML-first ([#382](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/382))
+
+### Features
+
+* **subject-uri-resolution:** persist every sampled URI outcome and resolve HTML-first ([#382](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/382)) ([c897b22](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/c897b2297ca5440386e2bccdeb63b2429e5de614))
+
 ## [1.4.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.3.1...v1.4.0) (2026-06-22)
 
 
