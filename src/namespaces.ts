@@ -8,3 +8,4 @@ import namespace from '@rdfjs/namespace';
 export const metric = namespace('https://def.nde.nl/metric#');
 export const probe = namespace('https://def.nde.nl/probe#');
 export const failure = namespace('https://def.nde.nl/failure#');
+export const resolution = namespace('https://def.nde.nl/resolution#');

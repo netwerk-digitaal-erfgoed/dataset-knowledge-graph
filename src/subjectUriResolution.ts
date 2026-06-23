@@ -12,11 +12,7 @@ import {
   type Distribution,
 } from '@lde/dataset';
 import type {ExecutorContext, QuadTransform} from '@lde/pipeline';
-import {
-  failureReasonIri,
-  failureUsageQuads,
-  type SampleFailure,
-} from './failureUsage.js';
+import {outcomeUsageQuads, type SampleOutcome} from './failureUsage.js';
 import {metric} from './namespaces.js';
 import {
   booleanMeasurement,
@@ -27,8 +23,15 @@ import {iiifManifestFormatFilter} from './iiifManifestDetection.js';
 
 const {namedNode, literal, quad} = DataFactory;
 
-const SUBJECT_RESOLUTION_FAILURE_BASE =
-  'https://def.nde.nl/subject-resolution-failure#';
+/**
+ * Concept scheme for the outcome of dereferencing a sampled subject URI,
+ * recorded per URI as `resolution:outcome` (see {@link outcomeUsageQuads}). The
+ * success states (`resolved`, `html-landing-page`) and the definitive failure
+ * reasons (`http-error`, `wrong-content-type`) share one scheme, so a consumer
+ * reads a single, uniform outcome for every measurable sampled URI.
+ */
+const SUBJECT_RESOLUTION_OUTCOME_BASE =
+  'https://def.nde.nl/subject-resolution-outcome#';
 
 /**
  * Why a sampled subject URI did not resolve. A subject URI resolves when it
@@ -36,13 +39,15 @@ const SUBJECT_RESOLUTION_FAILURE_BASE =
  * serialisation); {@link Resolution} carries that success out-of-band, so this
  * enum names only the failures. Whether a resolved HTML page is a *landing page*
  * (it self-references its own URI) is a separate, non-failing distinction — see
- * {@link Resolution}. Mirrors the `subject-resolution-failure` concept scheme.
+ * {@link Resolution}. The definitive reasons surface as
+ * `subject-resolution-outcome#` concepts (see {@link outcomeIriFor}).
  *
  * Outcomes split into two classes (see {@link isTransientFailure}):
  * - **definitive** — `http-error` (a non-retryable `4xx` such as `404`/`410`)
  *   and `wrong-content-type` (a `2xx` that is neither HTML nor RDF, e.g. a JSON
  *   or plain-text error page): a genuine, dataset-attributable defect. Counted
- *   against the ratio and persisted in the PROV trail.
+ *   against the ratio and persisted in the PROV trail as a
+ *   `subject-resolution-outcome#` concept.
  * - **transient** — `timeout`, `network-error`, `server-error` (a retryable HTTP
  *   status: `408`/`425`/`429`/`5xx`): a blip in the multi-hop PID-resolver
  *   chain, not a property of the dataset.
@@ -72,9 +77,22 @@ function isTransientFailure(reason: SubjectResolutionFailure): boolean {
   return TRANSIENT_FAILURES.has(reason);
 }
 
-/** Map a failure reason to its `subject-resolution-failure#` concept IRI. */
-function subjectResolutionFailureIri(reason: SubjectResolutionFailure) {
-  return failureReasonIri(SUBJECT_RESOLUTION_FAILURE_BASE, reason);
+/**
+ * Map a settled {@link Resolution} to its `subject-resolution-outcome#` concept:
+ * `html-landing-page` or `resolved` for a success (the landing-page flag
+ * promotes the human-readable page), else the definitive failure reason itself
+ * (`http-error`/`wrong-content-type`). Only ever called for a *measurable*
+ * outcome — a resolution or a definitive failure — so a transient reason never
+ * reaches it.
+ */
+function outcomeIriFor(resolution: Resolution): NamedNode {
+  const localName =
+    resolution.kind === 'resolved'
+      ? resolution.landingPage
+        ? 'html-landing-page'
+        : 'resolved'
+      : resolution.reason;
+  return namedNode(`${SUBJECT_RESOLUTION_OUTCOME_BASE}${localName}`);
 }
 
 const PID_SCHEME_BASE = 'https://def.nde.nl/pid-scheme#';
@@ -348,7 +366,7 @@ export function subjectUriResolution(
       // One budget shared across every dereference: once it elapses, in-flight
       // fetches abort and resolveWithRetry stops scheduling retries.
       const phaseSignal = AbortSignal.timeout(DEREFERENCE_PHASE_BUDGET_MS);
-      const outcomes = await Promise.all(
+      const resolutions = await Promise.all(
         sampled.map(uri =>
           limit(() =>
             resolveWithRetry(uri, resolve, retries, sleep, phaseSignal),
@@ -358,38 +376,36 @@ export function subjectUriResolution(
 
       // Classify each settled outcome. A resolution counts toward the ratio,
       // and toward the HTML-landing-page tally when it is one. A *definitive*
-      // failure is a real defect — counted and persisted. A *transient* failure
-      // survived every retry, so the resolver chain (not the dataset) is at
-      // fault: drop the URI from the sample entirely rather than scoring it as
-      // broken.
+      // failure is a real defect. Both are *measurable*, so each is persisted as
+      // a per-URI outcome usage. A *transient* failure survived every retry, so
+      // the resolver chain (not the dataset) is at fault: drop the URI from the
+      // sample entirely rather than scoring it as broken — it gets no usage.
       let resolved = 0;
       let htmlLandingPages = 0;
-      const failures: SampleFailure[] = [];
+      const outcomes: SampleOutcome[] = [];
       sampled.forEach((uri, index) => {
-        const outcome = outcomes[index];
-        if (outcome.kind === 'resolved') {
+        const resolution = resolutions[index];
+        if (resolution.kind === 'resolved') {
           resolved++;
-          if (outcome.landingPage) htmlLandingPages++;
-        } else if (!isTransientFailure(outcome.reason)) {
-          failures.push({
-            url: uri,
-            reasonIri: subjectResolutionFailureIri(outcome.reason),
-          });
+          if (resolution.landingPage) htmlLandingPages++;
+        } else if (isTransientFailure(resolution.reason)) {
+          return;
         }
+        outcomes.push({url: uri, outcomeIri: outcomeIriFor(resolution)});
       });
       // The denominator counts only definitively-judged URIs; transient ones are
-      // excluded. With nothing measurable — an empty sample, or every URI
-      // transiently unreachable — the declared facts above stand on their own,
-      // so append no misleading 0/0 ratio (and no failure marker: the sample
-      // query itself succeeded).
-      const measurable = resolved + failures.length;
+      // excluded, so every persisted outcome is one measurable URI. With nothing
+      // measurable — an empty sample, or every URI transiently unreachable — the
+      // declared facts above stand on their own, so append no misleading 0/0
+      // ratio (and no failure marker: the sample query itself succeeded).
+      const measurable = outcomes.length;
       if (measurable > 0) {
         yield* measurementQuads(
           subset,
           measurable,
           resolved,
           htmlLandingPages,
-          failures,
+          outcomes,
           software,
         );
       }
@@ -562,16 +578,17 @@ function* measurementQuads(
   sampled: number,
   resolved: number,
   htmlLandingPages: number,
-  failures: readonly SampleFailure[],
+  outcomes: readonly SampleOutcome[],
   software: NamedNode,
 ): Generator<Quad> {
   // PROV: the sampling/dereferencing activity, with a qualified usage per
-  // failed sample naming the URI and why it did not resolve. Every structural
-  // node is a skolem IRI derived from the (unique) subset, not a blank node, so
-  // it cannot collide with another stage’s nodes in the dataset graph (#352).
+  // measurable sample naming the URI and its resolution outcome. Every
+  // structural node is a skolem IRI derived from the (unique) subset, not a
+  // blank node, so it cannot collide with another stage’s nodes in the dataset
+  // graph (#352).
   const activity = namedNode(skolemIri(subset.value, 'resolution-activity'));
   yield* provActivity(activity, subset, software);
-  yield* failureUsageQuads(activity, failures);
+  yield* outcomeUsageQuads(activity, outcomes);
 
   // Validated facts — the sampled/resolved ratio, for any namespace, plus how
   // many of the resolved URIs served an HTML landing page (a non-failing signal
@@ -773,15 +790,25 @@ const defaultSampleUris: SampleUris = async (
 };
 
 /**
- * Accept header for dereferencing: HTML is preferred (unweighted, so `q=1`) so a
- * server that *can* serve a human-readable landing page does — which is what the
- * `landingPage` signal promotes — with the common RDF serialisations offered as
- * acceptable fallbacks for a data-only namespace.
+ * Accept header for the first dereference probe: HTML and nothing else. A
+ * combined header that also lists RDF types cannot discover a human-readable
+ * landing page, because a large class of servers (Omeka-S among them) ignore
+ * Accept `q`-values and serve their default RDF serialisation whenever *any* RDF
+ * type is acceptable — so HTML at `q=1` still loses to RDF at `q=0.8`. Offering
+ * `text/html` alone is the only way to see the page a browser would get, which
+ * is exactly what the `landingPage` signal promotes.
  */
-const RESOLVE_ACCEPT =
-  'text/html,application/ld+json;q=0.9,text/turtle;q=0.9,' +
-  'application/rdf+xml;q=0.8,application/n-triples;q=0.8,' +
-  'application/trig;q=0.8,application/n-quads;q=0.8';
+const HTML_ACCEPT = 'text/html';
+
+/**
+ * Accept header for the second (fallback) probe: the RDF serialisations only,
+ * no HTML. Sent only when the {@link HTML_ACCEPT} probe definitively yields no
+ * HTML page (e.g. a `406 Not Acceptable` from a data-only namespace), to confirm
+ * the URI still resolves as data.
+ */
+const RDF_ACCEPT =
+  'application/ld+json,text/turtle,application/rdf+xml,' +
+  'application/n-triples,application/trig,application/n-quads';
 
 /**
  * Cap on how many bytes of a response body we read, so a single sampled URI that
@@ -915,55 +942,32 @@ function bodyParsesAsRdf(
   });
 }
 
-/**
- * Default resolution check: follow redirects and accept any `2xx` that is HTML
- * or RDF. An HTML page that advertises the original sampled URI (raw or
- * HTML-entity-escaped) is a {@link Resolution landing page} — a human-readable
- * page for the identifier, the permanent link back to the user, which matters
- * because we may have landed on a different, redirected URL. RDF (or HTML that
- * does not mention the URI) still resolves; it just is not a landing page. A
- * `2xx` that is neither HTML nor RDF is a `wrong-content-type` failure.
- */
-const defaultResolve: ResolveUri = async (uri, signal) => {
+/** Fetch `uri` with the given `accept` header, following redirects. */
+function fetchWithAccept(
+  uri: string,
+  accept: string,
+  signal?: AbortSignal,
+): Promise<Response> {
   // The request aborts on whichever fires first: its own per-request timeout or
   // the overall phase budget carried by `signal`.
   const timeout = AbortSignal.timeout(DEREFERENCE_TIMEOUT_MS);
   const abort = signal ? AbortSignal.any([timeout, signal]) : timeout;
-  let response: Response;
-  try {
-    response = await fetch(uri, {
-      redirect: 'follow',
-      headers: {accept: RESOLVE_ACCEPT},
-      signal: abort,
-    });
-  } catch (error) {
-    return {kind: 'failed', reason: classifyFetchError(error)};
-  }
-  if (!response.ok) {
-    return {kind: 'failed', reason: classifyHttpStatus(response.status)};
-  }
+  return fetch(uri, {redirect: 'follow', headers: {accept}, signal: abort});
+}
 
-  const mediaType = mediaTypeOf(response);
-  if (mediaType === 'text/html') {
-    let body: string;
-    try {
-      body = await readBoundedText(response);
-    } catch {
-      // A `200 text/html` whose body cannot be read is a transport failure.
-      return {kind: 'failed', reason: 'network-error'};
-    }
-    // A landing page advertises its own URI; HTML that does not still resolves.
-    return {
-      kind: 'resolved',
-      landingPage: body.includes(uri) || body.includes(htmlEscape(uri)),
-    };
-  }
-  // Not HTML: confirm the body parses as RDF. rdf-parse needs the content type,
-  // so a generic or mislabelled one is mapped to a best-effort serialisation
-  // (see rdfParseContentType); a plainly non-RDF binary type is rejected without
-  // a parse. The parse — not the header — is the authority, so a server that only
-  // claims an RDF content type but serves an error/HTML body does not resolve.
-  const parseContentType = rdfParseContentType(mediaType);
+/**
+ * Classify a `2xx` response as RDF: confirm the body parses as RDF. rdf-parse
+ * needs the content type, so a generic or mislabelled one is mapped to a
+ * best-effort serialisation (see {@link rdfParseContentType}); a plainly non-RDF
+ * binary type is rejected without a parse. The parse — not the header — is the
+ * authority, so a server that only *claims* an RDF content type but serves an
+ * error/HTML body does not resolve. An RDF body is never a landing page.
+ */
+async function classifyRdfResponse(
+  response: Response,
+  uri: string,
+): Promise<Resolution> {
+  const parseContentType = rdfParseContentType(mediaTypeOf(response));
   if (parseContentType === null) {
     return {kind: 'failed', reason: 'wrong-content-type'};
   }
@@ -976,6 +980,72 @@ const defaultResolve: ResolveUri = async (uri, signal) => {
   return (await bodyParsesAsRdf(body, parseContentType, response.url || uri))
     ? {kind: 'resolved', landingPage: false}
     : {kind: 'failed', reason: 'wrong-content-type'};
+}
+
+/**
+ * Default resolution check: an HTML-first, two-probe dereference (see
+ * {@link HTML_ACCEPT}/{@link RDF_ACCEPT} for why a single combined header cannot
+ * see a landing page on a `q`-value-ignoring server).
+ *
+ * 1. Probe `Accept: text/html`. A `2xx text/html` resolves; it is a
+ *    {@link Resolution landing page} when its body advertises the original
+ *    sampled URI (raw or HTML-entity-escaped) — the permanent link back to the
+ *    user, which matters because we may have landed on a redirected URL. A `2xx`
+ *    that is some other representation (a server ignoring the html-only request)
+ *    is classified from the bytes already in hand as RDF, with no second probe.
+ * 2. Only when the HTML probe is a *definitive* non-2xx (e.g. `406 Not
+ *    Acceptable` from a data-only namespace, or a `404`) fall back to an
+ *    `Accept: <RDF>` probe and classify that as RDF. A *transient* non-2xx is
+ *    returned as-is for the retry loop rather than spending a fallback probe a
+ *    blip would likely fail too.
+ */
+const defaultResolve: ResolveUri = async (uri, signal) => {
+  let response: Response;
+  try {
+    response = await fetchWithAccept(uri, HTML_ACCEPT, signal);
+  } catch (error) {
+    return {kind: 'failed', reason: classifyFetchError(error)};
+  }
+  if (response.ok) {
+    if (mediaTypeOf(response) === 'text/html') {
+      let body: string;
+      try {
+        body = await readBoundedText(response);
+      } catch {
+        // A `200 text/html` whose body cannot be read is a transport failure.
+        return {kind: 'failed', reason: 'network-error'};
+      }
+      // A landing page advertises its own URI; HTML that does not still resolves.
+      return {
+        kind: 'resolved',
+        landingPage: body.includes(uri) || body.includes(htmlEscape(uri)),
+      };
+    }
+    // The server ignored the html-only request and served another
+    // representation; we already have the bytes, so classify them as RDF
+    // without a redundant second probe.
+    return classifyRdfResponse(response, uri);
+  }
+
+  // Non-2xx to the HTML probe. A transient status is the resolver chain
+  // blipping, not a missing HTML page, so return it for the retry loop rather
+  // than spending a fallback probe it would likely fail too.
+  const htmlFailure = classifyHttpStatus(response.status);
+  if (isTransientFailure(htmlFailure)) {
+    return {kind: 'failed', reason: htmlFailure};
+  }
+  // Definitive: the resource offers no HTML (e.g. 406) or is gone (404/410).
+  // Fall back to an RDF-only probe to see whether it still resolves as data.
+  let rdfResponse: Response;
+  try {
+    rdfResponse = await fetchWithAccept(uri, RDF_ACCEPT, signal);
+  } catch (error) {
+    return {kind: 'failed', reason: classifyFetchError(error)};
+  }
+  if (!rdfResponse.ok) {
+    return {kind: 'failed', reason: classifyHttpStatus(rdfResponse.status)};
+  }
+  return classifyRdfResponse(rdfResponse, uri);
 };
 
 /**
