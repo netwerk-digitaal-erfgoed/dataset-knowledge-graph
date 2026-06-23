@@ -127,11 +127,27 @@ function measurementValueTerm(
   )?.object;
 }
 
-const SUBJECT_RESOLUTION_FAILURE_BASE =
-  'https://def.nde.nl/subject-resolution-failure#';
 const PROV_QUALIFIED_USAGE = namedNode(
   'http://www.w3.org/ns/prov#qualifiedUsage',
 );
+const PROV_ENTITY = namedNode('http://www.w3.org/ns/prov#entity');
+const RESOLUTION_OUTCOME = namedNode('https://def.nde.nl/resolution#outcome');
+const OUTCOME_BASE = 'https://def.nde.nl/subject-resolution-outcome#';
+
+/**
+ * The `resolution:outcome` concept IRI of the qualified usage whose
+ * `prov:entity` is `url`, or `undefined` when no usage for `url` was emitted.
+ * Every measurable sampled URI — resolved or definitively failed — carries one.
+ */
+function outcomeFor(quads: Quad[], url: string): string | undefined {
+  const usage = quads.find(
+    q => q.predicate.equals(PROV_ENTITY) && q.object.value === url,
+  )?.subject;
+  if (!usage) return undefined;
+  return quads.find(
+    q => q.subject.equals(usage) && q.predicate.equals(RESOLUTION_OUTCOME),
+  )?.object.value;
+}
 
 const sampleFixed =
   (uris: string[]): SampleUris =>
@@ -180,17 +196,17 @@ describe('subjectUriResolution', () => {
       ),
     ).toHaveLength(3);
 
-    // Only the failed sample is enumerated, as a qualified usage carrying its
-    // typed reason; the two resolved samples are covered by the count alone.
+    // Every measurable sample is enumerated as a qualified usage carrying its
+    // outcome — the two resolved and the one failed alike.
     expect(
       out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
-    ).toHaveLength(1);
-    expect(failureReasonFor(out, 'http://example.org/id/bad-3')).toBe(
-      `${SUBJECT_RESOLUTION_FAILURE_BASE}http-error`,
+    ).toHaveLength(3);
+    expect(outcomeFor(out, 'http://example.org/id/bad-3')).toBe(
+      `${OUTCOME_BASE}http-error`,
     );
-    expect(
-      failureReasonFor(out, 'http://example.org/id/good-1'),
-    ).toBeUndefined();
+    expect(outcomeFor(out, 'http://example.org/id/good-1')).toBe(
+      `${OUTCOME_BASE}resolved`,
+    );
   });
 
   it('picks the most common non-terminology namespace', async () => {
@@ -392,9 +408,7 @@ describe('subjectUriResolution', () => {
     // dropped from the denominator rather than dragging the ratio down.
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
     expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
-    expect(
-      failureReasonFor(out, 'http://example.org/id/throws'),
-    ).toBeUndefined();
+    expect(outcomeFor(out, 'http://example.org/id/throws')).toBeUndefined();
   });
 
   it('retries a transient failure and counts the eventual success', async () => {
@@ -446,11 +460,11 @@ describe('subjectUriResolution', () => {
     // excluded from the denominator entirely.
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(3);
     expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(2);
-    expect(failureReasonFor(out, 'https://n2t.net/ark:/89268/gone-4')).toBe(
-      `${SUBJECT_RESOLUTION_FAILURE_BASE}wrong-content-type`,
+    expect(outcomeFor(out, 'https://n2t.net/ark:/89268/gone-4')).toBe(
+      `${OUTCOME_BASE}wrong-content-type`,
     );
     expect(
-      failureReasonFor(out, 'https://n2t.net/ark:/89268/blip-3'),
+      outcomeFor(out, 'https://n2t.net/ark:/89268/blip-3'),
     ).toBeUndefined();
   });
 
@@ -602,6 +616,95 @@ describe('subjectUriResolution', () => {
       measurementValueTerm(out, SAMPLING_FAILED_METRIC, ns.node)?.value,
     ).toBe('true');
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
+  });
+
+  describe('per-URI resolution outcomes', () => {
+    it('records a resolved RDF URI as a resolved outcome usage', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed(['http://example.org/id/good']),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(outcomeFor(out, 'http://example.org/id/good')).toBe(
+        `${OUTCOME_BASE}resolved`,
+      );
+    });
+
+    it('records a self-referencing HTML page as an html-landing-page outcome', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed(['http://example.org/id/page']),
+        resolve: async () => ({kind: 'resolved', landingPage: true}),
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(outcomeFor(out, 'http://example.org/id/page')).toBe(
+        `${OUTCOME_BASE}html-landing-page`,
+      );
+    });
+
+    it('records a definitive failure as its reason outcome, without failure:reason', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed([
+          'http://example.org/id/gone',
+          'http://example.org/id/junk',
+        ]),
+        resolve: async uri =>
+          uri.endsWith('gone')
+            ? {kind: 'failed', reason: 'http-error'}
+            : {kind: 'failed', reason: 'wrong-content-type'},
+        sleep: async () => {},
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(outcomeFor(out, 'http://example.org/id/gone')).toBe(
+        `${OUTCOME_BASE}http-error`,
+      );
+      expect(outcomeFor(out, 'http://example.org/id/junk')).toBe(
+        `${OUTCOME_BASE}wrong-content-type`,
+      );
+      // The unified outcome replaces the old failure:reason shape entirely.
+      expect(
+        failureReasonFor(out, 'http://example.org/id/gone'),
+      ).toBeUndefined();
+    });
+
+    it('leaves no usage for a transiently-excluded URI', async () => {
+      const ns = subset('http://example.org/id/', 10);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed([
+          'http://example.org/id/good',
+          'http://example.org/id/blip',
+        ]),
+        resolve: async uri =>
+          uri.endsWith('blip')
+            ? {kind: 'failed', reason: 'timeout'}
+            : {kind: 'resolved', landingPage: false},
+        sleep: async () => {},
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      // The transient URI is dropped from the sample: no outcome usage at all.
+      expect(outcomeFor(out, 'http://example.org/id/blip')).toBeUndefined();
+      expect(outcomeFor(out, 'http://example.org/id/good')).toBe(
+        `${OUTCOME_BASE}resolved`,
+      );
+      // One usage per measurable URI — here just the one resolved URI.
+      expect(
+        out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
+      ).toHaveLength(1);
+    });
   });
 
   describe('non-durable subject namespaces', () => {
@@ -853,7 +956,7 @@ describe('subjectUriResolution', () => {
       });
       // A network error is transient: retried, then dropped from the sample
       // entirely rather than scored as a non-resolution.
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBeUndefined();
       expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
     });
 
@@ -864,7 +967,7 @@ describe('subjectUriResolution', () => {
         error.name = 'TimeoutError';
         throw error;
       });
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBeUndefined();
       expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
     });
 
@@ -873,7 +976,7 @@ describe('subjectUriResolution', () => {
       const out = await runWithFetch(
         async () => new Response('', {status: 503}),
       );
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBeUndefined();
       expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
     });
 
@@ -884,7 +987,7 @@ describe('subjectUriResolution', () => {
       const out = await runWithFetch(
         async () => new Response('', {status: 408}),
       );
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBeUndefined();
       expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
     });
 
@@ -894,9 +997,7 @@ describe('subjectUriResolution', () => {
         async () => new Response('', {status: 404}),
       );
       // A 404 is definitive: counted against the ratio and persisted.
-      expect(failureReasonFor(out, URI)).toBe(
-        `${SUBJECT_RESOLUTION_FAILURE_BASE}http-error`,
-      );
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}http-error`);
       expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
     });
 
@@ -910,9 +1011,7 @@ describe('subjectUriResolution', () => {
           }),
       );
       // A JSON error page is neither HTML nor RDF: a definitive failure.
-      expect(failureReasonFor(out, URI)).toBe(
-        `${SUBJECT_RESOLUTION_FAILURE_BASE}wrong-content-type`,
-      );
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}wrong-content-type`);
       expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(1);
     });
 
@@ -928,7 +1027,7 @@ describe('subjectUriResolution', () => {
       // RDF resolves (counts toward the ratio) but is not an HTML landing page.
       expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
       expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(0);
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}resolved`);
     });
 
     it('resolves a generically-typed body that parses as RDF', async () => {
@@ -943,7 +1042,7 @@ describe('subjectUriResolution', () => {
       // A misconfigured server serving Turtle as text/plain still resolves: the
       // body is parsed as a fallback when the content type is too generic.
       expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}resolved`);
     });
 
     it('fails a generically-typed body that is not RDF', async () => {
@@ -954,9 +1053,7 @@ describe('subjectUriResolution', () => {
             headers: {'content-type': 'text/plain'},
           }),
       );
-      expect(failureReasonFor(out, URI)).toBe(
-        `${SUBJECT_RESOLUTION_FAILURE_BASE}wrong-content-type`,
-      );
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}wrong-content-type`);
     });
 
     it('resolves JSON-LD served under a plain application/json content type', async () => {
@@ -975,7 +1072,7 @@ describe('subjectUriResolution', () => {
           }),
       );
       expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}resolved`);
     });
 
     it('fails an RDF content type whose body is not RDF', async () => {
@@ -988,9 +1085,7 @@ describe('subjectUriResolution', () => {
             headers: {'content-type': 'text/turtle'},
           }),
       );
-      expect(failureReasonFor(out, URI)).toBe(
-        `${SUBJECT_RESOLUTION_FAILURE_BASE}wrong-content-type`,
-      );
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}wrong-content-type`);
     });
 
     it('resolves a large RDF body without reading it all', async () => {
@@ -1008,7 +1103,7 @@ describe('subjectUriResolution', () => {
           }),
       );
       expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}resolved`);
     });
 
     it('does not see a self-reference past the body read cap', async () => {
@@ -1025,7 +1120,7 @@ describe('subjectUriResolution', () => {
       );
       expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
       expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(0);
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}resolved`);
     });
 
     it('resolves HTML without a self-reference, not as a landing page', async () => {
@@ -1037,7 +1132,7 @@ describe('subjectUriResolution', () => {
       // counted as a landing page.
       expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
       expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(0);
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}resolved`);
     });
 
     it('excludes an unreadable body as a transient blip', async () => {
@@ -1054,7 +1149,7 @@ describe('subjectUriResolution', () => {
       );
       // A `200 text/html` whose body cannot be read is a transport failure
       // (network-error): retried, then excluded rather than scored.
-      expect(failureReasonFor(out, URI)).toBeUndefined();
+      expect(outcomeFor(out, URI)).toBeUndefined();
       expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
     });
 
@@ -1066,10 +1161,111 @@ describe('subjectUriResolution', () => {
       expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
       // A self-referencing HTML page is the promoted landing page.
       expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(1);
-      expect(failureReasonFor(out, URI)).toBeUndefined();
-      expect(out.some(q => q.predicate.equals(PROV_QUALIFIED_USAGE))).toBe(
-        false,
-      );
+      // It is persisted as a single html-landing-page outcome usage.
+      expect(outcomeFor(out, URI)).toBe(`${OUTCOME_BASE}html-landing-page`);
+      expect(
+        out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
+      ).toHaveLength(1);
+    });
+
+    /** The `Accept` header sent on a stubbed fetch call. */
+    function acceptOf(init: RequestInit | undefined): string {
+      return String((init?.headers as Record<string, string>)?.accept ?? '');
+    }
+
+    describe('html-first two-probe resolution', () => {
+      it('detects a landing page on a conneg server that serves RDF under a combined Accept header', async () => {
+        // The bD64Hu / Omeka-S case: the server ignores Accept q-values and
+        // returns RDF whenever any RDF type is acceptable, but serves the
+        // human-readable HTML page when only text/html is offered. Probing
+        // html-first must find the landing page instead of stopping at the RDF
+        // a combined header would yield.
+        const ns = subset('http://example.org/id/', 10);
+        const accepts: string[] = [];
+        const out = await runWithFetch(async (_input, init) => {
+          const accept = acceptOf(init);
+          accepts.push(accept);
+          if (accept === 'text/html') {
+            return htmlResponse(`<html><a href="${URI}">permalink</a></html>`);
+          }
+          // Any RDF-accepting request: the server serves its default RDF.
+          return new Response(`<${URI}> <http://schema.org/name> "X" .`, {
+            status: 200,
+            headers: {'content-type': 'application/n-triples'},
+          });
+        });
+
+        expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+        expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(
+          1,
+        );
+        // The html-only probe must have been sent.
+        expect(accepts).toContain('text/html');
+      });
+
+      it('classifies a 2xx RDF body from the html probe without a second probe', async () => {
+        // A server that ignores the html-only request and serves RDF anyway: we
+        // already hold the bytes, so it resolves as data from the first probe —
+        // no redundant RDF probe.
+        const ns = subset('http://example.org/id/', 10);
+        const accepts: string[] = [];
+        const out = await runWithFetch(async (_input, init) => {
+          accepts.push(acceptOf(init));
+          return new Response(`<${URI}> <http://schema.org/name> "X" .`, {
+            status: 200,
+            headers: {'content-type': 'text/turtle'},
+          });
+        });
+
+        expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+        expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(
+          0,
+        );
+        // Exactly one probe, and it was the html-only one.
+        expect(accepts).toEqual(['text/html']);
+      });
+
+      it('falls back to an RDF probe when the html probe is 406 Not Acceptable', async () => {
+        // A data-only namespace with correct conneg: no HTML representation, so
+        // text/html gets a definitive 406. The RDF fallback then resolves it.
+        const ns = subset('http://example.org/id/', 10);
+        const accepts: string[] = [];
+        const out = await runWithFetch(async (_input, init) => {
+          const accept = acceptOf(init);
+          accepts.push(accept);
+          if (accept === 'text/html') {
+            return new Response('', {status: 406});
+          }
+          return new Response(`<${URI}> <http://schema.org/name> "X" .`, {
+            status: 200,
+            headers: {'content-type': 'text/turtle'},
+          });
+        });
+
+        expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(1);
+        expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(
+          0,
+        );
+        // The html probe failed definitively, so the RDF probe fired after it.
+        expect(accepts[0]).toBe('text/html');
+        expect(accepts.some(accept => accept !== 'text/html')).toBe(true);
+      });
+
+      it('does not spend an RDF probe on a transient html-probe failure', async () => {
+        // A 503 to the html probe is a resolver-chain blip, not a missing HTML
+        // page: it is excluded as transient and no RDF fallback is attempted.
+        const ns = subset('http://example.org/id/', 10);
+        const accepts: string[] = [];
+        const out = await runWithFetch(async (_input, init) => {
+          accepts.push(acceptOf(init));
+          return new Response('', {status: 503});
+        });
+
+        // Transient: dropped from the sample, no ratio.
+        expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
+        // Every probe sent was the html-only one — never the RDF fallback.
+        expect(accepts.every(accept => accept === 'text/html')).toBe(true);
+      });
     });
   });
 });
