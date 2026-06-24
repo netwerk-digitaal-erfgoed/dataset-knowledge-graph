@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v2.0.0...v2.0.1) (2026-06-24)
+
+
+### Performance Improvements
+
+* **iiif:** detect manifests in a single encodingFormat scan ([#386](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/386)) ([c614ba7](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/c614ba78946229c1e0d01af1ebeee0277874d577))
+
 ## [2.0.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v1.4.0...v2.0.0) (2026-06-23)
 
 
