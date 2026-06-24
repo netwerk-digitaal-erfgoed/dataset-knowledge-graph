@@ -32,27 +32,30 @@ CONSTRUCT {
 }
 WHERE {
     {
-        # Capability count: every manifest the dataset exposes, conformant or not.
-        # A manifest is detected by its `schema:encodingFormat` literal being
-        # either the SCHEMA-AP-NDE profile media type *or* the bare JSON-LD media
-        # type `application/ld+json` (issue #314: a functional manifest declared
-        # without the `;profile=` parameter must still count). Matched without
-        # REGEX — a regex over every encodingFormat literal is costly on QLever
-        # and on remote endpoints alike; STRSTARTS lets engines prefix-scan.
-        SELECT (COUNT(DISTINCT ?s) AS ?count) {
+        # Capability *and* conformance counts in a SINGLE scan of every
+        # `schema:encodingFormat` literal. A manifest is detected by its format
+        # being either the SCHEMA-AP-NDE profile media type *or* the bare JSON-LD
+        # media type `application/ld+json` (issue #314: a functional manifest
+        # declared without the `;profile=` parameter must still count). Matched
+        # without REGEX — a regex over every encodingFormat literal is costly on
+        # QLever and on remote endpoints alike; STRSTARTS lets engines prefix-scan.
+        #
+        # Because `conformant ⊆ capability`, the capability FILTER gates which
+        # rows are scanned and the stricter conformance test is folded into a
+        # conditional projection instead of a second pass: `?conformantSubject`
+        # is bound to `?s` only for profile-conformant formats and left unbound
+        # otherwise (IF’s else-branch evaluates an unbound variable, so BIND
+        # leaves it unbound), so `COUNT(DISTINCT ?conformantSubject)` counts only
+        # the conformant subjects. The conformance test keeps its own `isLiteral`
+        # guard so it stays self-contained; the version segment (e.g. /2/, /3/) is
+        # left unconstrained, intentionally forwards-compatible.
+        SELECT
+            (COUNT(DISTINCT ?s) AS ?count)
+            (COUNT(DISTINCT ?conformantSubject) AS ?conformantCount) {
             #subjectFilter#
             ?s schema:encodingFormat|<http://schema.org/encodingFormat> ?format .
             FILTER(#manifestFormatFilter#)
-        }
-    }
-    {
-        # Conformance count: only manifests whose encodingFormat carries the full
-        # SCHEMA-AP-NDE profile pattern. The version segment (e.g. /2/, /3/) is
-        # left unconstrained, which is intentionally forwards-compatible.
-        SELECT (COUNT(DISTINCT ?s) AS ?conformantCount) {
-            #subjectFilter#
-            ?s schema:encodingFormat|<http://schema.org/encodingFormat> ?format .
-            FILTER(#conformantFormatFilter#)
+            BIND(IF(#conformantFormatFilter#, ?s, ?unboundConformant) AS ?conformantSubject)
         }
     }
     # OPTIONAL so detection survives an empty sample: if every matched manifest
