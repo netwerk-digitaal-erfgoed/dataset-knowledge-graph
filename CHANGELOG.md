@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v2.0.1...v2.1.0) (2026-06-25)
+
+
+### Features
+
+* **pipeline:** fall back to a dump import when an endpoint stage fails ([#390](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/390)) ([f1607ef](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/f1607ef2a1c0ebf49cb708ed4a3eee9ebac8ab74))
+
 ## [2.0.1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v2.0.0...v2.0.1) (2026-06-24)
 
 
