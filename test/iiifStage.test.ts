@@ -257,22 +257,46 @@ describe('iiif.rq detection query', () => {
 
   it('does not match near-miss encodingFormat literals', async () => {
     const turtle = `
-      # Different profile URL.
+      # Different IIIF API: the Image context, not Presentation.
       <http://example.org/work/1> schema:encodingFormat
         "application/ld+json;profile='http://iiif.io/api/image/3/context.json'" .
       # Missing the trailing context.json segment.
       <http://example.org/work/2> schema:encodingFormat
         "application/ld+json;profile='http://iiif.io/api/presentation/3/'" .
-      # Malformed: no quotes around the profile URL.
-      <http://example.org/work/3> schema:encodingFormat
-        "application/ld+json;profile=http://iiif.io/api/presentation/3/context.json" .
-      # Extra trailing characters.
-      <http://example.org/work/4> schema:encodingFormat
-        "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json' charset=utf-8" .
     `;
 
     const quads = await runQueryOn(turtle);
     expect(quads).toHaveLength(0);
+  });
+
+  it('matches the profile media type regardless of quote style or whitespace', async () => {
+    // The profile parameter names the same context URI however it is serialized,
+    // so detection must be serialization-agnostic. Real data exposes all of these
+    // forms: the SCHEMA-AP-NDE / Linked Art single-quote convention, the HTTP/MIME-
+    // and JSON-LD-conformant double-quote form (which RMO’s data dump uses), an
+    // optional space after the semicolon, and the unquoted form. (`\\"` is an
+    // escaped double quote inside the Turtle string literal.)
+    const turtle = `
+      <http://example.org/work/1> schema:encodingFormat
+        "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'" .
+      <http://example.org/work/2> schema:encodingFormat
+        "application/ld+json;profile=\\"http://iiif.io/api/presentation/3/context.json\\"" .
+      <http://example.org/work/3> schema:encodingFormat
+        "application/ld+json; profile=\\"http://iiif.io/api/presentation/3/context.json\\"" .
+      <http://example.org/work/4> schema:encodingFormat
+        "application/ld+json;profile=http://iiif.io/api/presentation/3/context.json" .
+    `;
+
+    const quads = await runQueryOn(turtle);
+
+    const subsetIri = findSubsetIri(quads);
+    expect(subsetIri).toBe(EXPECTED_SUBSET_IRI);
+    // All four serializations counted as four distinct manifests.
+    expect(findEntitiesCount(quads, subsetIri!)).toBe(4);
+    // And all four are profile-conformant — the bare ld+json form is the only
+    // capability-but-not-conformance case, covered by its own test.
+    const conformantIri = findConformantSubsetIri(quads, subsetIri!);
+    expect(findEntitiesCount(quads, conformantIri!)).toBe(4);
   });
 
   it('detects manifests published under https://schema.org/encodingFormat', async () => {
