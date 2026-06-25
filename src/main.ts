@@ -220,6 +220,11 @@ try {
     distributionResolver: new ImportResolver(new SparqlDistributionResolver(), {
       importer,
       server,
+      // Endpoint-first, but empirical: when a declared SPARQL endpoint passes
+      // probing yet fails to serve an analysis stage, fall back to importing the
+      // dataset’s data dump and re-run all stages locally, rather than storing a
+      // partial, internally inconsistent summary (ldelements/lde#445).
+      strategy: 'sparqlWithImportFallback',
     }),
     stages,
     plugins: [schemaOrgNormalizationPlugin(), provenancePlugin()],
