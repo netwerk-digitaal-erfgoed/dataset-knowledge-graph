@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v2.1.0...v2.1.1) (2026-07-01)
+
+
+### Bug Fixes
+
+* **subject-uri-resolution:** exclude skolem namespaces from subject-URI sampling ([#403](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/403)) ([bd4d05d](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/bd4d05dd361d2f0429f2b8f2cbe8d82bb5dc79ce))
+
 ## [2.1.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v2.0.1...v2.1.0) (2026-06-25)
 
 
