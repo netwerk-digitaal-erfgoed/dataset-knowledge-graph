@@ -267,8 +267,9 @@ export interface SubjectUriResolutionOptions {
  *
  * It harvests the `void:uriSpace`/`void:entities` subsets from the stage
  * output (passing them through unchanged), picks the single most common
- * non-terminology namespace — the one the dataset mints for its own resources —
- * samples URIs from it, and dereferences them. The outcome is appended,
+ * namespace that is neither a terminology source nor a skolem
+ * (`/.well-known/genid/`) namespace — the one the dataset mints for its own
+ * resources — samples URIs from it, and dereferences them. The outcome is appended,
  * scoped to that namespace’s subset node:
  *
  * - **declared** facts: `dcterms:conformsTo` a PID scheme (ARK/Handle, only if
@@ -476,8 +477,19 @@ async function sampleUrisWithRetry(
 }
 
 /**
- * Pick the subset with the most entities whose namespace is not a terminology
- * source — unless that namespace is itself a recognised ARK/Handle PID scheme.
+ * Pick the subset with the most entities whose namespace is the dataset’s own —
+ * skipping a skolem namespace unconditionally and a terminology source unless
+ * that namespace is itself a recognised ARK/Handle PID scheme.
+ *
+ * A skolem namespace (`/.well-known/genid/`) holds RDF 1.1 skolem IRIs: system-
+ * minted stand-ins for blank nodes (checksum records, geometries, coverage
+ * details) that the publisher’s serializer emits so an anonymous node survives a
+ * round-trip. They are not identifiers the publisher promises to keep resolving,
+ * and they do not dereference — so treating one as the dataset’s self-minted
+ * subject namespace would score every sampled URI as broken. RAZU’s `kranten`
+ * mints 1.5M such nodes, more than any real namespace, so it would otherwise
+ * win. The exclusion is unconditional: a skolem namespace is never a PID, so —
+ * unlike the terminology exclusion below — PID-ness cannot override it.
  *
  * A NAAN registered as a Network of Terms source can also be the publisher’s own
  * persistent-identifier namespace: the Gouda Tijdmachine dataset mints its
@@ -493,6 +505,9 @@ function pickWinner(
 ): {subset: string; uriSpace: string} | undefined {
   let best: {subset: string; uriSpace: string; entities: number} | undefined;
   for (const [subset, uriSpace] of uriSpaceBySubset) {
+    if (isSkolemNamespace(uriSpace)) {
+      continue;
+    }
     if (
       detectPidScheme(uriSpace) === undefined &&
       terminologyPrefixes.some(prefix => uriSpace.startsWith(prefix))
@@ -505,6 +520,16 @@ function pickWinner(
     }
   }
   return best && {subset: best.subset, uriSpace: best.uriSpace};
+}
+
+/**
+ * Whether a namespace holds RDF 1.1 skolem IRIs — minted under the reserved
+ * `/.well-known/genid/` path as stand-ins for blank nodes. Matched on the path,
+ * host-independent and tolerant of `http`/`https`, so any publisher’s skolem
+ * namespace is recognised.
+ */
+function isSkolemNamespace(uriSpace: string): boolean {
+  return stripScheme(uriSpace).includes('/.well-known/genid/');
 }
 
 /** Strip a leading `http://`/`https://` once, so host/path matching is scheme-neutral. */
