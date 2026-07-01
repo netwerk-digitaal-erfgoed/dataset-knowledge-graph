@@ -11,7 +11,7 @@ jobs:
     outputs:
       qlever-image: ${{ steps.dotenv.outputs.qlever-image }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: dotenv
         run: |
           source .env
