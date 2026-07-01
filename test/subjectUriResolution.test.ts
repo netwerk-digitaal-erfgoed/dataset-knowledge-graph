@@ -268,6 +268,51 @@ describe('subjectUriResolution', () => {
     ).toBe(true);
   });
 
+  it('skips a skolem namespace even when it is the most common one', async () => {
+    // RAZU’s `kranten` skolemizes 1.5M blank nodes (checksum records, geometries)
+    // under `/.well-known/genid/` — more than any real namespace. Those skolem
+    // IRIs do not dereference, so picking them would score the whole sample as
+    // broken; the dataset’s own resolvable namespace must win instead.
+    const skolem = subset('https://data.razu.nl/.well-known/genid/', 1527258);
+    const own = subset('https://data.razu.nl/id/object/', 1211597);
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return [];
+      },
+      resolve: resolveByName,
+    });
+
+    await collect(transform(stream([...skolem.quads, ...own.quads]), context));
+
+    expect(seen).toEqual(['https://data.razu.nl/id/object/']);
+  });
+
+  it('never treats a skolem namespace as a PID scheme', async () => {
+    // The skolem exclusion is unconditional: unlike terminology, PID-ness cannot
+    // override it. With only a skolem namespace, nothing is sampled or emitted.
+    const skolem = subset('https://data.razu.nl/.well-known/genid/', 1527258);
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return [];
+      },
+      resolve: resolveByName,
+    });
+
+    const out = await collect(transform(stream(skolem.quads), context));
+
+    expect(seen).toEqual([]);
+    expect(out).toHaveLength(skolem.quads.length);
+    expect(out.some(q => q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT))).toBe(
+      false,
+    );
+  });
+
   it('emits nothing extra when only terminology namespaces survive', async () => {
     const terminology = subset('http://data.rkd.nl/artists/', 900000);
     const transform = subjectUriResolution({
