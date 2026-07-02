@@ -176,15 +176,16 @@ describe('IiifValidationExecutor', () => {
       ),
     ).toHaveLength(2);
 
-    // Backward compatibility: the dataset also links to both measurements, so
-    // the shipped `?dataset dqv:hasQualityMeasurement` consumer keeps working.
+    // The measurements hang off the IIIF subset only; the dataset no longer
+    // re-links them (the transitional `?dataset dqv:hasQualityMeasurement` path
+    // was dropped once dataset-register migrated to the `void:subset` path).
     expect(
       out.filter(
         q =>
           q.subject.equals(namedNode(DATASET_IRI)) &&
           q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT),
       ),
-    ).toHaveLength(2);
+    ).toHaveLength(0);
 
     // Only the failed manifest is enumerated, as a qualified usage carrying its
     // reason; the validated one is covered by the count alone.
