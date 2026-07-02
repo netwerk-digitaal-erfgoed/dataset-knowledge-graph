@@ -249,16 +249,6 @@ export class IiifValidationExecutor implements Executor {
     yield quad(iiifSubset, dqv.hasQualityMeasurement, sampledMeasurement);
     yield quad(iiifSubset, dqv.hasQualityMeasurement, validatedMeasurement);
 
-    // Backward compatibility: also link the measurements from the dataset, the
-    // path the shipped dataset-register queries still read
-    // (`?dataset dqv:hasQualityMeasurement …`). The new structure only appears
-    // after the next DKG run, so consumers cannot migrate to
-    // `void:subset/dqv:hasQualityMeasurement` before then. Drop these once
-    // dataset-register has migrated (tracked in dataset-register).
-    const datasetNode = namedNode(dataset.iri.toString());
-    yield quad(datasetNode, dqv.hasQualityMeasurement, sampledMeasurement);
-    yield quad(datasetNode, dqv.hasQualityMeasurement, validatedMeasurement);
-
     yield* integerMeasurement(
       sampledMeasurement,
       iiifSubset,
