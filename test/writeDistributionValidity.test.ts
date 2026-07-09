@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vitest';
 import type {Quad} from '@rdfjs/types';
 import {Dataset, Distribution} from '@lde/dataset';
-import type {Writer} from '@lde/pipeline';
+import type {RunWriter, Writer} from '@lde/pipeline';
 import type {ValidityVerdict} from '@lde/distribution-health';
 import {writeDistributionValidity} from '../src/writeDistributionValidity.js';
 import type {CollectedValidity} from '../src/validityVerdictCollector.js';
@@ -24,15 +24,31 @@ const datasetA = new Dataset({
 class CapturingWriter implements Writer {
   readonly writes: {dataset: Dataset; quads: Quad[]}[] = [];
   readonly flushed: Dataset[] = [];
+  committed = false;
+  readonly aborts: unknown[] = [];
 
-  async write(dataset: Dataset, quads: AsyncIterable<Quad>): Promise<void> {
-    const collected: Quad[] = [];
-    for await (const quad of quads) collected.push(quad);
-    this.writes.push({dataset, quads: collected});
-  }
+  /** When set, the run’s first `write` rejects with this error. */
+  constructor(private readonly failOnWrite?: Error) {}
 
-  async flush(dataset: Dataset): Promise<void> {
-    this.flushed.push(dataset);
+  async openRun(): Promise<RunWriter> {
+    const {writes, flushed, aborts, failOnWrite} = this;
+    return {
+      async write(dataset: Dataset, quads: AsyncIterable<Quad>): Promise<void> {
+        if (failOnWrite) throw failOnWrite;
+        const collected: Quad[] = [];
+        for await (const quad of quads) collected.push(quad);
+        writes.push({dataset, quads: collected});
+      },
+      async flush(dataset: Dataset): Promise<void> {
+        flushed.push(dataset);
+      },
+      commit: async (): Promise<void> => {
+        this.committed = true;
+      },
+      async abort(error: unknown): Promise<void> {
+        aborts.push(error);
+      },
+    };
   }
 }
 
@@ -109,5 +125,21 @@ describe('writeDistributionValidity', () => {
     const count = await writeDistributionValidity([], writer, options);
     expect(count).toBe(0);
     expect(writer.writes).toEqual([]);
+  });
+
+  it('aborts the run (not commits) and rethrows when a write fails', async () => {
+    const boom = new Error('disk full');
+    const writer = new CapturingWriter(boom);
+
+    await expect(
+      writeDistributionValidity(
+        [collected(valid, 'http://a.example/d1')],
+        writer,
+        options,
+      ),
+    ).rejects.toBe(boom);
+
+    expect(writer.aborts).toEqual([boom]);
+    expect(writer.committed).toBe(false);
   });
 });

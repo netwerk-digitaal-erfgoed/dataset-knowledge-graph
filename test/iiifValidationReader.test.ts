@@ -2,13 +2,13 @@ import {describe, it, expect} from 'vitest';
 import {DataFactory} from 'n3';
 import type {Quad} from '@rdfjs/types';
 import {Dataset, Distribution} from '@lde/dataset';
-import {NotSupported, type Executor} from '@lde/pipeline';
+import {NotSupported, type Reader} from '@lde/pipeline';
 import {
-  IiifValidationExecutor,
+  IiifValidationReader,
   MANIFEST_VALIDATION_FAILURE_REASONS,
   manifestValidationFailureIri,
   type ValidateManifest,
-} from '../src/iiifValidationExecutor.js';
+} from '../src/iiifValidationReader.js';
 import {failureReasonFor} from './failures.js';
 
 const {namedNode, literal, quad} = DataFactory;
@@ -59,9 +59,9 @@ const dataset = new Dataset({iri: new URL(DATASET_IRI), distributions: []});
 const distribution = Distribution.sparql(new URL('http://example.org/sparql'));
 
 /** A fake inner executor that yields a fixed synthetic quad stream. */
-function innerYielding(quads: Quad[]): Executor {
+function innerYielding(quads: Quad[]): Reader {
   return {
-    async execute() {
+    async read() {
       return (async function* () {
         for (const q of quads) yield q;
       })();
@@ -100,7 +100,7 @@ const validateByName: ValidateManifest = async (url: string) =>
     ? {valid: true, reason: 'valid-manifest'}
     : {valid: false, reason: 'http-error'};
 
-describe('IiifValidationExecutor', () => {
+describe('IiifValidationReader', () => {
   it('passes VoID quads through and strips the manifest-sample triples', async () => {
     const inner = innerYielding([
       ...voidQuads(),
@@ -108,10 +108,10 @@ describe('IiifValidationExecutor', () => {
       sampleQuad('http://example.org/bad/2'),
     ]);
 
-    const executor = new IiifValidationExecutor(inner, {
+    const executor = new IiifValidationReader(inner, {
       validate: validateByName,
     });
-    const out = await collect(await executor.execute(dataset, distribution));
+    const out = await collect(await executor.read(dataset, distribution));
 
     // VoID subset quads survive unchanged.
     expect(
@@ -135,10 +135,10 @@ describe('IiifValidationExecutor', () => {
       sampleQuad('http://example.org/bad/2'),
     ]);
 
-    const executor = new IiifValidationExecutor(inner, {
+    const executor = new IiifValidationReader(inner, {
       validate: validateByName,
     });
-    const out = await collect(await executor.execute(dataset, distribution));
+    const out = await collect(await executor.read(dataset, distribution));
 
     expect(measurementValue(out, MANIFESTS_SAMPLED_METRIC.value)).toBe(2);
     expect(measurementValue(out, MANIFESTS_VALIDATED_METRIC.value)).toBe(1);
@@ -211,10 +211,10 @@ describe('IiifValidationExecutor', () => {
       sampleQuad('http://example.org/bad/2'),
     ]);
 
-    const executor = new IiifValidationExecutor(inner, {
+    const executor = new IiifValidationReader(inner, {
       validate: validateWithReasons,
     });
-    const out = await collect(await executor.execute(dataset, distribution));
+    const out = await collect(await executor.read(dataset, distribution));
 
     // The declared subset still passes through (state 2: declared but failing).
     expect(
@@ -252,10 +252,10 @@ describe('IiifValidationExecutor', () => {
       sampleQuad('http://example.org/bad/1'),
     ]);
 
-    const executor = new IiifValidationExecutor(inner, {
+    const executor = new IiifValidationReader(inner, {
       validate: validateContradictory,
     });
-    const out = await collect(await executor.execute(dataset, distribution));
+    const out = await collect(await executor.read(dataset, distribution));
 
     expect(measurementValue(out, MANIFESTS_VALIDATED_METRIC.value)).toBe(0);
     // Falls back to an in-scheme reason rather than #valid-manifest.
@@ -275,10 +275,10 @@ describe('IiifValidationExecutor', () => {
       sampleQuad('http://example.org/throws/2'),
     ]);
 
-    const executor = new IiifValidationExecutor(inner, {
+    const executor = new IiifValidationReader(inner, {
       validate: validateThrowing,
     });
-    const out = await collect(await executor.execute(dataset, distribution));
+    const out = await collect(await executor.read(dataset, distribution));
 
     // One validator rejection must not fail or drop the others.
     expect(measurementValue(out, MANIFESTS_SAMPLED_METRIC.value)).toBe(2);
@@ -294,10 +294,10 @@ describe('IiifValidationExecutor', () => {
       quad(namedNode(DATASET_IRI), RDF_TYPE, VOID_DATASET),
     ]);
 
-    const executor = new IiifValidationExecutor(inner, {
+    const executor = new IiifValidationReader(inner, {
       validate: validateByName,
     });
-    const out = await collect(await executor.execute(dataset, distribution));
+    const out = await collect(await executor.read(dataset, distribution));
 
     expect(out).toHaveLength(1);
     expect(out.some(q => q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT))).toBe(
@@ -306,16 +306,16 @@ describe('IiifValidationExecutor', () => {
   });
 
   it('passes NotSupported through unchanged', async () => {
-    const inner: Executor = {
-      async execute() {
+    const inner: Reader = {
+      async read() {
         return new NotSupported('no distribution');
       },
     };
 
-    const executor = new IiifValidationExecutor(inner, {
+    const executor = new IiifValidationReader(inner, {
       validate: validateByName,
     });
-    const result = await executor.execute(dataset, distribution);
+    const result = await executor.read(dataset, distribution);
 
     expect(result).toBeInstanceOf(NotSupported);
   });

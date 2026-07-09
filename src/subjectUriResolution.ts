@@ -11,7 +11,7 @@ import {
   type Dataset,
   type Distribution,
 } from '@lde/dataset';
-import type {ExecutorContext, QuadTransform} from '@lde/pipeline';
+import type {ReaderContext, QuadTransform} from '@lde/pipeline';
 import {outcomeUsageQuads, type SampleOutcome} from './failureUsage.js';
 import {metric} from './namespaces.js';
 import {
@@ -295,7 +295,7 @@ export interface SubjectUriResolutionOptions {
  */
 export function subjectUriResolution(
   options: SubjectUriResolutionOptions,
-): QuadTransform<ExecutorContext> {
+): QuadTransform<ReaderContext> {
   const terminologyPrefixes = [...options.terminologyPrefixes];
   const sampleSize = options.sampleSize ?? DEFAULT_SAMPLE_SIZE;
   const concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;

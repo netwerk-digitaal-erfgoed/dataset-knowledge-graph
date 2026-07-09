@@ -2,7 +2,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {DataFactory} from 'n3';
 import type {NamedNode, Quad} from '@rdfjs/types';
 import {Dataset, Distribution} from '@lde/dataset';
-import type {ExecutorContext} from '@lde/pipeline';
+import type {ReaderContext} from '@lde/pipeline';
 import {
   MAX_BODY_BYTES,
   subjectUriResolution,
@@ -45,7 +45,7 @@ const HANDLE_SCHEME = namedNode('https://def.nde.nl/pid-scheme#handle');
 
 const dataset = new Dataset({iri: new URL(DATASET_IRI), distributions: []});
 const distribution = Distribution.sparql(new URL('http://example.org/sparql'));
-const context: ExecutorContext = {
+const context: ReaderContext = {
   dataset,
   distribution,
   stage: 'subject-uri-space.rq',

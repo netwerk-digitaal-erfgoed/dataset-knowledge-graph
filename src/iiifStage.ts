@@ -1,6 +1,6 @@
 import {resolve} from 'node:path';
-import {Stage, SparqlConstructExecutor, readQueryFile} from '@lde/pipeline';
-import {IiifValidationExecutor} from './iiifValidationExecutor.js';
+import {Stage, SparqlConstructReader, readQueryFile} from '@lde/pipeline';
+import {IiifValidationReader} from './iiifValidationReader.js';
 import {
   iiifManifestFormatFilter,
   iiifConformantFormatFilter,
@@ -60,9 +60,9 @@ export async function iiifStage(
     );
   // `deduplicate` collapses the constant subset/conformsTo/entities triples,
   // which the COUNT × sample cross-join repeats once per sampled row.
-  const detection = new SparqlConstructExecutor({query, deduplicate: true});
+  const detection = new SparqlConstructReader({query, deduplicate: true});
   return new Stage({
     name: 'iiif.rq',
-    executors: new IiifValidationExecutor(detection),
+    readers: new IiifValidationReader(detection),
   });
 }

@@ -2,7 +2,7 @@ import {DataFactory} from 'n3';
 import pLimit from 'p-limit';
 import type {NamedNode, Quad} from '@rdfjs/types';
 import {skolemIri, type Dataset, type Distribution} from '@lde/dataset';
-import {NotSupported, type Executor, type ExecuteOptions} from '@lde/pipeline';
+import {NotSupported, type Reader, type ReadOptions} from '@lde/pipeline';
 import {
   validateManifest,
   type ManifestValidation,
@@ -99,7 +99,7 @@ const DEFAULT_CONCURRENCY = 4;
 /** Validates a single manifest URL and reports the verdict. */
 export type ValidateManifest = (url: string) => Promise<ManifestValidation>;
 
-export interface IiifValidationExecutorOptions {
+export interface IiifValidationReaderOptions {
   /**
    * Manifest validator. Injectable for testing; defaults to dereferencing via
    * `@lde/iiif-validator`.
@@ -115,8 +115,8 @@ export interface IiifValidationExecutorOptions {
 }
 
 /**
- * Executor decorator that turns *declared* IIIF conformance into *validated*
- * conformance. It wraps the detection {@link Executor}: the VoID `void:subset`,
+ * Reader decorator that turns *declared* IIIF conformance into *validated*
+ * conformance. It wraps the detection {@link Reader}: the VoID `void:subset`,
  * `dcterms:conformsTo`, and `void:entities` quads pass through unchanged (the
  * declared marker is never removed), the intermediate manifest-sample triples
  * are stripped, and the sampled manifest URIs are dereferenced via
@@ -126,14 +126,14 @@ export interface IiifValidationExecutorOptions {
  * `k / N` and pick their own trust threshold; the only non-arbitrary cut is
  * `validated = 0` (failing) versus `validated > 0` (working).
  */
-export class IiifValidationExecutor implements Executor {
+export class IiifValidationReader implements Reader {
   private readonly validate: ValidateManifest;
   private readonly concurrency: number;
   private readonly validatorSoftware;
 
   constructor(
-    private readonly inner: Executor,
-    options: IiifValidationExecutorOptions = {},
+    private readonly inner: Reader,
+    options: IiifValidationReaderOptions = {},
   ) {
     this.validate = options.validate ?? (url => validateManifest(url));
     this.concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;
@@ -142,12 +142,12 @@ export class IiifValidationExecutor implements Executor {
       : DEFAULT_VALIDATOR_SOFTWARE;
   }
 
-  async execute(
+  async read(
     dataset: Dataset,
     distribution: Distribution,
-    options?: ExecuteOptions,
+    options?: ReadOptions,
   ): Promise<AsyncIterable<Quad> | NotSupported> {
-    const result = await this.inner.execute(dataset, distribution, options);
+    const result = await this.inner.read(dataset, distribution, options);
     if (result instanceof NotSupported) {
       return result;
     }
