@@ -6,11 +6,14 @@ import {
   FileLoadedSparqlProvenanceStore,
   adaptiveTimeoutPolicy,
   provenancePlugin,
-  schemaOrgNormalizationPlugin,
   type Writer,
 } from '@lde/pipeline';
 import {PIPELINE_VERSION} from './pipelineVersion.js';
-import {voidStages, VOID_STAGE_NAMES} from '@lde/pipeline-void';
+import {
+  voidStages,
+  VOID_STAGE_NAMES,
+  schemaOrgPartitionMergePlugin,
+} from '@lde/pipeline-void';
 import {shaclSampleStages} from '@lde/pipeline-shacl-sampler';
 import {ShaclValidator, severity} from '@lde/pipeline-shacl-validator';
 import {createQlever} from '@lde/sparql-qlever';
@@ -232,7 +235,7 @@ try {
       strategy: 'sparqlWithImportFallback',
     }),
     stages,
-    plugins: [schemaOrgNormalizationPlugin(), provenancePlugin()],
+    plugins: [schemaOrgPartitionMergePlugin(), provenancePlugin()],
     // Skip datasets unchanged since the last run. pipelineVersion is the opaque
     // logic version (managed by release-please); rotating it forces a full
     // reprocess. Ignored when no provenanceStore is configured.
