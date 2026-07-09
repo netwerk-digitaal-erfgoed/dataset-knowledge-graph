@@ -44,18 +44,24 @@ export async function writeDistributionValidity(
 
   // Own run transaction: this pass runs after the pipeline, writing through a
   // writer of its own, so it drives the `openRun → write* → flush → commit`
-  // lifecycle itself. The selection is exactly the datasets written here.
-  const sources = [...byDataset.keys()];
+  // lifecycle itself, bracketing the writes with exactly one commit or abort so
+  // a run-stateful writer is never left dangling on failure (as the pipeline’s
+  // own driver does). The selection is exactly the datasets written here.
   const run = await writer.openRun({
     runId: randomUUID(),
     startedAt: new Date().toISOString(),
-    selectedSources: () => sources,
+    selectedSources: () => byDataset.keys(),
   });
-  for (const {dataset, quads} of byDataset.values()) {
-    await run.write(dataset, toAsyncIterable(quads));
-    await run.flush?.(dataset, 'success');
+  try {
+    for (const {dataset, quads} of byDataset.values()) {
+      await run.write(dataset, toAsyncIterable(quads));
+      await run.flush?.(dataset, 'success');
+    }
+    await run.commit();
+  } catch (error) {
+    await run.abort(error);
+    throw error;
   }
-  await run.commit();
 
   return byDataset.size;
 }

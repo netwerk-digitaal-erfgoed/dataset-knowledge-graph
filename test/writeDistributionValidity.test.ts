@@ -24,11 +24,17 @@ const datasetA = new Dataset({
 class CapturingWriter implements Writer {
   readonly writes: {dataset: Dataset; quads: Quad[]}[] = [];
   readonly flushed: Dataset[] = [];
+  committed = false;
+  readonly aborts: unknown[] = [];
+
+  /** When set, the run’s first `write` rejects with this error. */
+  constructor(private readonly failOnWrite?: Error) {}
 
   async openRun(): Promise<RunWriter> {
-    const {writes, flushed} = this;
+    const {writes, flushed, aborts, failOnWrite} = this;
     return {
       async write(dataset: Dataset, quads: AsyncIterable<Quad>): Promise<void> {
+        if (failOnWrite) throw failOnWrite;
         const collected: Quad[] = [];
         for await (const quad of quads) collected.push(quad);
         writes.push({dataset, quads: collected});
@@ -36,8 +42,12 @@ class CapturingWriter implements Writer {
       async flush(dataset: Dataset): Promise<void> {
         flushed.push(dataset);
       },
-      async commit(): Promise<void> {},
-      async abort(): Promise<void> {},
+      commit: async (): Promise<void> => {
+        this.committed = true;
+      },
+      async abort(error: unknown): Promise<void> {
+        aborts.push(error);
+      },
     };
   }
 }
@@ -115,5 +125,21 @@ describe('writeDistributionValidity', () => {
     const count = await writeDistributionValidity([], writer, options);
     expect(count).toBe(0);
     expect(writer.writes).toEqual([]);
+  });
+
+  it('aborts the run (not commits) and rethrows when a write fails', async () => {
+    const boom = new Error('disk full');
+    const writer = new CapturingWriter(boom);
+
+    await expect(
+      writeDistributionValidity(
+        [collected(valid, 'http://a.example/d1')],
+        writer,
+        options,
+      ),
+    ).rejects.toBe(boom);
+
+    expect(writer.aborts).toEqual([boom]);
+    expect(writer.committed).toBe(false);
   });
 });
