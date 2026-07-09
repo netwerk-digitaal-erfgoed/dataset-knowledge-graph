@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.0.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v2.1.1...v3.0.0) (2026-07-09)
+
+
+### ⚠ BREAKING CHANGES
+
+* **iiif:** drop the transitional dataset-level measurement link ([#406](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/406))
+
+### Features
+
+* **shacl:** fail SCHEMA-AP-NDE conformance only on sh:Violation ([#417](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/417)) ([30061e7](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/30061e762b7daaf6492f0952ef2751df6ae079a2))
+
+
+### Bug Fixes
+
+* **iiif:** drop the transitional dataset-level measurement link ([#406](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/406)) ([e9a70f2](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/e9a70f2621320e291ac8ae35744a4cc87921981a))
+* merge schema.org partitions via the pipeline-void plugin ([#418](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/418)) ([eeb1f84](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/eeb1f845107e0d92e4c988c4ae7ca2b46c7b119e))
+
 ## [2.1.1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v2.1.0...v2.1.1) (2026-07-01)
 
 
