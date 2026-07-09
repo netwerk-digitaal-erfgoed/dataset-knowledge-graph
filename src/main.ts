@@ -12,7 +12,7 @@ import {
 import {PIPELINE_VERSION} from './pipelineVersion.js';
 import {voidStages, VOID_STAGE_NAMES} from '@lde/pipeline-void';
 import {shaclSampleStages} from '@lde/pipeline-shacl-sampler';
-import {ShaclValidator} from '@lde/pipeline-shacl-validator';
+import {ShaclValidator, severity} from '@lde/pipeline-shacl-validator';
 import {createQlever} from '@lde/sparql-qlever';
 import {config} from './config.js';
 import {
@@ -128,6 +128,11 @@ const validationReportWriters: Writer[] = [
 const schemaApValidator = new ShaclValidator({
   shapesFile: SCHEMA_AP_NDE_SHAPES,
   reportWriters: validationReportWriters,
+  // Only sh:Violation results fail conformance: SCHEMA-AP-NDE’s sh:Warning
+  // constraints are SHOULD-level, so a sample that trips only warnings still
+  // counts as conformant. The warnings stay in the written reports; they just
+  // no longer flip the published schema-ap-nde-sample-conformance measurement.
+  conformanceDisallows: [severity.violation],
 });
 
 const sampleStages = await shaclSampleStages({

@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vitest';
 import type {Quad} from '@rdfjs/types';
 import {Dataset, Distribution} from '@lde/dataset';
-import type {Writer} from '@lde/pipeline';
+import type {RunWriter, Writer} from '@lde/pipeline';
 import type {ValidityVerdict} from '@lde/distribution-health';
 import {writeDistributionValidity} from '../src/writeDistributionValidity.js';
 import type {CollectedValidity} from '../src/validityVerdictCollector.js';
@@ -25,14 +25,20 @@ class CapturingWriter implements Writer {
   readonly writes: {dataset: Dataset; quads: Quad[]}[] = [];
   readonly flushed: Dataset[] = [];
 
-  async write(dataset: Dataset, quads: AsyncIterable<Quad>): Promise<void> {
-    const collected: Quad[] = [];
-    for await (const quad of quads) collected.push(quad);
-    this.writes.push({dataset, quads: collected});
-  }
-
-  async flush(dataset: Dataset): Promise<void> {
-    this.flushed.push(dataset);
+  async openRun(): Promise<RunWriter> {
+    const {writes, flushed} = this;
+    return {
+      async write(dataset: Dataset, quads: AsyncIterable<Quad>): Promise<void> {
+        const collected: Quad[] = [];
+        for await (const quad of quads) collected.push(quad);
+        writes.push({dataset, quads: collected});
+      },
+      async flush(dataset: Dataset): Promise<void> {
+        flushed.push(dataset);
+      },
+      async commit(): Promise<void> {},
+      async abort(): Promise<void> {},
+    };
   }
 }
 

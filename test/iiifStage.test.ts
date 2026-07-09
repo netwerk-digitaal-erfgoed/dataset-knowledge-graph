@@ -48,7 +48,7 @@ beforeAll(async () => {
 });
 
 function buildQuery(subjectFilter = '', limit = 10): string {
-  // Mirror iiifStage's and SparqlConstructExecutor's substitutions: the
+  // Mirror iiifStage's and SparqlConstructReader's substitutions: the
   // #limit# sample cap and the shared manifest/conformant format filters
   // (threaded by iiifStage), the subjectFilter pattern, and ?dataset → the
   // dataset IRI literal.

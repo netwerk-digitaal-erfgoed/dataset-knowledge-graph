@@ -5,11 +5,11 @@ import type {Quad} from '@rdfjs/types';
 import type {Dataset, Distribution} from '@lde/dataset';
 import {
   Stage,
-  SparqlConstructExecutor,
+  SparqlConstructReader,
   readQueryFile,
   NotSupported,
-  type Executor,
-  type ExecuteOptions,
+  type Reader,
+  type ReadOptions,
 } from '@lde/pipeline';
 import {probe} from './namespaces.js';
 
@@ -36,30 +36,30 @@ export function mediaStage(): Promise<Stage> {
   return readQueryFile(QUERY_FILE).then(query => {
     // `deduplicate` collapses the constant subset/marker triples, which the
     // GROUP BY repeats once per media-predicate partition row.
-    const detection = new SparqlConstructExecutor({query, deduplicate: true});
+    const detection = new SparqlConstructReader({query, deduplicate: true});
     return new Stage({
       name: 'media.rq',
-      executors: new MediaSubsetExecutor(detection),
+      readers: new MediaSubsetReader(detection),
     });
   });
 }
 
 /**
- * Executor decorator that adds the aggregate `void:entities` to the media
+ * Reader decorator that adds the aggregate `void:entities` to the media
  * subset. The detection query emits one `void:propertyPartition` per media
  * predicate with its own count; this passes those through unchanged and, once
  * the stream is exhausted, appends `void:entities` on the subset set to the MAX
  * of the partition counts (a lower bound on the media-object count).
  */
-export class MediaSubsetExecutor implements Executor {
-  constructor(private readonly inner: Executor) {}
+export class MediaSubsetReader implements Reader {
+  constructor(private readonly inner: Reader) {}
 
-  async execute(
+  async read(
     dataset: Dataset,
     distribution: Distribution,
-    options?: ExecuteOptions,
+    options?: ReadOptions,
   ): Promise<AsyncIterable<Quad> | NotSupported> {
-    const result = await this.inner.execute(dataset, distribution, options);
+    const result = await this.inner.read(dataset, distribution, options);
     if (result instanceof NotSupported) {
       return result;
     }

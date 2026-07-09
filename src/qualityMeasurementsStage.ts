@@ -2,7 +2,7 @@ import {DataFactory} from 'n3';
 import type {Quad} from '@rdfjs/types';
 import {dcterms, dqv, prov, rdf, xsd} from '@tpluscode/rdf-ns-builders';
 import type {Dataset} from '@lde/dataset';
-import {Stage, type Executor, type Validator} from '@lde/pipeline';
+import {Stage, type Reader, type Validator} from '@lde/pipeline';
 import {metric} from './namespaces.js';
 import {integerMeasurement, provActivity} from './measurements.js';
 
@@ -46,8 +46,8 @@ export function qualityMeasurementsStage(
     : DEFAULT_VALIDATOR_SOFTWARE;
   const profile = namedNode(options.profile);
 
-  const executor: Executor = {
-    async execute(dataset: Dataset) {
+  const reader: Reader = {
+    async read(dataset: Dataset) {
       const report = await options.validator.report(dataset);
       const subject = namedNode(dataset.iri.toString());
 
@@ -109,6 +109,6 @@ export function qualityMeasurementsStage(
 
   return new Stage({
     name: 'schema-ap-nde-quality-measurements',
-    executors: executor,
+    readers: reader,
   });
 }

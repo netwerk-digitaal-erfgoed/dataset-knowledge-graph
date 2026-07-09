@@ -5,8 +5,8 @@ import {DataFactory, Parser, Store} from 'n3';
 import type {Quad} from '@rdfjs/types';
 import {QueryEngine} from '@comunica/query-sparql-rdfjs-lite';
 import {Dataset, Distribution} from '@lde/dataset';
-import {NotSupported, Stage, type Executor} from '@lde/pipeline';
-import {mediaStage, MediaSubsetExecutor} from '../src/mediaStage.js';
+import {NotSupported, Stage, type Reader} from '@lde/pipeline';
+import {mediaStage, MediaSubsetReader} from '../src/mediaStage.js';
 
 const {namedNode, literal, quad} = DataFactory;
 
@@ -165,9 +165,9 @@ describe('media.rq detection query', () => {
 const dataset = new Dataset({iri: new URL(DATASET_IRI), distributions: []});
 const distribution = Distribution.sparql(new URL('http://example.org/sparql'));
 
-function innerYielding(quads: Quad[]): Executor {
+function innerYielding(quads: Quad[]): Reader {
   return {
-    async execute() {
+    async read() {
       return (async function* () {
         for (const q of quads) yield q;
       })();
@@ -201,12 +201,12 @@ function subsetWithPartitions(...counts: number[]): Quad[] {
   return quads;
 }
 
-describe('MediaSubsetExecutor', () => {
+describe('MediaSubsetReader', () => {
   it('sets the subset void:entities to the MAX over partition counts (not the sum)', async () => {
-    const executor = new MediaSubsetExecutor(
+    const executor = new MediaSubsetReader(
       innerYielding(subsetWithPartitions(1, 2, 1)),
     );
-    const out = await collect(await executor.execute(dataset, distribution));
+    const out = await collect(await executor.read(dataset, distribution));
 
     const entities = out.find(
       q =>
@@ -222,8 +222,8 @@ describe('MediaSubsetExecutor', () => {
 
   it('passes the partition triples through unchanged', async () => {
     const input = subsetWithPartitions(3);
-    const executor = new MediaSubsetExecutor(innerYielding(input));
-    const out = await collect(await executor.execute(dataset, distribution));
+    const executor = new MediaSubsetReader(innerYielding(input));
+    const out = await collect(await executor.read(dataset, distribution));
 
     for (const q of input) {
       expect(out.some(o => o.equals(q))).toBe(true);
@@ -231,22 +231,22 @@ describe('MediaSubsetExecutor', () => {
   });
 
   it('emits nothing extra when the dataset has no media subset', async () => {
-    const executor = new MediaSubsetExecutor(
+    const executor = new MediaSubsetReader(
       innerYielding([
         quad(namedNode(DATASET_IRI), VOID_SUBSET, namedNode('x')),
       ]),
     );
-    const out = await collect(await executor.execute(dataset, distribution));
+    const out = await collect(await executor.read(dataset, distribution));
     expect(out.some(q => q.predicate.equals(VOID_ENTITIES))).toBe(false);
   });
 
   it('passes NotSupported through', async () => {
-    const inner: Executor = {
-      async execute() {
+    const inner: Reader = {
+      async read() {
         return new NotSupported('no distribution');
       },
     };
-    const result = await new MediaSubsetExecutor(inner).execute(
+    const result = await new MediaSubsetReader(inner).read(
       dataset,
       distribution,
     );

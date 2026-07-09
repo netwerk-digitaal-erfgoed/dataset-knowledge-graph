@@ -1,3 +1,4 @@
+import {randomUUID} from 'node:crypto';
 import type {Quad} from '@rdfjs/types';
 import {Dataset} from '@lde/dataset';
 import type {Writer} from '@lde/pipeline';
@@ -41,10 +42,20 @@ export async function writeDistributionValidity(
     byDataset.set(key, entry);
   }
 
+  // Own run transaction: this pass runs after the pipeline, writing through a
+  // writer of its own, so it drives the `openRun → write* → flush → commit`
+  // lifecycle itself. The selection is exactly the datasets written here.
+  const sources = [...byDataset.keys()];
+  const run = await writer.openRun({
+    runId: randomUUID(),
+    startedAt: new Date().toISOString(),
+    selectedSources: () => sources,
+  });
   for (const {dataset, quads} of byDataset.values()) {
-    await writer.write(dataset, toAsyncIterable(quads));
-    await writer.flush?.(dataset);
+    await run.write(dataset, toAsyncIterable(quads));
+    await run.flush?.(dataset, 'success');
   }
+  await run.commit();
 
   return byDataset.size;
 }
