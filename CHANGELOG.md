@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.0.1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.0...v3.0.1) (2026-07-12)
+
+
+### Bug Fixes
+
+* **deps:** adopt @lde/pipeline 0.34.1 to skolemise summary blank nodes ([#424](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/424)) ([1aedb9d](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/1aedb9dc670dcd95c61a4eaf7bf7030199076874)), closes [#420](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/420)
+* **shacl:** adopt pipeline-shacl-validator 0.17 so conforming datasets clear stale reports ([#422](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/422)) ([0251929](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/0251929c7831757a0caad52de67a0d1a605739dd)), closes [#421](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/421)
+
 ## [3.0.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v2.1.1...v3.0.0) (2026-07-09)
 
 
