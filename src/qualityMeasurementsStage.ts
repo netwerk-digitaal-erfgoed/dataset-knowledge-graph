@@ -34,9 +34,14 @@ export interface QualityMeasurementsStageOptions {
 /**
  * Emit DQV quality measurements + a PROV activity describing the SHACL
  * validation outcome, once per dataset, after the sampler stages have run.
- * See the README for the modelling rationale (DQV for measurements, PROV
- * for the validation activity, no `sh:ValidationReport` in the SPARQL store —
- * detailed violations stay in `output/validation/<dataset>.ttl`).
+ * This stage emits only the measurements (conformance boolean, quads
+ * validated, samples per class) and the activity. The detailed per-resource
+ * `sh:ValidationReport` is written separately by the ShaclValidator's
+ * reportWriters configured in main.ts – into an offline Turtle copy and the
+ * served n-quads store, one named graph per dataset, so it is queryable
+ * alongside the summary. Every validated dataset yields a report (a
+ * conforming one carries `sh:conforms true` with no results), so report
+ * presence means the dataset was validated.
  */
 export function qualityMeasurementsStage(
   options: QualityMeasurementsStageOptions,
