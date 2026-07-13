@@ -59,7 +59,7 @@
     "@types/node": "^26.1.1",
     "eslint": "^10.7.0",
     "eslint-config-prettier": "^10.1.0",
-    "eslint-plugin-n": "^18.2.1",
+    "eslint-plugin-n": "^18.2.2",
     "eslint-plugin-prettier": "^5.5.6",
     "prettier": "^3.9.5",
     "tsc-watch": "^7.2.1",
