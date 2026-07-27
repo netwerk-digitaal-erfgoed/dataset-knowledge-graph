@@ -81,18 +81,27 @@ const IIIF_MANIFEST_SAMPLE_SIZE = 10;
 const SUBJECT_URI_SAMPLE_SIZE = 10;
 
 const uriSpaces = await buildUriSpacesMap();
-const {importer, server} = createQlever({
-  mode: config.QLEVER_ENV,
-  image: config.QLEVER_IMAGE ?? '',
+const qleverOptions = {
   dataDir: resolve('imports'),
-  containerName: 'dkg-qlever',
   port: config.QLEVER_PORT,
   indexName: 'data',
   serverOptions: {
     'memory-max-size': config.QLEVER_MEMORY_MAX_SIZE,
     'default-query-timeout': config.QLEVER_QUERY_TIMEOUT,
   },
-});
+};
+// QleverOptions is now a discriminated union: only docker mode takes an image
+// and container name (we run on the host, so no `network` needed).
+const {importer, server} = createQlever(
+  config.QLEVER_ENV === 'docker'
+    ? {
+        ...qleverOptions,
+        mode: 'docker',
+        image: config.QLEVER_IMAGE ?? '',
+        containerName: 'dkg-qlever',
+      }
+    : {...qleverOptions, mode: 'native'},
+);
 
 const voidStageList = await voidStages({
   uriSpaces,
