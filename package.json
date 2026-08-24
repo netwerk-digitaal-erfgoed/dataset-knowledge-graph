@@ -40,7 +40,7 @@
     "@lde/pipeline-shacl-sampler": "^0.10.0",
     "@lde/pipeline-shacl-validator": "^0.19.0",
     "@lde/pipeline-void": "^0.35.0",
-    "@lde/sparql-qlever": "^0.15.3",
+    "@lde/sparql-qlever": "^0.15.5",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^10.20.0",
     "@rdfjs/namespace": "^2.0.1",
     "@tpluscode/rdf-ns-builders": "^5.0.0",
