@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.2](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.1...v3.0.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* import gzipped dumps that declare no compression ([#459](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/459)) ([7dff622](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/7dff622eb49997d8831f83c58c2b0560a1928d80))
+
 ## [3.0.1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.0...v3.0.1) (2026-07-12)
 
 
