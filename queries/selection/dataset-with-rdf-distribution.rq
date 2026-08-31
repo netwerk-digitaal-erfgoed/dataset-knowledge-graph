@@ -35,6 +35,7 @@ CONSTRUCT {
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/n-triples>
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/rdf+xml>
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/application/trig>
+        || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/text/n3>
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/text/turtle>
     )
 
