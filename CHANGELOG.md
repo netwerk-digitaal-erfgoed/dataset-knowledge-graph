@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.3](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.2...v3.0.3) (2026-08-31)
+
+
+### Bug Fixes
+
+* only analyse distributions the pipeline can read in full ([6a54bbb](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/6a54bbbac36a785d7ec3da15d45dcb860e18bd3b))
+
 ## [3.0.2](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.1...v3.0.2) (2026-08-24)
 
 
