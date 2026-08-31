@@ -6,11 +6,20 @@
 #
 # This deliberately mirrors only the identity and validity checks of
 # dataset-with-rdf-distribution.rq (not-gone + catalog freshness), and OMITS its
-# distribution-type and endpoint filters. A dataset that is registered and not
-# gone but merely skipped this run (no RDF distribution, an unreliable or
-# timed-out endpoint, or a description that failed validation) must stay in the
-# keep-set so its last-good summary is preserved rather than deleted.
+# endpoint filters. A dataset that is registered and not gone but merely skipped
+# this run (an unreliable or timed-out endpoint, or a description that failed
+# validation) must stay in the keep-set so its last-good summary is preserved
+# rather than deleted.
+#
+# The one distribution check it does mirror is the API blocklist: a dataset that
+# offers nothing but APIs we cannot read in full has no summary worth
+# preserving, because whatever we published for it earlier came from parsing an
+# API entry page and misrepresents the dataset (issue #474). Unlike the skips
+# above, that is a permanent, declared property of the registration, not a
+# transient failure, so those datasets are dropped from the keep-set and their
+# graphs pruned.
 PREFIX dcat: <http://www.w3.org/ns/dcat#>
+PREFIX dct: <http://purl.org/dc/terms/>
 PREFIX schema: <https://schema.org/>
 
 SELECT DISTINCT ?dataset WHERE {
@@ -36,5 +45,42 @@ SELECT DISTINCT ?dataset WHERE {
     FILTER(
         (!BOUND(?datasetLastRead) && !BOUND(?registrationUrlLastRead)) # Without Dataset Register metadata, for local tests.
         || ?datasetLastRead >= ?registrationUrlLastRead
+    )
+
+    # Keep only datasets with at least one distribution the pipeline can read in
+    # full: a SPARQL endpoint, or an RDF dump that does not declare itself one of
+    # the APIs blocklisted in dataset-with-rdf-distribution.rq — keep both lists
+    # in sync.
+    FILTER(
+        EXISTS { ?dataset dcat:distribution/dct:conformsTo <https://www.w3.org/TR/sparql11-protocol/> }
+        || EXISTS {
+            ?dataset dcat:distribution ?distribution .
+            ?distribution dcat:mediaType ?mediaType .
+            FILTER(?mediaType IN (
+                <https://www.iana.org/assignments/media-types/application/ld+json>,
+                <https://www.iana.org/assignments/media-types/application/n-quads>,
+                <https://www.iana.org/assignments/media-types/application/n-triples>,
+                <https://www.iana.org/assignments/media-types/application/rdf+xml>,
+                <https://www.iana.org/assignments/media-types/application/trig>,
+                <https://www.iana.org/assignments/media-types/text/turtle>
+            ))
+            FILTER(NOT EXISTS {
+                ?distribution dct:conformsTo ?apiSpecification .
+                VALUES ?apiSpecification {
+                    <https://w3id.org/ldes/specification> # Remove once ldelements/lde#599 lands.
+                    <https://iiif.io/api/discovery/1.0/>
+                    <http://iiif.io/api/presentation/3/context.json>
+                    <https://linked.art/api/1.0/search/>
+                    <http://www.openarchives.org/pmh/>
+                    <https://www.openarchives.org/pmh/>
+                    <http://www.openarchives.org/OAI/openarchivesprotocol.html>
+                    <https://spec.openapis.org/oas/v3.2.0.html>
+                    <https://www.mediawiki.org/wiki/API:Tutorial>
+                    <https://www.ogc.org/standards/wms/>
+                    <https://www.openbeelden.nl/api/>
+                    <https://developers.soundcloud.com/docs/api/guide>
+                }
+            })
+        }
     )
 }
