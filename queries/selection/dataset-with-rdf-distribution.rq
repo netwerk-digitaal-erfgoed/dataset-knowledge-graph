@@ -38,6 +38,36 @@ CONSTRUCT {
         || ?distribution_mediaType = <https://www.iana.org/assignments/media-types/text/turtle>
     )
 
+    # Skip distributions that declare themselves an API we cannot read in full.
+    # `dct:conformsTo` (which the register maps from `schema:usageInfo`) is used
+    # for two different things: the access protocol of a distribution *and* the
+    # content model a dump follows (EDM, SCHEMA-AP-NDE, Persons in Context).
+    # Only the former disqualifies a distribution, so this is a blocklist of
+    # access protocols rather than an allowlist of content models — an unknown
+    # `conformsTo` is assumed to describe the content and is still analysed.
+    #
+    # Without this, an API that honestly serves `application/ld+json` — such as
+    # the Rijksmuseum’s LDES, IIIF Change Discovery and Linked Art Search
+    # endpoints — is parsed as if it were a dump, and its entry page alone is
+    # published as the dataset’s summary.
+    FILTER(NOT EXISTS {
+        ?distribution dct:conformsTo ?apiSpecification .
+        VALUES ?apiSpecification {
+            <https://w3id.org/ldes/specification> # Remove once ldelements/lde#599 lands.
+            <https://iiif.io/api/discovery/1.0/>
+            <http://iiif.io/api/presentation/3/context.json>
+            <https://linked.art/api/1.0/search/>
+            <http://www.openarchives.org/pmh/>
+            <https://www.openarchives.org/pmh/>
+            <http://www.openarchives.org/OAI/openarchivesprotocol.html>
+            <https://spec.openapis.org/oas/v3.2.0.html>
+            <https://www.mediawiki.org/wiki/API:Tutorial>
+            <https://www.ogc.org/standards/wms/>
+            <https://www.openbeelden.nl/api/>
+            <https://developers.soundcloud.com/docs/api/guide>
+        }
+    })
+
     # Exclude datasets whose registration source is gone (the registration URL
     # itself became unreachable). Datasets that merely failed description
     # validation (registry/invalid) are kept: their data distributions may still
