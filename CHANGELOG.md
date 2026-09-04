@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.4](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.3...v3.0.4) (2026-09-04)
+
+
+### Bug Fixes
+
+* analyse N3 distributions ([fe88f9a](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/fe88f9a1209bf50203d74c9bfc241f9384c5f6fb))
+
 ## [3.0.3](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.2...v3.0.3) (2026-08-31)
 
 
