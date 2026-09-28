@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.5](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.4...v3.0.5) (2026-09-28)
+
+
+### Bug Fixes
+
+* skip the GTAA SPARQL endpoint ([81ee948](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/81ee948b2bfcc0754c26ed09f808bf896a26aa68))
+
 ## [3.0.4](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.3...v3.0.4) (2026-09-07)
 
 
