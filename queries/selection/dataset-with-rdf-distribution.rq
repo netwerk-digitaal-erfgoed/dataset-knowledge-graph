@@ -98,4 +98,7 @@ CONSTRUCT {
 
     # Skip unreliable endpoints.
     FILTER(!STRSTARTS(STR(?distribution_url), "https://cat.apis.beeldengeluid.nl/sparql"))
+    # Its Fuseki keeps running our analysis queries after timing them out,
+    # overloading the endpoint. Analyse the dataset’s dump instead.
+    FILTER(!STRSTARTS(STR(?distribution_url), "https://gtaa.apis.beeldengeluid.nl/sparql"))
 } ORDER BY ?dataset ?distribution
