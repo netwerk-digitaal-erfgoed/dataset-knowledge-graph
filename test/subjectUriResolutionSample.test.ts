@@ -1,7 +1,10 @@
 import {describe, it, expect} from 'vitest';
 import {Parser, Store} from 'n3';
 import {QueryEngine} from '@comunica/query-sparql-rdfjs-lite';
-import {buildSampleQuery} from '../src/subjectUriResolution.js';
+import {
+  buildMediaQuery,
+  buildSampleQuery,
+} from '../src/subjectUriResolution.js';
 
 // The DKOR case: an ARK namespace whose subjects include both genuine resources
 // and IIIF manifest URLs (`…/{uuid}/iiif.json`). The manifests pass the IIIF
@@ -12,14 +15,15 @@ const URI_SPACE = 'https://n2t.net/ark:/85849/';
 const PREFIXES = '@prefix schema: <https://schema.org/> .\n';
 
 async function sample(turtle: string, limit = 10): Promise<string[]> {
+  return select(turtle, buildSampleQuery(URI_SPACE, limit, ''));
+}
+
+async function select(turtle: string, query: string): Promise<string[]> {
   const store = new Store();
   store.addQuads(new Parser().parse(PREFIXES + turtle));
 
   const engine = new QueryEngine();
-  const bindings = await engine.queryBindings(
-    buildSampleQuery(URI_SPACE, limit, ''),
-    {sources: [store]},
-  );
+  const bindings = await engine.queryBindings(query, {sources: [store]});
   const subjects: string[] = [];
   for await (const binding of bindings) {
     const term = binding.get('s');
@@ -111,58 +115,81 @@ describe('buildSampleQuery IIIF manifest exclusion', () => {
   });
 });
 
-describe('buildSampleQuery media object exclusion', () => {
+describe('buildMediaQuery', () => {
   // The KLEKSI case: media files live on a CDN host as subjects of their own.
   // They are file locations, not identifiers for the dataset’s records, so the
-  // persistence check must not sample them.
-  it('excludes subjects typed as a media object', async () => {
-    const turtle = `
-      @prefix edm: <http://www.europeana.eu/schemas/edm/> .
-      <${URI_SPACE}aaa> schema:name "Work A" .
-      <${URI_SPACE}image> a schema:ImageObject .
-      <${URI_SPACE}pdf> a schema:MediaObject .
-      <${URI_SPACE}video> a <http://schema.org/VideoObject> .
-      <${URI_SPACE}webresource> a edm:WebResource .
-    `;
+  // persistence check drops them from its sample.
+  async function media(
+    turtle: string,
+    candidates: string[],
+  ): Promise<string[]> {
+    return select(turtle, buildMediaQuery(candidates));
+  }
 
-    expect(await sample(turtle)).toEqual([`${URI_SPACE}aaa`]);
-  });
-
-  it('excludes untyped media referenced from a work', async () => {
+  it('identifies associatedMedia targets', async () => {
     const turtle = `
-      <${URI_SPACE}aaa> schema:associatedMedia <${URI_SPACE}scan> ;
-        schema:image <${URI_SPACE}photo> .
+      <${URI_SPACE}aaa> schema:associatedMedia <${URI_SPACE}scan> .
       <${URI_SPACE}bbb> <http://schema.org/associatedMedia> <${URI_SPACE}audio> .
       <${URI_SPACE}scan> schema:contentUrl <https://cdn.example.org/scan.jpg> .
-      <${URI_SPACE}photo> schema:contentUrl <https://cdn.example.org/photo.jpg> .
       <${URI_SPACE}audio> schema:contentUrl <https://cdn.example.org/audio.mp3> .
     `;
 
-    expect(await sample(turtle)).toEqual([
-      `${URI_SPACE}aaa`,
-      `${URI_SPACE}bbb`,
-    ]);
+    expect(
+      await media(turtle, [
+        `${URI_SPACE}aaa`,
+        `${URI_SPACE}bbb`,
+        `${URI_SPACE}scan`,
+        `${URI_SPACE}audio`,
+      ]),
+    ).toEqual([`${URI_SPACE}audio`, `${URI_SPACE}scan`]);
   });
 
-  it('excludes IIIF Image API descriptors', async () => {
+  it('identifies EDM web resources', async () => {
+    const turtle = `
+      @prefix edm: <http://www.europeana.eu/schemas/edm/> .
+      <${URI_SPACE}aaa> a edm:ProvidedCHO .
+      <${URI_SPACE}webresource> a edm:WebResource .
+    `;
+
+    expect(
+      await media(turtle, [`${URI_SPACE}aaa`, `${URI_SPACE}webresource`]),
+    ).toEqual([`${URI_SPACE}webresource`]);
+  });
+
+  it('identifies IIIF Image API descriptors', async () => {
     // KLEKSI links each image to its `info.json` with rdfs:seeAlso; the
     // descriptor is untyped and recognisable only by its encodingFormat.
     const turtle = `
       <${URI_SPACE}aaa> schema:name "Work A" .
       <${URI_SPACE}image/info.json> schema:encodingFormat
-        "application/ld+json;profile=\\"http://iiif.io/api/image/3/context.json\\"" .
+        "application/ld+json;profile='http://iiif.io/api/image/3/context.json'" .
     `;
 
-    expect(await sample(turtle)).toEqual([`${URI_SPACE}aaa`]);
+    expect(
+      await media(turtle, [`${URI_SPACE}aaa`, `${URI_SPACE}image/info.json`]),
+    ).toEqual([`${URI_SPACE}image/info.json`]);
   });
 
-  it('yields an empty sample for a namespace holding only media', async () => {
+  it('does not treat records typed as a media class as media', async () => {
+    // A photo or AV archive may type its records as ImageObject or VideoObject,
+    // and link them with schema:image; those are the records to sample.
     const turtle = `
-      <${URI_SPACE}image-1> a schema:ImageObject .
-      <${URI_SPACE}image-2> a schema:ImageObject .
+      <${URI_SPACE}photo> a schema:ImageObject ; schema:name "Photo" .
+      <${URI_SPACE}video> a schema:VideoObject ; schema:name "Video" .
+      <${URI_SPACE}person> schema:image <${URI_SPACE}photo> .
     `;
 
-    expect(await sample(turtle)).toEqual([]);
+    expect(
+      await media(turtle, [`${URI_SPACE}photo`, `${URI_SPACE}video`]),
+    ).toEqual([]);
+  });
+
+  it('only looks up the given candidates', async () => {
+    const turtle = `
+      <${URI_SPACE}aaa> schema:associatedMedia <${URI_SPACE}scan> .
+    `;
+
+    expect(await media(turtle, [`${URI_SPACE}aaa`])).toEqual([]);
   });
 });
 

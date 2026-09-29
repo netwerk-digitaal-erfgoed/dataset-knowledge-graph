@@ -170,6 +170,13 @@ const SAMPLE_TIMEOUT_MS = 60_000;
 const MAX_SAMPLED_NAMESPACES = 3;
 
 /**
+ * How many times the sample size is fetched as candidates, so enough remain
+ * once media are dropped. Kept small: the candidates go into the media query as
+ * `VALUES`, and some endpoints (KLEKSI’s) reject requests over about 8 KB.
+ */
+const MEDIA_OVERSAMPLING = 3;
+
+/**
  * Per-request budget for dereferencing a sampled URI and the arks.org lookup.
  * Kept generous because ARK/Handle resolution traverses a multi-hop global
  * chain (`n2t.net → arks.org → institutional host → landing page`); a single
@@ -439,7 +446,7 @@ interface Namespace {
 
 /**
  * Sample the candidates in rank order, up to {@link MAX_SAMPLED_NAMESPACES}, and
- * settle on the first whose sample is non-empty. The sample query excludes media
+ * settle on the first whose sample is non-empty. The sampler drops media
  * objects, so a namespace that holds only media – such as KLEKSI’s media CDN,
  * which outnumbers the records – comes back empty and the next candidate is
  * tried. When every sample is empty, the top candidate stands, as before this
@@ -798,56 +805,68 @@ const IIIF_MANIFEST_EXCLUSION = `FILTER NOT EXISTS {
   }`;
 
 /**
- * SPARQL `FILTER NOT EXISTS` fragment that drops any sampled subject that is a
- * media object: typed as one (schema.org’s MediaObject and the subtypes
- * SCHEMA-AP-NDE names, or EDM’s WebResource), referenced from a work as its
- * `schema:associatedMedia` or `schema:image`, or an IIIF Image API descriptor
- * (`info.json`) recognised by its `schema:encodingFormat`. A media object’s IRI is usually
- * the file’s location on a CDN, not an identifier the publisher promises to
- * keep, and the IIIF and media criteria assess media already. Without it,
- * KLEKSI’s media CDN namespace, which holds more subjects than the records do,
- * is sampled instead of the records. Enumerated with `VALUES` for the same
+ * Build a query that tells which of the given candidate subjects are media: a
+ * `schema:associatedMedia` target (SCHEMA-AP-NDE’s link from a work to its
+ * media), an EDM `WebResource`, or an IIIF Image API descriptor (`info.json`)
+ * recognised by its `schema:encodingFormat`. A media object’s IRI is usually the
+ * file’s location on a CDN, not an identifier the publisher promises to keep, and
+ * the IIIF and media criteria assess media already. Without it, KLEKSI’s media
+ * CDN namespace, which holds more subjects than the records do, is sampled
+ * instead of the records.
+ *
+ * Media types such as `schema:ImageObject` or `schema:VideoObject` are
+ * deliberately not matched: a photo or AV archive may type its records that way.
+ *
+ * A separate query rather than a `FILTER NOT EXISTS` in {@link buildSampleQuery},
+ * so the sample query keeps stopping at its `LIMIT` on any endpoint: this one
+ * only looks up the bound candidates. Enumerated with `VALUES` for the same
  * reason as {@link IIIF_MANIFEST_EXCLUSION}; tolerant of `http`/`https`
- * schema.org.
+ * schema.org. Exported so it can be exercised against an in-memory store.
  */
-const MEDIA_OBJECT_EXCLUSION = `FILTER NOT EXISTS {
-    {
-      VALUES ?mediaType {
-        <https://schema.org/MediaObject> <http://schema.org/MediaObject>
-        <https://schema.org/ImageObject> <http://schema.org/ImageObject>
-        <https://schema.org/AudioObject> <http://schema.org/AudioObject>
-        <https://schema.org/VideoObject> <http://schema.org/VideoObject>
-        <https://schema.org/3DModel> <http://schema.org/3DModel>
-        <http://www.europeana.eu/schemas/edm/WebResource>
-      }
-      ?s a ?mediaType .
+export function buildMediaQuery(
+  candidates: readonly string[],
+  namedGraph?: string,
+): string {
+  for (const candidate of candidates) assertSafeIri(candidate);
+  let fromClause = '';
+  if (namedGraph) {
+    assertSafeIri(namedGraph);
+    fromClause = `FROM <${namedGraph}>`;
+  }
+  return [
+    'SELECT DISTINCT ?s',
+    fromClause,
+    'WHERE {',
+    `  VALUES ?s { ${candidates.map(candidate => `<${candidate}>`).join(' ')} }`,
+    `  {
+    VALUES ?mediaPredicate {
+      <https://schema.org/associatedMedia> <http://schema.org/associatedMedia>
     }
-    UNION
-    {
-      VALUES ?mediaPredicate {
-        <https://schema.org/associatedMedia> <http://schema.org/associatedMedia>
-        <https://schema.org/image> <http://schema.org/image>
-      }
-      ?work ?mediaPredicate ?s .
+    ?work ?mediaPredicate ?s .
+  }
+  UNION
+  {
+    ?s a <http://www.europeana.eu/schemas/edm/WebResource> .
+  }
+  UNION
+  {
+    VALUES ?imageFormatPredicate {
+      <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
     }
-    UNION
-    {
-      VALUES ?imageFormatPredicate {
-        <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
-      }
-      ?s ?imageFormatPredicate ?imageFormat .
-      FILTER(isLiteral(?imageFormat)
-        && STRSTARTS(STR(?imageFormat), "application/ld+json")
-        && CONTAINS(STR(?imageFormat), "iiif.io/api/image/"))
-    }
-  }`;
+    ?s ?imageFormatPredicate ?imageFormat .
+    FILTER(isLiteral(?imageFormat)
+      && STRSTARTS(STR(?imageFormat), "application/ld+json")
+      && CONTAINS(STR(?imageFormat), "iiif.io/api/image/"))
+  }`,
+    '}',
+  ].join('\n');
+}
 
 /**
  * Build the subject-URI sample query: a `SELECT DISTINCT ?s … LIMIT n`
  * short-circuited on the namespace prefix, with the distribution's subject
  * filter and named graph woven in (mirroring the VoID class selector), the
- * {@link IIIF_MANIFEST_EXCLUSION known IIIF manifests} and
- * {@link MEDIA_OBJECT_EXCLUSION media objects} filtered out, and the
+ * {@link IIIF_MANIFEST_EXCLUSION known IIIF manifests} filtered out, and the
  * URI space prefix itself excluded (it matches its own `STRSTARTS` but is the
  * namespace, not a dereferenceable resource). Exported so the exclusions can be
  * exercised against an in-memory store.
@@ -871,7 +890,6 @@ export function buildSampleQuery(
     '  ?s ?p ?o .',
     `  FILTER(ISIRI(?s) && STRSTARTS(STR(?s), ${sparqlString(uriSpace)}) && STR(?s) != ${sparqlString(uriSpace)})`,
     `  ${IIIF_MANIFEST_EXCLUSION}`,
-    `  ${MEDIA_OBJECT_EXCLUSION}`,
     '}',
     `LIMIT ${sampleSize}`,
   ].join('\n');
@@ -879,7 +897,10 @@ export function buildSampleQuery(
 
 /**
  * Default sampler: runs {@link buildSampleQuery} as a plain SPARQL SELECT
- * against the distribution's endpoint. The fetcher's own timeout fast-fails a
+ * against the distribution's endpoint, over-sampling by
+ * {@link MEDIA_OVERSAMPLING}, then drops the candidates {@link buildMediaQuery}
+ * identifies as media and keeps the first `sampleSize`. A namespace holding only
+ * media thus yields an empty sample. The fetcher's own timeout fast-fails a
  * slow endpoint, since the transform runs outside the stage runner where the
  * Pipeline's adaptive policy would normally apply.
  */
@@ -888,18 +909,42 @@ const defaultSampleUris: SampleUris = async (
   sampleSize,
   {distribution},
 ) => {
-  const query = buildSampleQuery(
-    uriSpace,
-    sampleSize,
-    distribution.subjectFilter ?? '',
-    distribution.namedGraph,
-  );
-
   const fetcher = new SparqlEndpointFetcher({timeout: SAMPLE_TIMEOUT_MS});
+  const endpoint = distribution.accessUrl.toString();
+  const candidates = await selectSubjects(
+    fetcher,
+    endpoint,
+    buildSampleQuery(
+      uriSpace,
+      sampleSize * MEDIA_OVERSAMPLING,
+      distribution.subjectFilter ?? '',
+      distribution.namedGraph,
+    ),
+  );
+  if (candidates.length === 0) return [];
+
+  const media = new Set(
+    await selectSubjects(
+      fetcher,
+      endpoint,
+      buildMediaQuery(candidates, distribution.namedGraph),
+    ),
+  );
+  return candidates
+    .filter(candidate => !media.has(candidate))
+    .slice(0, sampleSize);
+};
+
+/** Run a SELECT and return its `?s` bindings that are IRIs. */
+async function selectSubjects(
+  fetcher: SparqlEndpointFetcher,
+  endpoint: string,
+  query: string,
+): Promise<string[]> {
   // fetchBindings yields IBindings (object mode), not the string/Buffer the
   // NodeJS.ReadableStream type implies.
   const bindings = (await fetcher.fetchBindings(
-    distribution.accessUrl.toString(),
+    endpoint,
     query,
   )) as unknown as AsyncIterable<IBindings>;
   const subjects: string[] = [];
@@ -907,7 +952,7 @@ const defaultSampleUris: SampleUris = async (
     if (row.s?.termType === 'NamedNode') subjects.push(row.s.value);
   }
   return subjects;
-};
+}
 
 /**
  * Accept header for the first dereference probe: HTML and nothing else. A
