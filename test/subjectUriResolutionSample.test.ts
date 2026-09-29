@@ -111,6 +111,61 @@ describe('buildSampleQuery IIIF manifest exclusion', () => {
   });
 });
 
+describe('buildSampleQuery media object exclusion', () => {
+  // The KLEKSI case: media files live on a CDN host as subjects of their own.
+  // They are file locations, not identifiers for the dataset’s records, so the
+  // persistence check must not sample them.
+  it('excludes subjects typed as a media object', async () => {
+    const turtle = `
+      @prefix edm: <http://www.europeana.eu/schemas/edm/> .
+      <${URI_SPACE}aaa> schema:name "Work A" .
+      <${URI_SPACE}image> a schema:ImageObject .
+      <${URI_SPACE}pdf> a schema:MediaObject .
+      <${URI_SPACE}video> a <http://schema.org/VideoObject> .
+      <${URI_SPACE}webresource> a edm:WebResource .
+    `;
+
+    expect(await sample(turtle)).toEqual([`${URI_SPACE}aaa`]);
+  });
+
+  it('excludes untyped media referenced from a work', async () => {
+    const turtle = `
+      <${URI_SPACE}aaa> schema:associatedMedia <${URI_SPACE}scan> ;
+        schema:image <${URI_SPACE}photo> .
+      <${URI_SPACE}bbb> <http://schema.org/associatedMedia> <${URI_SPACE}audio> .
+      <${URI_SPACE}scan> schema:contentUrl <https://cdn.example.org/scan.jpg> .
+      <${URI_SPACE}photo> schema:contentUrl <https://cdn.example.org/photo.jpg> .
+      <${URI_SPACE}audio> schema:contentUrl <https://cdn.example.org/audio.mp3> .
+    `;
+
+    expect(await sample(turtle)).toEqual([
+      `${URI_SPACE}aaa`,
+      `${URI_SPACE}bbb`,
+    ]);
+  });
+
+  it('excludes IIIF Image API descriptors', async () => {
+    // KLEKSI links each image to its `info.json` with rdfs:seeAlso; the
+    // descriptor is untyped and recognisable only by its encodingFormat.
+    const turtle = `
+      <${URI_SPACE}aaa> schema:name "Work A" .
+      <${URI_SPACE}image/info.json> schema:encodingFormat
+        "application/ld+json;profile=\\"http://iiif.io/api/image/3/context.json\\"" .
+    `;
+
+    expect(await sample(turtle)).toEqual([`${URI_SPACE}aaa`]);
+  });
+
+  it('yields an empty sample for a namespace holding only media', async () => {
+    const turtle = `
+      <${URI_SPACE}image-1> a schema:ImageObject .
+      <${URI_SPACE}image-2> a schema:ImageObject .
+    `;
+
+    expect(await sample(turtle)).toEqual([]);
+  });
+});
+
 describe('buildSampleQuery URI space prefix exclusion', () => {
   it('excludes the URI space prefix itself while keeping genuine subjects', async () => {
     // The prefix appears as a subject in the data (e.g. `…/61567/dataset`

@@ -136,6 +136,8 @@ const NON_DURABLE_NAMESPACES: ReadonlyArray<{
   {mode: 'host', value: 'adlibhosting.com', reason: 'vendor'},
   {mode: 'host', value: 'spinque.com', reason: 'vendor'},
   {mode: 'host', value: 'kleksi.com', reason: 'vendor'},
+  // KLEKSI’s short-link host, which KLEKSI itself calls a temporary PID.
+  {mode: 'host', value: 'klek.si', reason: 'vendor'},
   {mode: 'host', value: 'xentropics.cloud', reason: 'vendor'},
   {mode: 'path', value: '/AtlantisPubliek/', reason: 'vendor'},
 ];
@@ -159,6 +161,13 @@ const DEFAULT_CONCURRENCY = 4;
  * keeps one slow endpoint from stalling the run.
  */
 const SAMPLE_TIMEOUT_MS = 60_000;
+
+/**
+ * How many candidate namespaces are sampled before settling on the biggest. Each
+ * empty sample costs one sample query, so this bounds the extra work for a
+ * dataset whose biggest namespaces hold only media.
+ */
+const MAX_SAMPLED_NAMESPACES = 3;
 
 /**
  * Per-request budget for dereferencing a sampled URI and the arks.org lookup.
@@ -266,10 +275,11 @@ export interface SubjectUriResolutionOptions {
  * persistent-identifier (PID) detection on top.
  *
  * It harvests the `void:uriSpace`/`void:entities` subsets from the stage
- * output (passing them through unchanged), picks the single most common
- * namespace that is neither a terminology source nor a skolem
- * (`/.well-known/genid/`) namespace — the one the dataset mints for its own
- * resources — samples URIs from it, and dereferences them. The outcome is appended,
+ * output (passing them through unchanged), picks the most common namespace that
+ * is neither a terminology source nor a skolem (`/.well-known/genid/`) namespace
+ * and whose sample is not all media objects – the one the dataset mints for its
+ * own resources (see {@link sampleOwnNamespace}) – samples URIs from it, and
+ * dereferences them. The outcome is appended,
  * scoped to that namespace’s subset node:
  *
  * - **declared** facts: `dcterms:conformsTo` a PID scheme (ARK/Handle, only if
@@ -321,30 +331,41 @@ export function subjectUriResolution(
       }
     }
 
-    const winner = pickWinner(
+    const candidates = rankCandidates(
       uriSpaceBySubset,
       entitiesBySubset,
       terminologyPrefixes,
     );
     // No non-terminology namespace survived: emit nothing extra.
-    if (winner === undefined) {
+    if (candidates.length === 0) {
       return;
     }
 
+    // Sampling is best-effort: a failure must not drop the VoID output that
+    // already streamed through. But discarding it *silently* makes a transient
+    // endpoint blip indistinguishable from a namespace that was never sampled,
+    // so the sample query is retried first and, if it still fails every
+    // attempt, an explicit marker the register can read is recorded below.
+    const {winner, sampled} = await sampleOwnNamespace(candidates, uriSpace =>
+      sampleUrisWithRetry(
+        () => sampleUris(uriSpace, sampleSize, {dataset, distribution}),
+        retries,
+        sleep,
+      ),
+    );
     const subset = namedNode(winner.subset);
 
-    // Durability is knowable from the namespace string alone, so flag it before
-    // (and outside) the best-effort sampling block: a vendor preview domain
-    // whose endpoint is slow today is exactly what we most want flagged.
+    // Durability is knowable from the namespace string alone, so flag it
+    // regardless of the sample: a vendor preview domain whose endpoint is slow
+    // today is exactly what we most want flagged.
     if (isNonDurable(winner.uriSpace)) {
       yield* nonDurableMeasurement(subset, software);
     }
 
     // Declared facts (PID scheme, issuing org) are knowable from the namespace
     // string alone, independent of whether the sample resolves — so emit them
-    // before (and outside) the sampling block, so a sample failure cannot erase
-    // them. The ARK org lookup swallows its own errors, so awaiting it here is
-    // safe.
+    // regardless of the sample, so a sample failure cannot erase them. The ARK
+    // org lookup swallows its own errors, so awaiting it here is safe.
     const scheme = detectPidScheme(winner.uriSpace);
     const org =
       scheme === 'ark'
@@ -352,71 +373,96 @@ export function subjectUriResolution(
         : undefined;
     yield* declaredFactQuads(subset, scheme, org);
 
-    // Sampling and dereferencing are best-effort: a failure must not drop the
-    // VoID output that already streamed through. But discarding them *silently*
-    // makes a transient endpoint blip indistinguishable from a namespace that
-    // was never sampled, so retry the sample query first and, if it still fails
-    // every attempt, record an explicit marker the register can read.
-    try {
-      const sampled = await sampleUrisWithRetry(
-        () => sampleUris(winner.uriSpace, sampleSize, {dataset, distribution}),
-        retries,
-        sleep,
-      );
-      const limit = pLimit(concurrency);
-      // One budget shared across every dereference: once it elapses, in-flight
-      // fetches abort and resolveWithRetry stops scheduling retries.
-      const phaseSignal = AbortSignal.timeout(DEREFERENCE_PHASE_BUDGET_MS);
-      const resolutions = await Promise.all(
-        sampled.map(uri =>
-          limit(() =>
-            resolveWithRetry(uri, resolve, retries, sleep, phaseSignal),
-          ),
-        ),
-      );
-
-      // Classify each settled outcome. A resolution counts toward the ratio,
-      // and toward the HTML-landing-page tally when it is one. A *definitive*
-      // failure is a real defect. Both are *measurable*, so each is persisted as
-      // a per-URI outcome usage. A *transient* failure survived every retry, so
-      // the resolver chain (not the dataset) is at fault: drop the URI from the
-      // sample entirely rather than scoring it as broken — it gets no usage.
-      let resolved = 0;
-      let htmlLandingPages = 0;
-      const outcomes: SampleOutcome[] = [];
-      sampled.forEach((uri, index) => {
-        const resolution = resolutions[index];
-        if (resolution.kind === 'resolved') {
-          resolved++;
-          if (resolution.landingPage) htmlLandingPages++;
-        } else if (isTransientFailure(resolution.reason)) {
-          return;
-        }
-        outcomes.push({url: uri, outcomeIri: outcomeIriFor(resolution)});
-      });
-      // The denominator counts only definitively-judged URIs; transient ones are
-      // excluded, so every persisted outcome is one measurable URI. With nothing
-      // measurable — an empty sample, or every URI transiently unreachable — the
-      // declared facts above stand on their own, so append no misleading 0/0
-      // ratio (and no failure marker: the sample query itself succeeded).
-      const measurable = outcomes.length;
-      if (measurable > 0) {
-        yield* measurementQuads(
-          subset,
-          measurable,
-          resolved,
-          htmlLandingPages,
-          outcomes,
-          software,
-        );
-      }
-    } catch {
+    if (sampled === undefined) {
       // The sample query threw on every attempt: emit an explicit
       // sampling-failed marker so this is distinguishable from a namespace that
       // was never sampled, instead of vanishing silently.
       yield* samplingFailedMeasurement(subset, software);
+      return;
+    }
+
+    const limit = pLimit(concurrency);
+    // One budget shared across every dereference: once it elapses, in-flight
+    // fetches abort and resolveWithRetry stops scheduling retries.
+    const phaseSignal = AbortSignal.timeout(DEREFERENCE_PHASE_BUDGET_MS);
+    const resolutions = await Promise.all(
+      sampled.map(uri =>
+        limit(() =>
+          resolveWithRetry(uri, resolve, retries, sleep, phaseSignal),
+        ),
+      ),
+    );
+
+    // Classify each settled outcome. A resolution counts toward the ratio,
+    // and toward the HTML-landing-page tally when it is one. A *definitive*
+    // failure is a real defect. Both are *measurable*, so each is persisted as
+    // a per-URI outcome usage. A *transient* failure survived every retry, so
+    // the resolver chain (not the dataset) is at fault: drop the URI from the
+    // sample entirely rather than scoring it as broken — it gets no usage.
+    let resolved = 0;
+    let htmlLandingPages = 0;
+    const outcomes: SampleOutcome[] = [];
+    sampled.forEach((uri, index) => {
+      const resolution = resolutions[index];
+      if (resolution.kind === 'resolved') {
+        resolved++;
+        if (resolution.landingPage) htmlLandingPages++;
+      } else if (isTransientFailure(resolution.reason)) {
+        return;
+      }
+      outcomes.push({url: uri, outcomeIri: outcomeIriFor(resolution)});
+    });
+    // The denominator counts only definitively-judged URIs; transient ones are
+    // excluded, so every persisted outcome is one measurable URI. With nothing
+    // measurable — an empty sample, or every URI transiently unreachable — the
+    // declared facts above stand on their own, so append no misleading 0/0
+    // ratio (and no failure marker: the sample query itself succeeded).
+    const measurable = outcomes.length;
+    if (measurable > 0) {
+      yield* measurementQuads(
+        subset,
+        measurable,
+        resolved,
+        htmlLandingPages,
+        outcomes,
+        software,
+      );
     }
   };
+}
+
+/** A candidate subject namespace: its VoID subset node and URI space. */
+interface Namespace {
+  readonly subset: string;
+  readonly uriSpace: string;
+}
+
+/**
+ * Sample the candidates in rank order, up to {@link MAX_SAMPLED_NAMESPACES}, and
+ * settle on the first whose sample is non-empty. The sample query excludes media
+ * objects, so a namespace that holds only media – such as KLEKSI’s media CDN,
+ * which outnumbers the records – comes back empty and the next candidate is
+ * tried. When every sample is empty, the top candidate stands, as before this
+ * fall-through existed. A sample that throws ends the search on that namespace
+ * with `sampled` undefined: a failure says nothing about whether it holds only
+ * media, so skipping it would measure the wrong namespace.
+ */
+async function sampleOwnNamespace(
+  candidates: readonly Namespace[],
+  sample: (uriSpace: string) => Promise<string[]>,
+): Promise<{winner: Namespace; sampled: string[] | undefined}> {
+  for (const candidate of candidates.slice(0, MAX_SAMPLED_NAMESPACES)) {
+    let sampled: string[];
+    try {
+      sampled = await sample(candidate.uriSpace);
+    } catch {
+      return {winner: candidate, sampled: undefined};
+    }
+    if (sampled.length > 0) {
+      return {winner: candidate, sampled};
+    }
+  }
+  return {winner: candidates[0], sampled: []};
 }
 
 /**
@@ -477,9 +523,11 @@ async function sampleUrisWithRetry(
 }
 
 /**
- * Pick the subset with the most entities whose namespace is the dataset’s own —
- * skipping a skolem namespace unconditionally and a terminology source unless
- * that namespace is itself a recognised ARK/Handle PID scheme.
+ * Rank the subsets that may be the dataset’s own namespace by entities, most
+ * first (ties keep their input order) – skipping a skolem namespace
+ * unconditionally and a terminology source unless that namespace is itself a
+ * recognised ARK/Handle PID scheme. {@link sampleOwnNamespace} picks from this
+ * ranking.
  *
  * A skolem namespace (`/.well-known/genid/`) holds RDF 1.1 skolem IRIs: system-
  * minted stand-ins for blank nodes (checksum records, geometries, coverage
@@ -498,12 +546,12 @@ async function sampleUrisWithRetry(
  * pick a referenced vendor namespace instead and lose the ARK detection, so
  * PID-ness overrides the terminology exclusion (#373).
  */
-function pickWinner(
+function rankCandidates(
   uriSpaceBySubset: ReadonlyMap<string, string>,
   entitiesBySubset: ReadonlyMap<string, number>,
   terminologyPrefixes: readonly string[],
-): {subset: string; uriSpace: string} | undefined {
-  let best: {subset: string; uriSpace: string; entities: number} | undefined;
+): Namespace[] {
+  const candidates: {subset: string; uriSpace: string; entities: number}[] = [];
   for (const [subset, uriSpace] of uriSpaceBySubset) {
     if (isSkolemNamespace(uriSpace)) {
       continue;
@@ -515,11 +563,11 @@ function pickWinner(
       continue;
     }
     const entities = entitiesBySubset.get(subset) ?? 0;
-    if (best === undefined || entities > best.entities) {
-      best = {subset, uriSpace, entities};
-    }
+    candidates.push({subset, uriSpace, entities});
   }
-  return best && {subset: best.subset, uriSpace: best.uriSpace};
+  return candidates
+    .sort((first, second) => second.entities - first.entities)
+    .map(({subset, uriSpace}) => ({subset, uriSpace}));
 }
 
 /**
@@ -750,10 +798,56 @@ const IIIF_MANIFEST_EXCLUSION = `FILTER NOT EXISTS {
   }`;
 
 /**
+ * SPARQL `FILTER NOT EXISTS` fragment that drops any sampled subject that is a
+ * media object: typed as one (schema.org’s MediaObject and the subtypes
+ * SCHEMA-AP-NDE names, or EDM’s WebResource), referenced from a work as its
+ * `schema:associatedMedia` or `schema:image`, or an IIIF Image API descriptor
+ * (`info.json`) recognised by its `schema:encodingFormat`. A media object’s IRI is usually
+ * the file’s location on a CDN, not an identifier the publisher promises to
+ * keep, and the IIIF and media criteria assess media already. Without it,
+ * KLEKSI’s media CDN namespace, which holds more subjects than the records do,
+ * is sampled instead of the records. Enumerated with `VALUES` for the same
+ * reason as {@link IIIF_MANIFEST_EXCLUSION}; tolerant of `http`/`https`
+ * schema.org.
+ */
+const MEDIA_OBJECT_EXCLUSION = `FILTER NOT EXISTS {
+    {
+      VALUES ?mediaType {
+        <https://schema.org/MediaObject> <http://schema.org/MediaObject>
+        <https://schema.org/ImageObject> <http://schema.org/ImageObject>
+        <https://schema.org/AudioObject> <http://schema.org/AudioObject>
+        <https://schema.org/VideoObject> <http://schema.org/VideoObject>
+        <https://schema.org/3DModel> <http://schema.org/3DModel>
+        <http://www.europeana.eu/schemas/edm/WebResource>
+      }
+      ?s a ?mediaType .
+    }
+    UNION
+    {
+      VALUES ?mediaPredicate {
+        <https://schema.org/associatedMedia> <http://schema.org/associatedMedia>
+        <https://schema.org/image> <http://schema.org/image>
+      }
+      ?work ?mediaPredicate ?s .
+    }
+    UNION
+    {
+      VALUES ?imageFormatPredicate {
+        <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
+      }
+      ?s ?imageFormatPredicate ?imageFormat .
+      FILTER(isLiteral(?imageFormat)
+        && STRSTARTS(STR(?imageFormat), "application/ld+json")
+        && CONTAINS(STR(?imageFormat), "iiif.io/api/image/"))
+    }
+  }`;
+
+/**
  * Build the subject-URI sample query: a `SELECT DISTINCT ?s … LIMIT n`
  * short-circuited on the namespace prefix, with the distribution's subject
  * filter and named graph woven in (mirroring the VoID class selector), the
- * {@link IIIF_MANIFEST_EXCLUSION known IIIF manifests} filtered out, and the
+ * {@link IIIF_MANIFEST_EXCLUSION known IIIF manifests} and
+ * {@link MEDIA_OBJECT_EXCLUSION media objects} filtered out, and the
  * URI space prefix itself excluded (it matches its own `STRSTARTS` but is the
  * namespace, not a dereferenceable resource). Exported so the exclusions can be
  * exercised against an in-memory store.
@@ -777,6 +871,7 @@ export function buildSampleQuery(
     '  ?s ?p ?o .',
     `  FILTER(ISIRI(?s) && STRSTARTS(STR(?s), ${sparqlString(uriSpace)}) && STR(?s) != ${sparqlString(uriSpace)})`,
     `  ${IIIF_MANIFEST_EXCLUSION}`,
+    `  ${MEDIA_OBJECT_EXCLUSION}`,
     '}',
     `LIMIT ${sampleSize}`,
   ].join('\n');
