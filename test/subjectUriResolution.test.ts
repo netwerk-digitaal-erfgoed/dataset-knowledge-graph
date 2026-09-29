@@ -581,6 +581,129 @@ describe('subjectUriResolution', () => {
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
   });
 
+  it('falls through to the next namespace when the biggest yields no sample', async () => {
+    // The KLEKSI case: the media CDN namespace has more subjects than the
+    // records, but the sampler excludes media, so its sample comes back empty.
+    // The records’ namespace must be measured instead – and only it.
+    const media = subset('https://eu.cdn.kleksi.com/vx479x/', 38400);
+    const records = subset('https://records.example.org/vx479x/', 23983);
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return uriSpace === 'https://records.example.org/vx479x/'
+          ? ['https://records.example.org/vx479x/good-1']
+          : [];
+      },
+      resolve: resolveByName,
+    });
+
+    const out = await collect(
+      transform(stream([...media.quads, ...records.quads]), context),
+    );
+
+    expect(seen).toEqual([
+      'https://eu.cdn.kleksi.com/vx479x/',
+      'https://records.example.org/vx479x/',
+    ]);
+    expect(measurementValue(out, SAMPLED_METRIC, records.node)).toBe(1);
+    expect(measurementValue(out, RESOLVED_METRIC, records.node)).toBe(1);
+    // The skipped vendor namespace is not flagged: it was not measured.
+    expect(
+      out.some(
+        q =>
+          q.subject.equals(media.node) &&
+          q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT),
+      ),
+    ).toBe(false);
+  });
+
+  it('settles on the biggest namespace when every sample is empty', async () => {
+    const biggest = subset('https://n2t.net/ark:/60537/', 5000);
+    const smaller = subset('http://example.org/id/', 4000);
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return [];
+      },
+      resolve: resolveByName,
+      lookupOrg: noOrg,
+    });
+
+    const out = await collect(
+      transform(stream([...biggest.quads, ...smaller.quads]), context),
+    );
+
+    expect(seen).toEqual([
+      'https://n2t.net/ark:/60537/',
+      'http://example.org/id/',
+    ]);
+    // The declared facts land on the biggest namespace, as before.
+    expect(
+      out.some(
+        q =>
+          q.subject.equals(biggest.node) &&
+          q.predicate.equals(DCTERMS_CONFORMS_TO) &&
+          q.object.equals(ARK_SCHEME),
+      ),
+    ).toBe(true);
+    expect(measurementValue(out, SAMPLED_METRIC, biggest.node)).toBeUndefined();
+  });
+
+  it('samples at most three namespaces', async () => {
+    const namespaces = [5, 4, 3, 2, 1].map(entities =>
+      subset(`http://example.org/ns${entities}/`, entities),
+    );
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return [];
+      },
+      resolve: resolveByName,
+    });
+
+    await collect(
+      transform(stream(namespaces.flatMap(ns => ns.quads)), context),
+    );
+
+    expect(seen).toEqual([
+      'http://example.org/ns5/',
+      'http://example.org/ns4/',
+      'http://example.org/ns3/',
+    ]);
+  });
+
+  it('does not fall through when sampling fails', async () => {
+    // A failed sample says nothing about whether the namespace holds only
+    // media, so the failure is recorded on it rather than skipped.
+    const biggest = subset('http://example.org/id/', 5000);
+    const smaller = subset('http://example.org/other/', 4000);
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        throw new Error('endpoint timeout');
+      },
+      resolve: resolveByName,
+      retries: 0,
+    });
+
+    const out = await collect(
+      transform(stream([...biggest.quads, ...smaller.quads]), context),
+    );
+
+    expect(seen).toEqual(['http://example.org/id/']);
+    expect(
+      measurementValueTerm(out, SAMPLING_FAILED_METRIC, biggest.node)?.value,
+    ).toBe('true');
+  });
+
   it('keeps the VoID output and marks the failure when sampling fails', async () => {
     const ns = subset('http://example.org/id/', 10);
     const transform = subjectUriResolution({
@@ -773,6 +896,22 @@ describe('subjectUriResolution', () => {
       const transform = subjectUriResolution({
         terminologyPrefixes: [],
         sampleUris: sampleFixed(['https://cmu.adlibhosting.com/id/good']),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(measurementValueTerm(out, DURABLE_METRIC, ns.node)?.value).toBe(
+        'false',
+      );
+    });
+
+    it('flags KLEKSI’s short-link host', async () => {
+      // KLEKSI itself calls klek.si a temporary PID, pending Handle or ARK.
+      const ns = subset('https://klek.si/vx479x/', 23983);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed(['https://klek.si/vx479x/good']),
         resolve: resolveByName,
       });
 
