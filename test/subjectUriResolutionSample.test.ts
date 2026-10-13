@@ -2,8 +2,9 @@ import {describe, it, expect} from 'vitest';
 import {Parser, Store} from 'n3';
 import {QueryEngine} from '@comunica/query-sparql-rdfjs-lite';
 import {
-  buildMediaQuery,
+  buildExclusionQuery,
   buildSampleQuery,
+  sampleSubjects,
 } from '../src/subjectUriResolution.js';
 
 // The DKOR case: an ARK namespace whose subjects include both genuine resources
@@ -15,7 +16,13 @@ const URI_SPACE = 'https://n2t.net/ark:/85849/';
 const PREFIXES = '@prefix schema: <https://schema.org/> .\n';
 
 async function sample(turtle: string, limit = 10): Promise<string[]> {
-  return select(turtle, buildSampleQuery(URI_SPACE, limit, ''));
+  const subjects = await sampleSubjects(
+    query => select(turtle, query),
+    URI_SPACE,
+    limit,
+    '',
+  );
+  return subjects.sort();
 }
 
 async function select(turtle: string, query: string): Promise<string[]> {
@@ -35,7 +42,7 @@ async function select(turtle: string, query: string): Promise<string[]> {
 const IIIF_V3 =
   "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'";
 
-describe('buildSampleQuery IIIF manifest exclusion', () => {
+describe('sampleSubjects IIIF manifest exclusion', () => {
   it('excludes manifest URLs that bear the IIIF encodingFormat themselves', async () => {
     const turtle = `
       <${URI_SPACE}aaa> schema:name "Work A" .
@@ -101,8 +108,8 @@ describe('buildSampleQuery IIIF manifest exclusion', () => {
   });
 
   it('backfills the sample with genuine subjects up to the limit', async () => {
-    // With manifests excluded at the source, a small LIMIT is filled with real
-    // subjects rather than partly wasted on manifests (the DKOR 6/6 outcome).
+    // The sample query over-samples, so once the manifests are dropped a small
+    // sample is still filled with real subjects (the DKOR 6/6 outcome).
     const turtle = `
       <${URI_SPACE}aaa> schema:name "Work A" .
       <${URI_SPACE}bbb> schema:name "Work B" .
@@ -115,7 +122,7 @@ describe('buildSampleQuery IIIF manifest exclusion', () => {
   });
 });
 
-describe('buildMediaQuery', () => {
+describe('buildExclusionQuery media', () => {
   // The KLEKSI case: media files live on a CDN host as subjects of their own.
   // They are file locations, not identifiers for the dataset’s records, so the
   // persistence check drops them from its sample.
@@ -123,7 +130,7 @@ describe('buildMediaQuery', () => {
     turtle: string,
     candidates: string[],
   ): Promise<string[]> {
-    return select(turtle, buildMediaQuery(candidates));
+    return select(turtle, buildExclusionQuery(candidates));
   }
 
   it('identifies associatedMedia targets', async () => {
@@ -205,9 +212,16 @@ describe('buildSampleQuery URI space prefix exclusion', () => {
       <${URI_SPACE}bbb> schema:name "Work B" .
     `;
 
-    expect(await sample(turtle)).toEqual([
+    expect(await select(turtle, buildSampleQuery(URI_SPACE, 10, ''))).toEqual([
       `${URI_SPACE}aaa`,
       `${URI_SPACE}bbb`,
     ]);
+  });
+
+  it('carries no exclusion that would keep it from stopping at its LIMIT', () => {
+    // A FILTER NOT EXISTS here makes an endpoint check every subject of a
+    // namespace that holds only manifests; the exclusion query does that work
+    // for the sampled candidates alone.
+    expect(buildSampleQuery(URI_SPACE, 10, '')).not.toContain('NOT EXISTS');
   });
 });

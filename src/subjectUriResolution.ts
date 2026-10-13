@@ -171,10 +171,11 @@ const MAX_SAMPLED_NAMESPACES = 3;
 
 /**
  * How many times the sample size is fetched as candidates, so enough remain
- * once media are dropped. Kept small: the candidates go into the media query as
- * `VALUES`, and some endpoints (KLEKSI’s) reject requests over about 8 KB.
+ * once IIIF manifests and media are dropped. Kept small: the candidates go into
+ * the exclusion query as `VALUES`, and some endpoints (KLEKSI’s) reject requests
+ * over about 8 KB.
  */
-const MEDIA_OVERSAMPLING = 3;
+const EXCLUSION_OVERSAMPLING = 3;
 
 /**
  * Per-request budget for dereferencing a sampled URI and the arks.org lookup.
@@ -446,13 +447,14 @@ interface Namespace {
 
 /**
  * Sample the candidates in rank order, up to {@link MAX_SAMPLED_NAMESPACES}, and
- * settle on the first whose sample is non-empty. The sampler drops media
- * objects, so a namespace that holds only media – such as KLEKSI’s media CDN,
- * which outnumbers the records – comes back empty and the next candidate is
- * tried. When every sample is empty, the top candidate stands, as before this
- * fall-through existed. A sample that throws ends the search on that namespace
- * with `sampled` undefined: a failure says nothing about whether it holds only
- * media, so skipping it would measure the wrong namespace.
+ * settle on the first whose sample is non-empty. The sampler drops IIIF
+ * manifests and media objects, so a namespace that holds only those – such as
+ * KLEKSI’s media CDN, which outnumbers the records – comes back empty and the
+ * next candidate is tried. When every sample is empty, the top candidate
+ * stands, as before this fall-through existed. A sample that throws ends the
+ * search on that namespace with `sampled` undefined: a failure says nothing
+ * about whether it holds only media, so skipping it would measure the wrong
+ * namespace.
  */
 async function sampleOwnNamespace(
   candidates: readonly Namespace[],
@@ -765,65 +767,40 @@ function* samplingFailedMeasurement(
 }
 
 /**
- * SPARQL `FILTER NOT EXISTS` fragment that drops any sampled subject the IIIF
- * criterion already assesses as a manifest: either the subject is itself a
- * manifest node (it bears an IIIF `schema:encodingFormat`) or it is the
- * `schema:contentUrl` such a node dereferences to. Without it, an ARK+IIIF
- * publisher’s manifest URLs (e.g. `…/ark:/85849/{uuid}/iiif.json`) can be
- * sampled here and fail as `wrong-content-type` — a manifest correctly serves
- * JSON, not `text/html` — while simultaneously passing the IIIF criterion: one
- * URL both green (IIIF) and red (persistent identifier). Excluding them leaves
- * manifests to the IIIF criterion alone and resolves the contradiction.
+ * Build a query that tells which of the given candidate subjects must be left
+ * out of the sample, because another criterion assesses them already:
  *
- * The manifest test is the shared {@link iiifManifestFormatFilter} — the same
- * encodingFormat rule the IIIF criterion uses — so the two cannot drift. The
- * dereference target mirrors `queries/analysis/iiif.rq`: `schema:contentUrl`
- * when present, else the encodingFormat-bearing node. Tolerant of `http`/`https`
- * schema.org like that query.
- *
- * The `http`/`https` predicates are enumerated with `VALUES` rather than a
- * property-path alternation (`a|b`): the latter is mis-evaluated by the query
- * engine inside `FILTER NOT EXISTS` — when no triple uses the predicate at all,
- * the whole `NOT EXISTS` collapses to false and drops every subject.
- */
-const IIIF_MANIFEST_EXCLUSION = `FILTER NOT EXISTS {
-    VALUES ?encodingFormatPredicate {
-      <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
-    }
-    # ?s is itself the manifest node …
-    { ?s ?encodingFormatPredicate ?iiifFormat . }
-    UNION
-    # … or ?s is the schema:contentUrl the manifest node dereferences to.
-    {
-      VALUES ?contentUrlPredicate {
-        <https://schema.org/contentUrl> <http://schema.org/contentUrl>
-      }
-      ?manifestNode ?contentUrlPredicate ?s ;
-        ?encodingFormatPredicate ?iiifFormat .
-    }
-    FILTER(${iiifManifestFormatFilter('iiifFormat')})
-  }`;
-
-/**
- * Build a query that tells which of the given candidate subjects are media: a
- * `schema:associatedMedia` target (SCHEMA-AP-NDE’s link from a work to its
- * media), an EDM `WebResource`, or an IIIF Image API descriptor (`info.json`)
- * recognised by its `schema:encodingFormat`. A media object’s IRI is usually the
- * file’s location on a CDN, not an identifier the publisher promises to keep, and
- * the IIIF and media criteria assess media already. Without it, KLEKSI’s media
- * CDN namespace, which holds more subjects than the records do, is sampled
- * instead of the records.
+ * - **IIIF manifests**: the subject is itself a manifest node (it bears an IIIF
+ *   `schema:encodingFormat`) or it is the `schema:contentUrl` such a node
+ *   dereferences to. Without this, an ARK+IIIF publisher’s manifest URLs (e.g.
+ *   `…/ark:/85849/{uuid}/iiif.json`) can be sampled and fail as
+ *   `wrong-content-type` – a manifest correctly serves JSON, not `text/html` –
+ *   while simultaneously passing the IIIF criterion: one URL both green (IIIF)
+ *   and red (persistent identifier). The manifest test is the shared
+ *   {@link iiifManifestFormatFilter} – the same encodingFormat rule the IIIF
+ *   criterion uses – so the two cannot drift. The dereference target mirrors
+ *   `queries/analysis/iiif.rq`: `schema:contentUrl` when present, else the
+ *   encodingFormat-bearing node.
+ * - **media**: a `schema:associatedMedia` target (SCHEMA-AP-NDE’s link from a
+ *   work to its media), an EDM `WebResource`, or an IIIF Image API descriptor
+ *   (`info.json`) recognised by its `schema:encodingFormat`. A media object’s
+ *   IRI is usually the file’s location on a CDN, not an identifier the publisher
+ *   promises to keep. Without this, KLEKSI’s media CDN namespace, which holds
+ *   more subjects than the records do, is sampled instead of the records.
  *
  * Media types such as `schema:ImageObject` or `schema:VideoObject` are
  * deliberately not matched: a photo or AV archive may type its records that way.
  *
  * A separate query rather than a `FILTER NOT EXISTS` in {@link buildSampleQuery},
- * so the sample query keeps stopping at its `LIMIT` on any endpoint: this one
- * only looks up the bound candidates. Enumerated with `VALUES` for the same
- * reason as {@link IIIF_MANIFEST_EXCLUSION}; tolerant of `http`/`https`
- * schema.org. Exported so it can be exercised against an in-memory store.
+ * so the sample query stops at its `LIMIT` on any endpoint, while this one only
+ * looks up the bound candidates. As a filter in the sample query, a namespace
+ * that holds nothing but manifests can never fill the `LIMIT`, so every subject
+ * in it is checked: 7 s against 40 ms on a namespace of 50000 manifests.
+ *
+ * Tolerant of `http`/`https` schema.org, enumerated with `VALUES`. Exported so
+ * it can be exercised against an in-memory store.
  */
-export function buildMediaQuery(
+export function buildExclusionQuery(
   candidates: readonly string[],
   namedGraph?: string,
 ): string {
@@ -839,6 +816,31 @@ export function buildMediaQuery(
     'WHERE {',
     `  VALUES ?s { ${candidates.map(candidate => `<${candidate}>`).join(' ')} }`,
     `  {
+    # ?s is itself a manifest node or an IIIF Image API descriptor …
+    VALUES ?encodingFormatPredicate {
+      <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
+    }
+    ?s ?encodingFormatPredicate ?format .
+    FILTER((${iiifManifestFormatFilter('format')})
+      || (isLiteral(?format)
+        && STRSTARTS(STR(?format), "application/ld+json")
+        && CONTAINS(STR(?format), "iiif.io/api/image/")))
+  }
+  UNION
+  {
+    # … or ?s is the schema:contentUrl a manifest node dereferences to.
+    VALUES ?contentUrlPredicate {
+      <https://schema.org/contentUrl> <http://schema.org/contentUrl>
+    }
+    VALUES ?manifestFormatPredicate {
+      <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
+    }
+    ?manifestNode ?contentUrlPredicate ?s ;
+      ?manifestFormatPredicate ?manifestFormat .
+    FILTER(${iiifManifestFormatFilter('manifestFormat')})
+  }
+  UNION
+  {
     VALUES ?mediaPredicate {
       <https://schema.org/associatedMedia> <http://schema.org/associatedMedia>
     }
@@ -847,16 +849,6 @@ export function buildMediaQuery(
   UNION
   {
     ?s a <http://www.europeana.eu/schemas/edm/WebResource> .
-  }
-  UNION
-  {
-    VALUES ?imageFormatPredicate {
-      <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
-    }
-    ?s ?imageFormatPredicate ?imageFormat .
-    FILTER(isLiteral(?imageFormat)
-      && STRSTARTS(STR(?imageFormat), "application/ld+json")
-      && CONTAINS(STR(?imageFormat), "iiif.io/api/image/"))
   }`,
     '}',
   ].join('\n');
@@ -865,11 +857,11 @@ export function buildMediaQuery(
 /**
  * Build the subject-URI sample query: a `SELECT DISTINCT ?s … LIMIT n`
  * short-circuited on the namespace prefix, with the distribution's subject
- * filter and named graph woven in (mirroring the VoID class selector), the
- * {@link IIIF_MANIFEST_EXCLUSION known IIIF manifests} filtered out, and the
+ * filter and named graph woven in (mirroring the VoID class selector), and the
  * URI space prefix itself excluded (it matches its own `STRSTARTS` but is the
- * namespace, not a dereferenceable resource). Exported so the exclusions can be
- * exercised against an in-memory store.
+ * namespace, not a dereferenceable resource). It carries no other exclusion, so
+ * it stops at its `LIMIT`; {@link buildExclusionQuery} weeds the candidates
+ * afterwards. Exported so it can be exercised against an in-memory store.
  */
 export function buildSampleQuery(
   uriSpace: string,
@@ -889,50 +881,65 @@ export function buildSampleQuery(
     `  ${subjectFilter}`,
     '  ?s ?p ?o .',
     `  FILTER(ISIRI(?s) && STRSTARTS(STR(?s), ${sparqlString(uriSpace)}) && STR(?s) != ${sparqlString(uriSpace)})`,
-    `  ${IIIF_MANIFEST_EXCLUSION}`,
     '}',
     `LIMIT ${sampleSize}`,
   ].join('\n');
 }
 
 /**
- * Default sampler: runs {@link buildSampleQuery} as a plain SPARQL SELECT
- * against the distribution's endpoint, over-sampling by
- * {@link MEDIA_OVERSAMPLING}, then drops the candidates {@link buildMediaQuery}
- * identifies as media and keeps the first `sampleSize`. A namespace holding only
- * media thus yields an empty sample. The fetcher's own timeout fast-fails a
- * slow endpoint, since the transform runs outside the stage runner where the
+ * Sample up to `sampleSize` subjects from `uriSpace`: run
+ * {@link buildSampleQuery}, over-sampling by {@link EXCLUSION_OVERSAMPLING},
+ * then drop the candidates {@link buildExclusionQuery} identifies as IIIF
+ * manifests or media and keep the first `sampleSize`. A namespace holding only
+ * those thus yields an empty sample. `select` runs a query and returns its `?s`
+ * bindings; exported so the two queries can be exercised together against an
+ * in-memory store.
+ */
+export async function sampleSubjects(
+  select: (query: string) => Promise<string[]>,
+  uriSpace: string,
+  sampleSize: number,
+  subjectFilter: string,
+  namedGraph?: string,
+): Promise<string[]> {
+  const candidates = await select(
+    buildSampleQuery(
+      uriSpace,
+      sampleSize * EXCLUSION_OVERSAMPLING,
+      subjectFilter,
+      namedGraph,
+    ),
+  );
+  if (candidates.length === 0) return [];
+
+  const excluded = new Set(
+    await select(buildExclusionQuery(candidates, namedGraph)),
+  );
+  return candidates
+    .filter(candidate => !excluded.has(candidate))
+    .slice(0, sampleSize);
+}
+
+/**
+ * Default sampler: runs {@link sampleSubjects} as plain SPARQL SELECTs against
+ * the distribution's endpoint. The fetcher's own timeout fast-fails a slow
+ * endpoint, since the transform runs outside the stage runner where the
  * Pipeline's adaptive policy would normally apply.
  */
-const defaultSampleUris: SampleUris = async (
+const defaultSampleUris: SampleUris = (
   uriSpace,
   sampleSize,
   {distribution},
 ) => {
   const fetcher = new SparqlEndpointFetcher({timeout: SAMPLE_TIMEOUT_MS});
   const endpoint = distribution.accessUrl.toString();
-  const candidates = await selectSubjects(
-    fetcher,
-    endpoint,
-    buildSampleQuery(
-      uriSpace,
-      sampleSize * MEDIA_OVERSAMPLING,
-      distribution.subjectFilter ?? '',
-      distribution.namedGraph,
-    ),
+  return sampleSubjects(
+    query => selectSubjects(fetcher, endpoint, query),
+    uriSpace,
+    sampleSize,
+    distribution.subjectFilter ?? '',
+    distribution.namedGraph,
   );
-  if (candidates.length === 0) return [];
-
-  const media = new Set(
-    await selectSubjects(
-      fetcher,
-      endpoint,
-      buildMediaQuery(candidates, distribution.namedGraph),
-    ),
-  );
-  return candidates
-    .filter(candidate => !media.has(candidate))
-    .slice(0, sampleSize);
 };
 
 /** Run a SELECT and return its `?s` bindings that are IRIs. */
