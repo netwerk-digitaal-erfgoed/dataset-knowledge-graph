@@ -38,17 +38,17 @@ const SUBJECT_RESOLUTION_OUTCOME_BASE =
  * dereferences to a `2xx` response that is either an HTML page or RDF (any
  * serialisation); {@link Resolution} carries that success out-of-band, so this
  * enum names only the failures. Whether a resolved HTML page is a *landing page*
- * (it self-references its own URI) is a separate, non-failing distinction — see
+ * (it self-references its own URI) is a separate, non-failing distinction – see
  * {@link Resolution}. The definitive reasons surface as
  * `subject-resolution-outcome#` concepts (see {@link outcomeIriFor}).
  *
  * Outcomes split into two classes (see {@link isTransientFailure}):
- * - **definitive** — `http-error` (a non-retryable `4xx` such as `404`/`410`)
+ * - **definitive** – `http-error` (a non-retryable `4xx` such as `404`/`410`)
  *   and `wrong-content-type` (a `2xx` that is neither HTML nor RDF, e.g. a JSON
  *   or plain-text error page): a genuine, dataset-attributable defect. Counted
  *   against the ratio and persisted in the PROV trail as a
  *   `subject-resolution-outcome#` concept.
- * - **transient** — `timeout`, `network-error`, `server-error` (a retryable HTTP
+ * - **transient** – `timeout`, `network-error`, `server-error` (a retryable HTTP
  *   status: `408`/`425`/`429`/`5xx`): a blip in the multi-hop PID-resolver
  *   chain, not a property of the dataset.
  *   Retried with backoff; if still failing it is excluded from the sample
@@ -64,7 +64,7 @@ export type SubjectResolutionFailure =
 /**
  * Transient failures: a slow or briefly unavailable hop in the resolver chain,
  * not a broken PID. Retried, then excluded from the denominator rather than
- * scored as a non-resolution — so a single network blip during a crawl cannot
+ * scored as a non-resolution – so a single network blip during a crawl cannot
  * report a healthy dataset as partially broken.
  */
 const TRANSIENT_FAILURES: ReadonlySet<SubjectResolutionFailure> = new Set([
@@ -82,7 +82,7 @@ function isTransientFailure(reason: SubjectResolutionFailure): boolean {
  * `html-landing-page` or `resolved` for a success (the landing-page flag
  * promotes the human-readable page), else the definitive failure reason itself
  * (`http-error`/`wrong-content-type`). Only ever called for a *measurable*
- * outcome — a resolution or a definitive failure — so a transient reason never
+ * outcome – a resolution or a definitive failure – so a transient reason never
  * reaches it.
  */
 function outcomeIriFor(resolution: Resolution): NamedNode {
@@ -121,10 +121,10 @@ const PID_PREFIXES: ReadonlyArray<{scheme: PidScheme; prefix: string}> = [
  * `http`/`https`.
  *
  * Two modes capture how vendor software splits by where it is hosted:
- * - `host` — a SaaS host shared across institutions (Adlib, Spinque, …). Matches
+ * - `host` – a SaaS host shared across institutions (Adlib, Spinque, …). Matches
  *   the host component exactly or on a dot-boundary subdomain, so one entry
  *   covers every current and future subdomain while rejecting look-alikes.
- * - `path` — a distinctive software path under the institution’s own domain,
+ * - `path` – a distinctive software path under the institution’s own domain,
  *   the only thing that flags *self-hosted* software (e.g. Atlantis under
  *   `geheugenvanzoetermeer.nl`). Matched as a slash-bounded substring.
  */
@@ -136,6 +136,8 @@ const NON_DURABLE_NAMESPACES: ReadonlyArray<{
   {mode: 'host', value: 'adlibhosting.com', reason: 'vendor'},
   {mode: 'host', value: 'spinque.com', reason: 'vendor'},
   {mode: 'host', value: 'kleksi.com', reason: 'vendor'},
+  // KLEKSI’s short-link host, which KLEKSI itself calls a temporary PID.
+  {mode: 'host', value: 'klek.si', reason: 'vendor'},
   {mode: 'host', value: 'xentropics.cloud', reason: 'vendor'},
   {mode: 'path', value: '/AtlantisPubliek/', reason: 'vendor'},
 ];
@@ -161,6 +163,28 @@ const DEFAULT_CONCURRENCY = 4;
 const SAMPLE_TIMEOUT_MS = 60_000;
 
 /**
+ * How many candidate namespaces are sampled before settling on the biggest. Each
+ * empty sample costs one sample query, so this bounds the extra work for a
+ * dataset whose biggest namespaces hold only media.
+ */
+const MAX_SAMPLED_NAMESPACES = 3;
+
+/**
+ * How many times the sample size is fetched as candidates, so enough remain
+ * once IIIF manifests and media are dropped. Kept small: the candidates go into
+ * the exclusion query as `VALUES`, so more of them means more requests (see
+ * {@link MAX_EXCLUSION_REQUEST_BYTES}).
+ */
+const EXCLUSION_OVERSAMPLING = 3;
+
+/**
+ * Upper bound on the form-encoded size of one exclusion request. Some endpoints
+ * (KLEKSI’s) answer a request over about 8 KB with an empty 500, so the
+ * candidates are spread over as many requests as it takes to stay under it.
+ */
+const MAX_EXCLUSION_REQUEST_BYTES = 7_000;
+
+/**
  * Per-request budget for dereferencing a sampled URI and the arks.org lookup.
  * Kept generous because ARK/Handle resolution traverses a multi-hop global
  * chain (`n2t.net → arks.org → institutional host → landing page`); a single
@@ -179,8 +203,8 @@ const DEFAULT_RETRIES = 2;
  * Overall wall-clock budget for dereferencing the whole sample, independent of
  * the per-request {@link DEREFERENCE_TIMEOUT_MS}. Caps a flaky namespace’s retry
  * storm: once it elapses, in-flight fetches abort and no further retries are
- * scheduled, so the transform — which runs outside the Pipeline’s adaptive
- * timeout — cannot stall the run for minutes.
+ * scheduled, so the transform – which runs outside the Pipeline’s adaptive
+ * timeout – cannot stall the run for minutes.
  */
 const DEREFERENCE_PHASE_BUDGET_MS = 60_000;
 
@@ -204,14 +228,14 @@ export type SampleUris = (
 
 /**
  * The outcome of dereferencing a sampled URI:
- * - `resolved` — a `2xx` response that is HTML or RDF. `landingPage` is `true`
+ * - `resolved` – a `2xx` response that is HTML or RDF. `landingPage` is `true`
  *   only when it is an HTML page that self-references its own URI (a
  *   human-readable landing page for the identifier); `false` for RDF, or for
  *   HTML that does not mention the URI. A resolved URI counts toward
  *   `subject-uris-resolved` regardless of `landingPage`; the flag only feeds the
  *   (non-failing) `subject-uris-html-landing-pages` count that promotes HTML
  *   landing pages.
- * - `failed` — see {@link SubjectResolutionFailure}.
+ * - `failed` – see {@link SubjectResolutionFailure}.
  */
 export type Resolution =
   | {readonly kind: 'resolved'; readonly landingPage: boolean}
@@ -235,7 +259,7 @@ export type LookupOrg = (naan: string) => Promise<string | undefined>;
 export interface SubjectUriResolutionOptions {
   /**
    * URI prefixes to exclude as terminology sources when picking the dataset’s
-   * own subject namespace — typically the keys of `buildUriSpacesMap()`.
+   * own subject namespace – typically the keys of `buildUriSpacesMap()`.
    * Matched with `startsWith`.
    */
   terminologyPrefixes: Iterable<string>;
@@ -266,10 +290,11 @@ export interface SubjectUriResolutionOptions {
  * persistent-identifier (PID) detection on top.
  *
  * It harvests the `void:uriSpace`/`void:entities` subsets from the stage
- * output (passing them through unchanged), picks the single most common
- * namespace that is neither a terminology source nor a skolem
- * (`/.well-known/genid/`) namespace — the one the dataset mints for its own
- * resources — samples URIs from it, and dereferences them. The outcome is appended,
+ * output (passing them through unchanged), picks the most common namespace that
+ * is neither a terminology source nor a skolem (`/.well-known/genid/`) namespace
+ * and whose sample is not all media objects – the one the dataset mints for its
+ * own resources (see {@link sampleOwnNamespace}) – samples URIs from it, and
+ * dereferences them. The outcome is appended,
  * scoped to that namespace’s subset node:
  *
  * - **declared** facts: `dcterms:conformsTo` a PID scheme (ARK/Handle, only if
@@ -280,7 +305,7 @@ export interface SubjectUriResolutionOptions {
  *   tracks how many resolved to an HTML page that self-references its own URI.
  * - **durability** facts: a `subject-namespace-durable = false` DQV measurement
  *   when the chosen namespace matches the {@link NON_DURABLE_NAMESPACES}
- *   disallow list — emitted independently of sampling, so it survives an
+ *   disallow list – emitted independently of sampling, so it survives an
  *   endpoint failure.
  * - **sampling-failure** facts: a `subject-uris-sampling-failed = true` DQV
  *   measurement when the sample query throws on every attempt, so a transient
@@ -321,30 +346,41 @@ export function subjectUriResolution(
       }
     }
 
-    const winner = pickWinner(
+    const candidates = rankCandidates(
       uriSpaceBySubset,
       entitiesBySubset,
       terminologyPrefixes,
     );
     // No non-terminology namespace survived: emit nothing extra.
-    if (winner === undefined) {
+    if (candidates.length === 0) {
       return;
     }
 
+    // Sampling is best-effort: a failure must not drop the VoID output that
+    // already streamed through. But discarding it *silently* makes a transient
+    // endpoint blip indistinguishable from a namespace that was never sampled,
+    // so the sample query is retried first and, if it still fails every
+    // attempt, an explicit marker the register can read is recorded below.
+    const {winner, sampled} = await sampleOwnNamespace(candidates, uriSpace =>
+      sampleUrisWithRetry(
+        () => sampleUris(uriSpace, sampleSize, {dataset, distribution}),
+        retries,
+        sleep,
+      ),
+    );
     const subset = namedNode(winner.subset);
 
-    // Durability is knowable from the namespace string alone, so flag it before
-    // (and outside) the best-effort sampling block: a vendor preview domain
-    // whose endpoint is slow today is exactly what we most want flagged.
+    // Durability is knowable from the namespace string alone, so flag it
+    // regardless of the sample: a vendor preview domain whose endpoint is slow
+    // today is exactly what we most want flagged.
     if (isNonDurable(winner.uriSpace)) {
       yield* nonDurableMeasurement(subset, software);
     }
 
     // Declared facts (PID scheme, issuing org) are knowable from the namespace
-    // string alone, independent of whether the sample resolves — so emit them
-    // before (and outside) the sampling block, so a sample failure cannot erase
-    // them. The ARK org lookup swallows its own errors, so awaiting it here is
-    // safe.
+    // string alone, independent of whether the sample resolves – so emit them
+    // regardless of the sample, so a sample failure cannot erase them. The ARK
+    // org lookup swallows its own errors, so awaiting it here is safe.
     const scheme = detectPidScheme(winner.uriSpace);
     const org =
       scheme === 'ark'
@@ -352,77 +388,103 @@ export function subjectUriResolution(
         : undefined;
     yield* declaredFactQuads(subset, scheme, org);
 
-    // Sampling and dereferencing are best-effort: a failure must not drop the
-    // VoID output that already streamed through. But discarding them *silently*
-    // makes a transient endpoint blip indistinguishable from a namespace that
-    // was never sampled, so retry the sample query first and, if it still fails
-    // every attempt, record an explicit marker the register can read.
-    try {
-      const sampled = await sampleUrisWithRetry(
-        () => sampleUris(winner.uriSpace, sampleSize, {dataset, distribution}),
-        retries,
-        sleep,
-      );
-      const limit = pLimit(concurrency);
-      // One budget shared across every dereference: once it elapses, in-flight
-      // fetches abort and resolveWithRetry stops scheduling retries.
-      const phaseSignal = AbortSignal.timeout(DEREFERENCE_PHASE_BUDGET_MS);
-      const resolutions = await Promise.all(
-        sampled.map(uri =>
-          limit(() =>
-            resolveWithRetry(uri, resolve, retries, sleep, phaseSignal),
-          ),
-        ),
-      );
-
-      // Classify each settled outcome. A resolution counts toward the ratio,
-      // and toward the HTML-landing-page tally when it is one. A *definitive*
-      // failure is a real defect. Both are *measurable*, so each is persisted as
-      // a per-URI outcome usage. A *transient* failure survived every retry, so
-      // the resolver chain (not the dataset) is at fault: drop the URI from the
-      // sample entirely rather than scoring it as broken — it gets no usage.
-      let resolved = 0;
-      let htmlLandingPages = 0;
-      const outcomes: SampleOutcome[] = [];
-      sampled.forEach((uri, index) => {
-        const resolution = resolutions[index];
-        if (resolution.kind === 'resolved') {
-          resolved++;
-          if (resolution.landingPage) htmlLandingPages++;
-        } else if (isTransientFailure(resolution.reason)) {
-          return;
-        }
-        outcomes.push({url: uri, outcomeIri: outcomeIriFor(resolution)});
-      });
-      // The denominator counts only definitively-judged URIs; transient ones are
-      // excluded, so every persisted outcome is one measurable URI. With nothing
-      // measurable — an empty sample, or every URI transiently unreachable — the
-      // declared facts above stand on their own, so append no misleading 0/0
-      // ratio (and no failure marker: the sample query itself succeeded).
-      const measurable = outcomes.length;
-      if (measurable > 0) {
-        yield* measurementQuads(
-          subset,
-          measurable,
-          resolved,
-          htmlLandingPages,
-          outcomes,
-          software,
-        );
-      }
-    } catch {
+    if (sampled === undefined) {
       // The sample query threw on every attempt: emit an explicit
       // sampling-failed marker so this is distinguishable from a namespace that
       // was never sampled, instead of vanishing silently.
       yield* samplingFailedMeasurement(subset, software);
+      return;
+    }
+
+    const limit = pLimit(concurrency);
+    // One budget shared across every dereference: once it elapses, in-flight
+    // fetches abort and resolveWithRetry stops scheduling retries.
+    const phaseSignal = AbortSignal.timeout(DEREFERENCE_PHASE_BUDGET_MS);
+    const resolutions = await Promise.all(
+      sampled.map(uri =>
+        limit(() =>
+          resolveWithRetry(uri, resolve, retries, sleep, phaseSignal),
+        ),
+      ),
+    );
+
+    // Classify each settled outcome. A resolution counts toward the ratio,
+    // and toward the HTML-landing-page tally when it is one. A *definitive*
+    // failure is a real defect. Both are *measurable*, so each is persisted as
+    // a per-URI outcome usage. A *transient* failure survived every retry, so
+    // the resolver chain (not the dataset) is at fault: drop the URI from the
+    // sample entirely rather than scoring it as broken – it gets no usage.
+    let resolved = 0;
+    let htmlLandingPages = 0;
+    const outcomes: SampleOutcome[] = [];
+    sampled.forEach((uri, index) => {
+      const resolution = resolutions[index];
+      if (resolution.kind === 'resolved') {
+        resolved++;
+        if (resolution.landingPage) htmlLandingPages++;
+      } else if (isTransientFailure(resolution.reason)) {
+        return;
+      }
+      outcomes.push({url: uri, outcomeIri: outcomeIriFor(resolution)});
+    });
+    // The denominator counts only definitively-judged URIs; transient ones are
+    // excluded, so every persisted outcome is one measurable URI. With nothing
+    // measurable – an empty sample, or every URI transiently unreachable – the
+    // declared facts above stand on their own, so append no misleading 0/0
+    // ratio (and no failure marker: the sample query itself succeeded).
+    const measurable = outcomes.length;
+    if (measurable > 0) {
+      yield* measurementQuads(
+        subset,
+        measurable,
+        resolved,
+        htmlLandingPages,
+        outcomes,
+        software,
+      );
     }
   };
+}
+
+/** A candidate subject namespace: its VoID subset node and URI space. */
+interface Namespace {
+  readonly subset: string;
+  readonly uriSpace: string;
+}
+
+/**
+ * Sample the candidates in rank order, up to {@link MAX_SAMPLED_NAMESPACES}, and
+ * settle on the first whose sample is non-empty. The sampler drops IIIF
+ * manifests and media objects, so a namespace that holds only those – such as
+ * KLEKSI’s media CDN, which outnumbers the records – comes back empty and the
+ * next candidate is tried. When every sample is empty, the top candidate
+ * stands, as before this fall-through existed. A sample that throws ends the
+ * search on that namespace with `sampled` undefined: a failure says nothing
+ * about whether it holds only media, so skipping it would measure the wrong
+ * namespace.
+ */
+async function sampleOwnNamespace(
+  candidates: readonly Namespace[],
+  sample: (uriSpace: string) => Promise<string[]>,
+): Promise<{winner: Namespace; sampled: string[] | undefined}> {
+  for (const candidate of candidates.slice(0, MAX_SAMPLED_NAMESPACES)) {
+    let sampled: string[];
+    try {
+      sampled = await sample(candidate.uriSpace);
+    } catch {
+      return {winner: candidate, sampled: undefined};
+    }
+    if (sampled.length > 0) {
+      return {winner: candidate, sampled};
+    }
+  }
+  return {winner: candidates[0], sampled: []};
 }
 
 /**
  * Resolve a URI, retrying a {@link isTransientFailure transient} failure with
  * exponential backoff up to `retries` times. Returns the final outcome: a
- * resolution, a definitive failure, or — once retries are exhausted — the last
+ * resolution, a definitive failure, or – once retries are exhausted – the last
  * transient failure. An unexpected rejection from `resolve` is treated as a
  * transient `network-error`, so a flaky check is retried rather than surfacing a
  * stray non-resolution. Stops early once `signal` (the overall phase budget)
@@ -456,8 +518,8 @@ async function resolveWithRetry(
 
 /**
  * Run the sample query, retrying a thrown attempt with the same backoff as the
- * per-URI dereference. A thrown sample is an endpoint/network failure — a slow
- * or briefly unavailable endpoint — so a single failed request should not strand
+ * per-URI dereference. A thrown sample is an endpoint/network failure – a slow
+ * or briefly unavailable endpoint – so a single failed request should not strand
  * the dataset on “never sampled”. After `retries` extra attempts the final error
  * propagates, so the caller can record the failure rather than retry forever.
  */
@@ -477,19 +539,21 @@ async function sampleUrisWithRetry(
 }
 
 /**
- * Pick the subset with the most entities whose namespace is the dataset’s own —
- * skipping a skolem namespace unconditionally and a terminology source unless
- * that namespace is itself a recognised ARK/Handle PID scheme.
+ * Rank the subsets that may be the dataset’s own namespace by entities, most
+ * first (ties keep their input order) – skipping a skolem namespace
+ * unconditionally and a terminology source unless that namespace is itself a
+ * recognised ARK/Handle PID scheme. {@link sampleOwnNamespace} picks from this
+ * ranking.
  *
  * A skolem namespace (`/.well-known/genid/`) holds RDF 1.1 skolem IRIs: system-
  * minted stand-ins for blank nodes (checksum records, geometries, coverage
  * details) that the publisher’s serializer emits so an anonymous node survives a
  * round-trip. They are not identifiers the publisher promises to keep resolving,
- * and they do not dereference — so treating one as the dataset’s self-minted
+ * and they do not dereference – so treating one as the dataset’s self-minted
  * subject namespace would score every sampled URI as broken. RAZU’s `kranten`
  * mints 1.5M such nodes, more than any real namespace, so it would otherwise
- * win. The exclusion is unconditional: a skolem namespace is never a PID, so —
- * unlike the terminology exclusion below — PID-ness cannot override it.
+ * win. The exclusion is unconditional: a skolem namespace is never a PID, so –
+ * unlike the terminology exclusion below – PID-ness cannot override it.
  *
  * A NAAN registered as a Network of Terms source can also be the publisher’s own
  * persistent-identifier namespace: the Gouda Tijdmachine dataset mints its
@@ -498,12 +562,12 @@ async function sampleUrisWithRetry(
  * pick a referenced vendor namespace instead and lose the ARK detection, so
  * PID-ness overrides the terminology exclusion (#373).
  */
-function pickWinner(
+function rankCandidates(
   uriSpaceBySubset: ReadonlyMap<string, string>,
   entitiesBySubset: ReadonlyMap<string, number>,
   terminologyPrefixes: readonly string[],
-): {subset: string; uriSpace: string} | undefined {
-  let best: {subset: string; uriSpace: string; entities: number} | undefined;
+): Namespace[] {
+  const candidates: {subset: string; uriSpace: string; entities: number}[] = [];
   for (const [subset, uriSpace] of uriSpaceBySubset) {
     if (isSkolemNamespace(uriSpace)) {
       continue;
@@ -514,16 +578,17 @@ function pickWinner(
     ) {
       continue;
     }
-    const entities = entitiesBySubset.get(subset) ?? 0;
-    if (best === undefined || entities > best.entities) {
-      best = {subset, uriSpace, entities};
-    }
+    // A missing or non-numeric count ranks last rather than upsetting the sort.
+    const entities = entitiesBySubset.get(subset) || 0;
+    candidates.push({subset, uriSpace, entities});
   }
-  return best && {subset: best.subset, uriSpace: best.uriSpace};
+  return candidates
+    .sort((first, second) => second.entities - first.entities)
+    .map(({subset, uriSpace}) => ({subset, uriSpace}));
 }
 
 /**
- * Whether a namespace holds RDF 1.1 skolem IRIs — minted under the reserved
+ * Whether a namespace holds RDF 1.1 skolem IRIs – minted under the reserved
  * `/.well-known/genid/` path as stand-ins for blank nodes. Matched on the path,
  * host-independent and tolerant of `http`/`https`, so any publisher’s skolem
  * namespace is recognised.
@@ -615,7 +680,7 @@ function* measurementQuads(
   yield* provActivity(activity, subset, software);
   yield* outcomeUsageQuads(activity, outcomes);
 
-  // Validated facts — the sampled/resolved ratio, for any namespace, plus how
+  // Validated facts – the sampled/resolved ratio, for any namespace, plus how
   // many of the resolved URIs served an HTML landing page (a non-failing signal
   // that promotes human-readable pages without gating the ratio on them).
   const sampledMeasurement = namedNode(
@@ -683,7 +748,7 @@ function* nonDurableMeasurement(
  * The sampling-failure marker: `subject-uris-sampling-failed = true`, emitted
  * only when the sample query threw on every attempt. It lets a consumer tell an
  * *errored* sample (a transient endpoint failure this run) apart from a
- * namespace that was never sampled — otherwise indistinguishable, both lacking
+ * namespace that was never sampled – otherwise indistinguishable, both lacking
  * any `subject-uris-sampled` ratio. Carries its own PROV activity, mirroring
  * {@link nonDurableMeasurement}.
  */
@@ -710,53 +775,101 @@ function* samplingFailedMeasurement(
 }
 
 /**
- * SPARQL `FILTER NOT EXISTS` fragment that drops any sampled subject the IIIF
- * criterion already assesses as a manifest: either the subject is itself a
- * manifest node (it bears an IIIF `schema:encodingFormat`) or it is the
- * `schema:contentUrl` such a node dereferences to. Without it, an ARK+IIIF
- * publisher’s manifest URLs (e.g. `…/ark:/85849/{uuid}/iiif.json`) can be
- * sampled here and fail as `wrong-content-type` — a manifest correctly serves
- * JSON, not `text/html` — while simultaneously passing the IIIF criterion: one
- * URL both green (IIIF) and red (persistent identifier). Excluding them leaves
- * manifests to the IIIF criterion alone and resolves the contradiction.
+ * Build a query that tells which of the given candidate subjects must be left
+ * out of the sample, because another criterion assesses them already:
  *
- * The manifest test is the shared {@link iiifManifestFormatFilter} — the same
- * encodingFormat rule the IIIF criterion uses — so the two cannot drift. The
- * dereference target mirrors `queries/analysis/iiif.rq`: `schema:contentUrl`
- * when present, else the encodingFormat-bearing node. Tolerant of `http`/`https`
- * schema.org like that query.
+ * - **IIIF manifests**: the subject is itself a manifest node (it bears an IIIF
+ *   `schema:encodingFormat`) or it is the `schema:contentUrl` such a node
+ *   dereferences to. Without this, an ARK+IIIF publisher’s manifest URLs (e.g.
+ *   `…/ark:/85849/{uuid}/iiif.json`) can be sampled and fail as
+ *   `wrong-content-type` – a manifest correctly serves JSON, not `text/html` –
+ *   while simultaneously passing the IIIF criterion: one URL both green (IIIF)
+ *   and red (persistent identifier). The manifest test is the shared
+ *   {@link iiifManifestFormatFilter} – the same encodingFormat rule the IIIF
+ *   criterion uses – so the two cannot drift. The dereference target mirrors
+ *   `queries/analysis/iiif.rq`: `schema:contentUrl` when present, else the
+ *   encodingFormat-bearing node.
+ * - **media**: a `schema:associatedMedia` target (SCHEMA-AP-NDE’s link from a
+ *   work to its media), an EDM `WebResource`, or an IIIF Image API descriptor
+ *   (`info.json`) recognised by its `schema:encodingFormat`. A media object’s
+ *   IRI is usually the file’s location on a CDN, not an identifier the publisher
+ *   promises to keep. Without this, KLEKSI’s media CDN namespace, which holds
+ *   more subjects than the records do, is sampled instead of the records.
  *
- * The `http`/`https` predicates are enumerated with `VALUES` rather than a
- * property-path alternation (`a|b`): the latter is mis-evaluated by the query
- * engine inside `FILTER NOT EXISTS` — when no triple uses the predicate at all,
- * the whole `NOT EXISTS` collapses to false and drops every subject.
+ * Media types such as `schema:ImageObject` or `schema:VideoObject` are
+ * deliberately not matched: a photo or AV archive may type its records that way.
+ *
+ * A separate query rather than a `FILTER NOT EXISTS` in {@link buildSampleQuery},
+ * so the sample query stops at its `LIMIT` on any endpoint, while this one only
+ * looks up the bound candidates. As a filter in the sample query, a namespace
+ * that holds nothing but manifests can never fill the `LIMIT`, so every subject
+ * in it is checked: 7 s against 40 ms on a namespace of 50000 manifests.
+ *
+ * Tolerant of `http`/`https` schema.org, enumerated with `VALUES`. Exported so
+ * it can be exercised against an in-memory store.
  */
-const IIIF_MANIFEST_EXCLUSION = `FILTER NOT EXISTS {
+export function buildExclusionQuery(
+  candidates: readonly string[],
+  namedGraph?: string,
+): string {
+  for (const candidate of candidates) assertSafeIri(candidate);
+  let fromClause = '';
+  if (namedGraph) {
+    assertSafeIri(namedGraph);
+    fromClause = `FROM <${namedGraph}>`;
+  }
+  return [
+    'SELECT DISTINCT ?s',
+    fromClause,
+    'WHERE {',
+    `  VALUES ?s { ${candidates.map(candidate => `<${candidate}>`).join(' ')} }`,
+    `  {
+    # ?s is itself a manifest node or an IIIF Image API descriptor …
     VALUES ?encodingFormatPredicate {
       <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
     }
-    # ?s is itself the manifest node …
-    { ?s ?encodingFormatPredicate ?iiifFormat . }
-    UNION
-    # … or ?s is the schema:contentUrl the manifest node dereferences to.
-    {
-      VALUES ?contentUrlPredicate {
-        <https://schema.org/contentUrl> <http://schema.org/contentUrl>
-      }
-      ?manifestNode ?contentUrlPredicate ?s ;
-        ?encodingFormatPredicate ?iiifFormat .
+    ?s ?encodingFormatPredicate ?format .
+    FILTER((${iiifManifestFormatFilter('format')})
+      || (isLiteral(?format)
+        && STRSTARTS(STR(?format), "application/ld+json")
+        && CONTAINS(STR(?format), "iiif.io/api/image/")))
+  }
+  UNION
+  {
+    # … or ?s is the schema:contentUrl a manifest node dereferences to.
+    VALUES ?contentUrlPredicate {
+      <https://schema.org/contentUrl> <http://schema.org/contentUrl>
     }
-    FILTER(${iiifManifestFormatFilter('iiifFormat')})
-  }`;
+    VALUES ?manifestFormatPredicate {
+      <https://schema.org/encodingFormat> <http://schema.org/encodingFormat>
+    }
+    ?manifestNode ?contentUrlPredicate ?s ;
+      ?manifestFormatPredicate ?manifestFormat .
+    FILTER(${iiifManifestFormatFilter('manifestFormat')})
+  }
+  UNION
+  {
+    VALUES ?mediaPredicate {
+      <https://schema.org/associatedMedia> <http://schema.org/associatedMedia>
+    }
+    ?work ?mediaPredicate ?s .
+  }
+  UNION
+  {
+    ?s a <http://www.europeana.eu/schemas/edm/WebResource> .
+  }`,
+    '}',
+  ].join('\n');
+}
 
 /**
  * Build the subject-URI sample query: a `SELECT DISTINCT ?s … LIMIT n`
  * short-circuited on the namespace prefix, with the distribution's subject
- * filter and named graph woven in (mirroring the VoID class selector), the
- * {@link IIIF_MANIFEST_EXCLUSION known IIIF manifests} filtered out, and the
+ * filter and named graph woven in (mirroring the VoID class selector), and the
  * URI space prefix itself excluded (it matches its own `STRSTARTS` but is the
- * namespace, not a dereferenceable resource). Exported so the exclusions can be
- * exercised against an in-memory store.
+ * namespace, not a dereferenceable resource). It carries no other exclusion, so
+ * it stops at its `LIMIT`; {@link buildExclusionQuery} weeds the candidates
+ * afterwards. Exported so it can be exercised against an in-memory store.
  */
 export function buildSampleQuery(
   uriSpace: string,
@@ -776,35 +889,125 @@ export function buildSampleQuery(
     `  ${subjectFilter}`,
     '  ?s ?p ?o .',
     `  FILTER(ISIRI(?s) && STRSTARTS(STR(?s), ${sparqlString(uriSpace)}) && STR(?s) != ${sparqlString(uriSpace)})`,
-    `  ${IIIF_MANIFEST_EXCLUSION}`,
     '}',
     `LIMIT ${sampleSize}`,
   ].join('\n');
 }
 
 /**
- * Default sampler: runs {@link buildSampleQuery} as a plain SPARQL SELECT
- * against the distribution's endpoint. The fetcher's own timeout fast-fails a
- * slow endpoint, since the transform runs outside the stage runner where the
+ * Sample up to `sampleSize` subjects from `uriSpace`: run
+ * {@link buildSampleQuery}, over-sampling by {@link EXCLUSION_OVERSAMPLING},
+ * then drop the candidates {@link buildExclusionQuery} identifies as IIIF
+ * manifests or media and keep the first `sampleSize`. A namespace holding only
+ * those thus yields an empty sample. `select` runs a query and returns its `?s`
+ * bindings; exported so the two queries can be exercised together against an
+ * in-memory store.
+ */
+export async function sampleSubjects(
+  select: (query: string) => Promise<string[]>,
+  uriSpace: string,
+  sampleSize: number,
+  subjectFilter: string,
+  namedGraph?: string,
+): Promise<string[]> {
+  const candidates = await select(
+    buildSampleQuery(
+      uriSpace,
+      sampleSize * EXCLUSION_OVERSAMPLING,
+      subjectFilter,
+      namedGraph,
+    ),
+  );
+  if (candidates.length === 0) return [];
+
+  const excluded = new Set<string>();
+  // A candidate that cannot be written into a query goes unchecked and stays
+  // in the sample, rather than failing the sample for the whole namespace.
+  const checkable = candidates.filter(isSafeIri);
+  for (const batch of batchByRequestSize(checkable, namedGraph)) {
+    for (const subject of await select(
+      buildExclusionQuery(batch, namedGraph),
+    )) {
+      excluded.add(subject);
+    }
+  }
+  return candidates
+    .filter(candidate => !excluded.has(candidate))
+    .slice(0, sampleSize);
+}
+
+/**
+ * Split the candidates over exclusion queries that each stay within
+ * {@link MAX_EXCLUSION_REQUEST_BYTES}. A single candidate too long to fit still
+ * gets a query of its own.
+ */
+function batchByRequestSize(
+  candidates: readonly string[],
+  namedGraph?: string,
+): string[][] {
+  const batches: string[][] = [];
+  let batch: string[] = [];
+  for (const candidate of candidates) {
+    if (
+      batch.length > 0 &&
+      requestSize(buildExclusionQuery([...batch, candidate], namedGraph)) >
+        MAX_EXCLUSION_REQUEST_BYTES
+    ) {
+      batches.push(batch);
+      batch = [];
+    }
+    batch.push(candidate);
+  }
+  if (batch.length > 0) batches.push(batch);
+  return batches;
+}
+
+function isSafeIri(iri: string): boolean {
+  try {
+    assertSafeIri(iri);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The size of a query as the fetcher POSTs it: form-encoded. */
+function requestSize(query: string): number {
+  return new URLSearchParams({query}).toString().length;
+}
+
+/**
+ * Default sampler: runs {@link sampleSubjects} as plain SPARQL SELECTs against
+ * the distribution's endpoint. The fetcher's own timeout fast-fails a slow
+ * endpoint, since the transform runs outside the stage runner where the
  * Pipeline's adaptive policy would normally apply.
  */
-const defaultSampleUris: SampleUris = async (
+const defaultSampleUris: SampleUris = (
   uriSpace,
   sampleSize,
   {distribution},
 ) => {
-  const query = buildSampleQuery(
+  const fetcher = new SparqlEndpointFetcher({timeout: SAMPLE_TIMEOUT_MS});
+  const endpoint = distribution.accessUrl.toString();
+  return sampleSubjects(
+    query => selectSubjects(fetcher, endpoint, query),
     uriSpace,
     sampleSize,
     distribution.subjectFilter ?? '',
     distribution.namedGraph,
   );
+};
 
-  const fetcher = new SparqlEndpointFetcher({timeout: SAMPLE_TIMEOUT_MS});
+/** Run a SELECT and return its `?s` bindings that are IRIs. */
+async function selectSubjects(
+  fetcher: SparqlEndpointFetcher,
+  endpoint: string,
+  query: string,
+): Promise<string[]> {
   // fetchBindings yields IBindings (object mode), not the string/Buffer the
   // NodeJS.ReadableStream type implies.
   const bindings = (await fetcher.fetchBindings(
-    distribution.accessUrl.toString(),
+    endpoint,
     query,
   )) as unknown as AsyncIterable<IBindings>;
   const subjects: string[] = [];
@@ -812,14 +1015,14 @@ const defaultSampleUris: SampleUris = async (
     if (row.s?.termType === 'NamedNode') subjects.push(row.s.value);
   }
   return subjects;
-};
+}
 
 /**
  * Accept header for the first dereference probe: HTML and nothing else. A
  * combined header that also lists RDF types cannot discover a human-readable
  * landing page, because a large class of servers (Omeka-S among them) ignore
  * Accept `q`-values and serve their default RDF serialisation whenever *any* RDF
- * type is acceptable — so HTML at `q=1` still loses to RDF at `q=0.8`. Offering
+ * type is acceptable – so HTML at `q=1` still loses to RDF at `q=0.8`. Offering
  * `text/html` alone is the only way to see the page a browser would get, which
  * is exactly what the `landingPage` signal promotes.
  */
@@ -892,7 +1095,7 @@ async function readBoundedText(response: Response): Promise<string> {
 /**
  * Map a response media type to a content type rdf-parse understands, or `null`
  * when the response is plainly non-RDF binary (so a doomed parse is skipped).
- * rdf-parse does not sniff — it needs an explicit content type — so a generic or
+ * rdf-parse does not sniff – it needs an explicit content type – so a generic or
  * mislabelled type is mapped to a best-effort serialisation rather than rejected
  * on the header alone: a JSON body is tried as JSON-LD, an XML body as RDF/XML,
  * and anything else text-ish (`text/plain`, octet-stream, no type) as Turtle
@@ -934,7 +1137,7 @@ function rdfParseContentType(mediaType: string): string | null {
 
 /**
  * Whether `body` parses as at least one RDF quad under `contentType`. Uses
- * rdf-parse — the parser behind the project's `rdf-dereference` — so every
+ * rdf-parse – the parser behind the project's `rdf-dereference` – so every
  * serialisation it supports (the Turtle family, JSON-LD, RDF/XML) is recognised,
  * not just the Turtle family. `body` is already bounded by {@link readBoundedText}.
  * `baseIri` resolves relative IRIs (the response's final, redirected URL). A
@@ -984,7 +1187,7 @@ function fetchWithAccept(
  * Classify a `2xx` response as RDF: confirm the body parses as RDF. rdf-parse
  * needs the content type, so a generic or mislabelled one is mapped to a
  * best-effort serialisation (see {@link rdfParseContentType}); a plainly non-RDF
- * binary type is rejected without a parse. The parse — not the header — is the
+ * binary type is rejected without a parse. The parse – not the header – is the
  * authority, so a server that only *claims* an RDF content type but serves an
  * error/HTML body does not resolve. An RDF body is never a landing page.
  */
@@ -1014,7 +1217,7 @@ async function classifyRdfResponse(
  *
  * 1. Probe `Accept: text/html`. A `2xx text/html` resolves; it is a
  *    {@link Resolution landing page} when its body advertises the original
- *    sampled URI (raw or HTML-entity-escaped) — the permanent link back to the
+ *    sampled URI (raw or HTML-entity-escaped) – the permanent link back to the
  *    user, which matters because we may have landed on a redirected URL. A `2xx`
  *    that is some other representation (a server ignoring the html-only request)
  *    is classified from the bytes already in hand as RDF, with no second probe.

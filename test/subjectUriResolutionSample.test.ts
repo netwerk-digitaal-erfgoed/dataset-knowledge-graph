@@ -1,25 +1,36 @@
 import {describe, it, expect} from 'vitest';
 import {Parser, Store} from 'n3';
 import {QueryEngine} from '@comunica/query-sparql-rdfjs-lite';
-import {buildSampleQuery} from '../src/subjectUriResolution.js';
+import {
+  buildExclusionQuery,
+  buildSampleQuery,
+  sampleSubjects,
+} from '../src/subjectUriResolution.js';
 
 // The DKOR case: an ARK namespace whose subjects include both genuine resources
 // and IIIF manifest URLs (`…/{uuid}/iiif.json`). The manifests pass the IIIF
 // criterion but, serving JSON rather than text/html, would fail the subject-URI
-// resolution check as `wrong-content-type` — so the sampler must exclude them.
+// resolution check as `wrong-content-type` – so the sampler must exclude them.
 const URI_SPACE = 'https://n2t.net/ark:/85849/';
 
 const PREFIXES = '@prefix schema: <https://schema.org/> .\n';
 
 async function sample(turtle: string, limit = 10): Promise<string[]> {
+  const subjects = await sampleSubjects(
+    query => select(turtle, query),
+    URI_SPACE,
+    limit,
+    '',
+  );
+  return subjects.sort();
+}
+
+async function select(turtle: string, query: string): Promise<string[]> {
   const store = new Store();
   store.addQuads(new Parser().parse(PREFIXES + turtle));
 
   const engine = new QueryEngine();
-  const bindings = await engine.queryBindings(
-    buildSampleQuery(URI_SPACE, limit, ''),
-    {sources: [store]},
-  );
+  const bindings = await engine.queryBindings(query, {sources: [store]});
   const subjects: string[] = [];
   for await (const binding of bindings) {
     const term = binding.get('s');
@@ -31,7 +42,7 @@ async function sample(turtle: string, limit = 10): Promise<string[]> {
 const IIIF_V3 =
   "application/ld+json;profile='http://iiif.io/api/presentation/3/context.json'";
 
-describe('buildSampleQuery IIIF manifest exclusion', () => {
+describe('sampleSubjects IIIF manifest exclusion', () => {
   it('excludes manifest URLs that bear the IIIF encodingFormat themselves', async () => {
     const turtle = `
       <${URI_SPACE}aaa> schema:name "Work A" .
@@ -77,7 +88,7 @@ describe('buildSampleQuery IIIF manifest exclusion', () => {
       <${URI_SPACE}eee> schema:encodingFormat "image/jpeg" .
     `;
 
-    // Only IIIF manifests are excluded — a plain media object stays sampled.
+    // Only IIIF manifests are excluded – a plain media object stays sampled.
     expect(await sample(turtle)).toEqual([
       `${URI_SPACE}aaa`,
       `${URI_SPACE}eee`,
@@ -97,8 +108,8 @@ describe('buildSampleQuery IIIF manifest exclusion', () => {
   });
 
   it('backfills the sample with genuine subjects up to the limit', async () => {
-    // With manifests excluded at the source, a small LIMIT is filled with real
-    // subjects rather than partly wasted on manifests (the DKOR 6/6 outcome).
+    // The sample query over-samples, so once the manifests are dropped a small
+    // sample is still filled with real subjects (the DKOR 6/6 outcome).
     const turtle = `
       <${URI_SPACE}aaa> schema:name "Work A" .
       <${URI_SPACE}bbb> schema:name "Work B" .
@@ -108,6 +119,137 @@ describe('buildSampleQuery IIIF manifest exclusion', () => {
     `;
 
     expect(await sample(turtle, 2)).toHaveLength(2);
+  });
+
+  it('keeps a candidate that cannot be written into the exclusion query', async () => {
+    // A lenient endpoint may return an IRI with whitespace; it must not fail
+    // the sample for the whole namespace.
+    const unsafe = `${URI_SPACE}foo bar`;
+    const exclusionQueries: string[] = [];
+
+    const subjects = await sampleSubjects(
+      async query => {
+        if (query.includes('LIMIT')) return [`${URI_SPACE}aaa`, unsafe];
+        exclusionQueries.push(query);
+        return [];
+      },
+      URI_SPACE,
+      10,
+      '',
+    );
+
+    expect(subjects).toEqual([`${URI_SPACE}aaa`, unsafe]);
+    expect(exclusionQueries).toHaveLength(1);
+    expect(exclusionQueries[0]).not.toContain(unsafe);
+  });
+});
+
+describe('buildExclusionQuery media', () => {
+  // The KLEKSI case: media files live on a CDN host as subjects of their own.
+  // They are file locations, not identifiers for the dataset’s records, so the
+  // persistence check drops them from its sample.
+  async function media(
+    turtle: string,
+    candidates: string[],
+  ): Promise<string[]> {
+    return select(turtle, buildExclusionQuery(candidates));
+  }
+
+  it('identifies associatedMedia targets', async () => {
+    const turtle = `
+      <${URI_SPACE}aaa> schema:associatedMedia <${URI_SPACE}scan> .
+      <${URI_SPACE}bbb> <http://schema.org/associatedMedia> <${URI_SPACE}audio> .
+      <${URI_SPACE}scan> schema:contentUrl <https://cdn.example.org/scan.jpg> .
+      <${URI_SPACE}audio> schema:contentUrl <https://cdn.example.org/audio.mp3> .
+    `;
+
+    expect(
+      await media(turtle, [
+        `${URI_SPACE}aaa`,
+        `${URI_SPACE}bbb`,
+        `${URI_SPACE}scan`,
+        `${URI_SPACE}audio`,
+      ]),
+    ).toEqual([`${URI_SPACE}audio`, `${URI_SPACE}scan`]);
+  });
+
+  it('identifies EDM web resources', async () => {
+    const turtle = `
+      @prefix edm: <http://www.europeana.eu/schemas/edm/> .
+      <${URI_SPACE}aaa> a edm:ProvidedCHO .
+      <${URI_SPACE}webresource> a edm:WebResource .
+    `;
+
+    expect(
+      await media(turtle, [`${URI_SPACE}aaa`, `${URI_SPACE}webresource`]),
+    ).toEqual([`${URI_SPACE}webresource`]);
+  });
+
+  it('identifies IIIF Image API descriptors', async () => {
+    // KLEKSI links each image to its `info.json` with rdfs:seeAlso; the
+    // descriptor is untyped and recognisable only by its encodingFormat.
+    const turtle = `
+      <${URI_SPACE}aaa> schema:name "Work A" .
+      <${URI_SPACE}image/info.json> schema:encodingFormat
+        "application/ld+json;profile='http://iiif.io/api/image/3/context.json'" .
+    `;
+
+    expect(
+      await media(turtle, [`${URI_SPACE}aaa`, `${URI_SPACE}image/info.json`]),
+    ).toEqual([`${URI_SPACE}image/info.json`]);
+  });
+
+  it('does not treat records typed as a media class as media', async () => {
+    // A photo or AV archive may type its records as ImageObject or VideoObject,
+    // and link them with schema:image; those are the records to sample.
+    const turtle = `
+      <${URI_SPACE}photo> a schema:ImageObject ; schema:name "Photo" .
+      <${URI_SPACE}video> a schema:VideoObject ; schema:name "Video" .
+      <${URI_SPACE}person> schema:image <${URI_SPACE}photo> .
+    `;
+
+    expect(
+      await media(turtle, [`${URI_SPACE}photo`, `${URI_SPACE}video`]),
+    ).toEqual([]);
+  });
+
+  it('only looks up the given candidates', async () => {
+    const turtle = `
+      <${URI_SPACE}aaa> schema:associatedMedia <${URI_SPACE}scan> .
+    `;
+
+    expect(await media(turtle, [`${URI_SPACE}aaa`])).toEqual([]);
+  });
+});
+
+describe('sampleSubjects exclusion request size', () => {
+  it('spreads long candidates over requests under the endpoint’s size cap', async () => {
+    // KLEKSI’s endpoint answers a request over about 8 KB with an empty 500.
+    const candidates = Array.from(
+      {length: 30},
+      (_, index) => `${URI_SPACE}${'media-file-name/'.repeat(10)}${index}.jpg`,
+    );
+    const mediaCandidate = candidates[29];
+    const exclusionQueries: string[] = [];
+
+    const subjects = await sampleSubjects(
+      async query => {
+        if (query.includes('LIMIT')) return candidates;
+        exclusionQueries.push(query);
+        return query.includes(`<${mediaCandidate}>`) ? [mediaCandidate] : [];
+      },
+      URI_SPACE,
+      30,
+      '',
+    );
+
+    expect(exclusionQueries.length).toBeGreaterThan(1);
+    for (const query of exclusionQueries) {
+      expect(
+        new URLSearchParams({query}).toString().length,
+      ).toBeLessThanOrEqual(7_000);
+    }
+    expect(subjects).toEqual(candidates.slice(0, 29));
   });
 });
 
@@ -123,9 +265,16 @@ describe('buildSampleQuery URI space prefix exclusion', () => {
       <${URI_SPACE}bbb> schema:name "Work B" .
     `;
 
-    expect(await sample(turtle)).toEqual([
+    expect(await select(turtle, buildSampleQuery(URI_SPACE, 10, ''))).toEqual([
       `${URI_SPACE}aaa`,
       `${URI_SPACE}bbb`,
     ]);
+  });
+
+  it('carries no exclusion that would keep it from stopping at its LIMIT', () => {
+    // A FILTER NOT EXISTS here makes an endpoint check every subject of a
+    // namespace that holds only manifests; the exclusion query does that work
+    // for the sampled candidates alone.
+    expect(buildSampleQuery(URI_SPACE, 10, '')).not.toContain('NOT EXISTS');
   });
 });

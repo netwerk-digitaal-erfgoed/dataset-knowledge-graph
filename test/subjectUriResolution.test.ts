@@ -137,7 +137,7 @@ const OUTCOME_BASE = 'https://def.nde.nl/subject-resolution-outcome#';
 /**
  * The `resolution:outcome` concept IRI of the qualified usage whose
  * `prov:entity` is `url`, or `undefined` when no usage for `url` was emitted.
- * Every measurable sampled URI — resolved or definitively failed — carries one.
+ * Every measurable sampled URI – resolved or definitively failed – carries one.
  */
 function outcomeFor(quads: Quad[], url: string): string | undefined {
   const usage = quads.find(
@@ -186,7 +186,7 @@ describe('subjectUriResolution', () => {
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(3);
     expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(2);
     // Both resolved to RDF, not an HTML landing page, so the landing-page count
-    // is 0 — emitted regardless, so the advisory can tell 0 from absent.
+    // is 0 – emitted regardless, so the advisory can tell 0 from absent.
     expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(0);
     expect(
       out.filter(
@@ -197,7 +197,7 @@ describe('subjectUriResolution', () => {
     ).toHaveLength(3);
 
     // Every measurable sample is enumerated as a qualified usage carrying its
-    // outcome — the two resolved and the one failed alike.
+    // outcome – the two resolved and the one failed alike.
     expect(
       out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
     ).toHaveLength(3);
@@ -270,7 +270,7 @@ describe('subjectUriResolution', () => {
 
   it('skips a skolem namespace even when it is the most common one', async () => {
     // RAZU’s `kranten` skolemizes 1.5M blank nodes (checksum records, geometries)
-    // under `/.well-known/genid/` — more than any real namespace. Those skolem
+    // under `/.well-known/genid/` – more than any real namespace. Those skolem
     // IRIs do not dereference, so picking them would score the whole sample as
     // broken; the dataset’s own resolvable namespace must win instead.
     const skolem = subset('https://data.razu.nl/.well-known/genid/', 1527258);
@@ -382,7 +382,7 @@ describe('subjectUriResolution', () => {
   });
 
   it('does not classify a look-alike host as a Handle scheme', async () => {
-    // The host merely starts with 'hdl.handle.net' — the trailing-slash
+    // The host merely starts with 'hdl.handle.net' – the trailing-slash
     // boundary must stop it from matching the Handle prefix.
     const ns = subset('https://hdl.handle.net.evil.example/123/', 50);
     const transform = subjectUriResolution({
@@ -462,7 +462,7 @@ describe('subjectUriResolution', () => {
     const transform = subjectUriResolution({
       terminologyPrefixes: [],
       sampleUris: sampleFixed(['http://example.org/id/flaky']),
-      // Times out once, then resolves — exactly the crawl-time blip the retry
+      // Times out once, then resolves – exactly the crawl-time blip the retry
       // exists to absorb.
       resolve: async () =>
         attempts++ === 0
@@ -581,6 +581,157 @@ describe('subjectUriResolution', () => {
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
   });
 
+  it('falls through to the next namespace when the biggest yields no sample', async () => {
+    // The KLEKSI case: the media CDN namespace has more subjects than the
+    // records, but the sampler excludes media, so its sample comes back empty.
+    // The records’ namespace must be measured instead – and only it.
+    const media = subset('https://eu.cdn.kleksi.com/vx479x/', 38400);
+    const records = subset('https://records.example.org/vx479x/', 23983);
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return uriSpace === 'https://records.example.org/vx479x/'
+          ? ['https://records.example.org/vx479x/good-1']
+          : [];
+      },
+      resolve: resolveByName,
+    });
+
+    const out = await collect(
+      transform(stream([...media.quads, ...records.quads]), context),
+    );
+
+    expect(seen).toEqual([
+      'https://eu.cdn.kleksi.com/vx479x/',
+      'https://records.example.org/vx479x/',
+    ]);
+    expect(measurementValue(out, SAMPLED_METRIC, records.node)).toBe(1);
+    expect(measurementValue(out, RESOLVED_METRIC, records.node)).toBe(1);
+    // The skipped vendor namespace is not flagged: it was not measured.
+    expect(
+      out.some(
+        q =>
+          q.subject.equals(media.node) &&
+          q.predicate.equals(DQV_HAS_QUALITY_MEASUREMENT),
+      ),
+    ).toBe(false);
+  });
+
+  it('settles on the biggest namespace when every sample is empty', async () => {
+    const biggest = subset('https://n2t.net/ark:/60537/', 5000);
+    const smaller = subset('http://example.org/id/', 4000);
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return [];
+      },
+      resolve: resolveByName,
+      lookupOrg: noOrg,
+    });
+
+    const out = await collect(
+      transform(stream([...biggest.quads, ...smaller.quads]), context),
+    );
+
+    expect(seen).toEqual([
+      'https://n2t.net/ark:/60537/',
+      'http://example.org/id/',
+    ]);
+    // The declared facts land on the biggest namespace, as before.
+    expect(
+      out.some(
+        q =>
+          q.subject.equals(biggest.node) &&
+          q.predicate.equals(DCTERMS_CONFORMS_TO) &&
+          q.object.equals(ARK_SCHEME),
+      ),
+    ).toBe(true);
+    expect(measurementValue(out, SAMPLED_METRIC, biggest.node)).toBeUndefined();
+  });
+
+  it('samples at most three namespaces', async () => {
+    const namespaces = [5, 4, 3, 2, 1].map(entities =>
+      subset(`http://example.org/ns${entities}/`, entities),
+    );
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return [];
+      },
+      resolve: resolveByName,
+    });
+
+    await collect(
+      transform(stream(namespaces.flatMap(ns => ns.quads)), context),
+    );
+
+    expect(seen).toEqual([
+      'http://example.org/ns5/',
+      'http://example.org/ns4/',
+      'http://example.org/ns3/',
+    ]);
+  });
+
+  it('ranks a namespace with a non-numeric entity count last', async () => {
+    const malformed = subset('http://example.org/malformed/', Number.NaN);
+    const smaller = subset('http://example.org/smaller/', 3);
+    const biggest = subset('http://example.org/biggest/', 5);
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return [];
+      },
+      resolve: resolveByName,
+    });
+
+    await collect(
+      transform(
+        stream([...malformed.quads, ...smaller.quads, ...biggest.quads]),
+        context,
+      ),
+    );
+
+    expect(seen).toEqual([
+      'http://example.org/biggest/',
+      'http://example.org/smaller/',
+      'http://example.org/malformed/',
+    ]);
+  });
+
+  it('does not fall through when sampling fails', async () => {
+    // A failed sample says nothing about whether the namespace holds only
+    // media, so the failure is recorded on it rather than skipped.
+    const biggest = subset('http://example.org/id/', 5000);
+    const smaller = subset('http://example.org/other/', 4000);
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        throw new Error('endpoint timeout');
+      },
+      resolve: resolveByName,
+      retries: 0,
+    });
+
+    const out = await collect(
+      transform(stream([...biggest.quads, ...smaller.quads]), context),
+    );
+
+    expect(seen).toEqual(['http://example.org/id/']);
+    expect(
+      measurementValueTerm(out, SAMPLING_FAILED_METRIC, biggest.node)?.value,
+    ).toBe('true');
+  });
+
   it('keeps the VoID output and marks the failure when sampling fails', async () => {
     const ns = subset('http://example.org/id/', 10);
     const transform = subjectUriResolution({
@@ -608,7 +759,7 @@ describe('subjectUriResolution', () => {
   });
 
   it('retries the sample query and measures the eventual success', async () => {
-    // The sample query times out once, then returns — exactly the crawl-time
+    // The sample query times out once, then returns – exactly the crawl-time
     // blip that previously discarded the whole check.
     const ns = subset('http://example.org/id/', 10);
     let attempts = 0;
@@ -745,7 +896,7 @@ describe('subjectUriResolution', () => {
       expect(outcomeFor(out, 'http://example.org/id/good')).toBe(
         `${OUTCOME_BASE}resolved`,
       );
-      // One usage per measurable URI — here just the one resolved URI.
+      // One usage per measurable URI – here just the one resolved URI.
       expect(
         out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
       ).toHaveLength(1);
@@ -773,6 +924,22 @@ describe('subjectUriResolution', () => {
       const transform = subjectUriResolution({
         terminologyPrefixes: [],
         sampleUris: sampleFixed(['https://cmu.adlibhosting.com/id/good']),
+        resolve: resolveByName,
+      });
+
+      const out = await collect(transform(stream(ns.quads), context));
+
+      expect(measurementValueTerm(out, DURABLE_METRIC, ns.node)?.value).toBe(
+        'false',
+      );
+    });
+
+    it('flags KLEKSI’s short-link host', async () => {
+      // KLEKSI itself calls klek.si a temporary PID, pending Handle or ARK.
+      const ns = subset('https://klek.si/vx479x/', 23983);
+      const transform = subjectUriResolution({
+        terminologyPrefixes: [],
+        sampleUris: sampleFixed(['https://klek.si/vx479x/good']),
         resolve: resolveByName,
       });
 
@@ -894,7 +1061,7 @@ describe('subjectUriResolution', () => {
 
     it('co-emits the durable flag alongside a full resolution', async () => {
       // The actual 🟠 scenario: the sample fully resolves, yet the namespace is
-      // a known throwaway — both measurements coexist on the subset.
+      // a known throwaway – both measurements coexist on the subset.
       const ns = subset('https://collectie.adlibhosting.com/id/', 5000);
       const transform = subjectUriResolution({
         terminologyPrefixes: [],
@@ -1026,7 +1193,7 @@ describe('subjectUriResolution', () => {
     });
 
     it('excludes a persistent 408 Request Timeout as a transient blip', async () => {
-      // A 408 is a transient 4xx — a proxy cutting a slow upstream — so it must
+      // A 408 is a transient 4xx – a proxy cutting a slow upstream – so it must
       // be retried and excluded, not scored as a definitive non-resolution.
       const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(
@@ -1250,7 +1417,7 @@ describe('subjectUriResolution', () => {
 
       it('classifies a 2xx RDF body from the html probe without a second probe', async () => {
         // A server that ignores the html-only request and serves RDF anyway: we
-        // already hold the bytes, so it resolves as data from the first probe —
+        // already hold the bytes, so it resolves as data from the first probe –
         // no redundant RDF probe.
         const ns = subset('http://example.org/id/', 10);
         const accepts: string[] = [];
@@ -1308,7 +1475,7 @@ describe('subjectUriResolution', () => {
 
         // Transient: dropped from the sample, no ratio.
         expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
-        // Every probe sent was the html-only one — never the RDF fallback.
+        // Every probe sent was the html-only one – never the RDF fallback.
         expect(accepts.every(accept => accept === 'text/html')).toBe(true);
       });
     });
