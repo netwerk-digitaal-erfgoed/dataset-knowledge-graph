@@ -137,7 +137,7 @@ const OUTCOME_BASE = 'https://def.nde.nl/subject-resolution-outcome#';
 /**
  * The `resolution:outcome` concept IRI of the qualified usage whose
  * `prov:entity` is `url`, or `undefined` when no usage for `url` was emitted.
- * Every measurable sampled URI — resolved or definitively failed — carries one.
+ * Every measurable sampled URI – resolved or definitively failed – carries one.
  */
 function outcomeFor(quads: Quad[], url: string): string | undefined {
   const usage = quads.find(
@@ -186,7 +186,7 @@ describe('subjectUriResolution', () => {
     expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBe(3);
     expect(measurementValue(out, RESOLVED_METRIC, ns.node)).toBe(2);
     // Both resolved to RDF, not an HTML landing page, so the landing-page count
-    // is 0 — emitted regardless, so the advisory can tell 0 from absent.
+    // is 0 – emitted regardless, so the advisory can tell 0 from absent.
     expect(measurementValue(out, HTML_LANDING_PAGES_METRIC, ns.node)).toBe(0);
     expect(
       out.filter(
@@ -197,7 +197,7 @@ describe('subjectUriResolution', () => {
     ).toHaveLength(3);
 
     // Every measurable sample is enumerated as a qualified usage carrying its
-    // outcome — the two resolved and the one failed alike.
+    // outcome – the two resolved and the one failed alike.
     expect(
       out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
     ).toHaveLength(3);
@@ -270,7 +270,7 @@ describe('subjectUriResolution', () => {
 
   it('skips a skolem namespace even when it is the most common one', async () => {
     // RAZU’s `kranten` skolemizes 1.5M blank nodes (checksum records, geometries)
-    // under `/.well-known/genid/` — more than any real namespace. Those skolem
+    // under `/.well-known/genid/` – more than any real namespace. Those skolem
     // IRIs do not dereference, so picking them would score the whole sample as
     // broken; the dataset’s own resolvable namespace must win instead.
     const skolem = subset('https://data.razu.nl/.well-known/genid/', 1527258);
@@ -382,7 +382,7 @@ describe('subjectUriResolution', () => {
   });
 
   it('does not classify a look-alike host as a Handle scheme', async () => {
-    // The host merely starts with 'hdl.handle.net' — the trailing-slash
+    // The host merely starts with 'hdl.handle.net' – the trailing-slash
     // boundary must stop it from matching the Handle prefix.
     const ns = subset('https://hdl.handle.net.evil.example/123/', 50);
     const transform = subjectUriResolution({
@@ -462,7 +462,7 @@ describe('subjectUriResolution', () => {
     const transform = subjectUriResolution({
       terminologyPrefixes: [],
       sampleUris: sampleFixed(['http://example.org/id/flaky']),
-      // Times out once, then resolves — exactly the crawl-time blip the retry
+      // Times out once, then resolves – exactly the crawl-time blip the retry
       // exists to absorb.
       resolve: async () =>
         attempts++ === 0
@@ -731,7 +731,7 @@ describe('subjectUriResolution', () => {
   });
 
   it('retries the sample query and measures the eventual success', async () => {
-    // The sample query times out once, then returns — exactly the crawl-time
+    // The sample query times out once, then returns – exactly the crawl-time
     // blip that previously discarded the whole check.
     const ns = subset('http://example.org/id/', 10);
     let attempts = 0;
@@ -868,7 +868,7 @@ describe('subjectUriResolution', () => {
       expect(outcomeFor(out, 'http://example.org/id/good')).toBe(
         `${OUTCOME_BASE}resolved`,
       );
-      // One usage per measurable URI — here just the one resolved URI.
+      // One usage per measurable URI – here just the one resolved URI.
       expect(
         out.filter(q => q.predicate.equals(PROV_QUALIFIED_USAGE)),
       ).toHaveLength(1);
@@ -1033,7 +1033,7 @@ describe('subjectUriResolution', () => {
 
     it('co-emits the durable flag alongside a full resolution', async () => {
       // The actual 🟠 scenario: the sample fully resolves, yet the namespace is
-      // a known throwaway — both measurements coexist on the subset.
+      // a known throwaway – both measurements coexist on the subset.
       const ns = subset('https://collectie.adlibhosting.com/id/', 5000);
       const transform = subjectUriResolution({
         terminologyPrefixes: [],
@@ -1165,7 +1165,7 @@ describe('subjectUriResolution', () => {
     });
 
     it('excludes a persistent 408 Request Timeout as a transient blip', async () => {
-      // A 408 is a transient 4xx — a proxy cutting a slow upstream — so it must
+      // A 408 is a transient 4xx – a proxy cutting a slow upstream – so it must
       // be retried and excluded, not scored as a definitive non-resolution.
       const ns = subset('http://example.org/id/', 10);
       const out = await runWithFetch(
@@ -1389,7 +1389,7 @@ describe('subjectUriResolution', () => {
 
       it('classifies a 2xx RDF body from the html probe without a second probe', async () => {
         // A server that ignores the html-only request and serves RDF anyway: we
-        // already hold the bytes, so it resolves as data from the first probe —
+        // already hold the bytes, so it resolves as data from the first probe –
         // no redundant RDF probe.
         const ns = subset('http://example.org/id/', 10);
         const accepts: string[] = [];
@@ -1447,7 +1447,7 @@ describe('subjectUriResolution', () => {
 
         // Transient: dropped from the sample, no ratio.
         expect(measurementValue(out, SAMPLED_METRIC, ns.node)).toBeUndefined();
-        // Every probe sent was the html-only one — never the RDF fallback.
+        // Every probe sent was the html-only one – never the RDF fallback.
         expect(accepts.every(accept => accept === 'text/html')).toBe(true);
       });
     });

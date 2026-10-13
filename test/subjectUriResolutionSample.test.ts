@@ -10,7 +10,7 @@ import {
 // The DKOR case: an ARK namespace whose subjects include both genuine resources
 // and IIIF manifest URLs (`…/{uuid}/iiif.json`). The manifests pass the IIIF
 // criterion but, serving JSON rather than text/html, would fail the subject-URI
-// resolution check as `wrong-content-type` — so the sampler must exclude them.
+// resolution check as `wrong-content-type` – so the sampler must exclude them.
 const URI_SPACE = 'https://n2t.net/ark:/85849/';
 
 const PREFIXES = '@prefix schema: <https://schema.org/> .\n';
@@ -88,7 +88,7 @@ describe('sampleSubjects IIIF manifest exclusion', () => {
       <${URI_SPACE}eee> schema:encodingFormat "image/jpeg" .
     `;
 
-    // Only IIIF manifests are excluded — a plain media object stays sampled.
+    // Only IIIF manifests are excluded – a plain media object stays sampled.
     expect(await sample(turtle)).toEqual([
       `${URI_SPACE}aaa`,
       `${URI_SPACE}eee`,

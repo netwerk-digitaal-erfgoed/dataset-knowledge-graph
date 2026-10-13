@@ -38,17 +38,17 @@ const SUBJECT_RESOLUTION_OUTCOME_BASE =
  * dereferences to a `2xx` response that is either an HTML page or RDF (any
  * serialisation); {@link Resolution} carries that success out-of-band, so this
  * enum names only the failures. Whether a resolved HTML page is a *landing page*
- * (it self-references its own URI) is a separate, non-failing distinction — see
+ * (it self-references its own URI) is a separate, non-failing distinction – see
  * {@link Resolution}. The definitive reasons surface as
  * `subject-resolution-outcome#` concepts (see {@link outcomeIriFor}).
  *
  * Outcomes split into two classes (see {@link isTransientFailure}):
- * - **definitive** — `http-error` (a non-retryable `4xx` such as `404`/`410`)
+ * - **definitive** – `http-error` (a non-retryable `4xx` such as `404`/`410`)
  *   and `wrong-content-type` (a `2xx` that is neither HTML nor RDF, e.g. a JSON
  *   or plain-text error page): a genuine, dataset-attributable defect. Counted
  *   against the ratio and persisted in the PROV trail as a
  *   `subject-resolution-outcome#` concept.
- * - **transient** — `timeout`, `network-error`, `server-error` (a retryable HTTP
+ * - **transient** – `timeout`, `network-error`, `server-error` (a retryable HTTP
  *   status: `408`/`425`/`429`/`5xx`): a blip in the multi-hop PID-resolver
  *   chain, not a property of the dataset.
  *   Retried with backoff; if still failing it is excluded from the sample
@@ -64,7 +64,7 @@ export type SubjectResolutionFailure =
 /**
  * Transient failures: a slow or briefly unavailable hop in the resolver chain,
  * not a broken PID. Retried, then excluded from the denominator rather than
- * scored as a non-resolution — so a single network blip during a crawl cannot
+ * scored as a non-resolution – so a single network blip during a crawl cannot
  * report a healthy dataset as partially broken.
  */
 const TRANSIENT_FAILURES: ReadonlySet<SubjectResolutionFailure> = new Set([
@@ -82,7 +82,7 @@ function isTransientFailure(reason: SubjectResolutionFailure): boolean {
  * `html-landing-page` or `resolved` for a success (the landing-page flag
  * promotes the human-readable page), else the definitive failure reason itself
  * (`http-error`/`wrong-content-type`). Only ever called for a *measurable*
- * outcome — a resolution or a definitive failure — so a transient reason never
+ * outcome – a resolution or a definitive failure – so a transient reason never
  * reaches it.
  */
 function outcomeIriFor(resolution: Resolution): NamedNode {
@@ -121,10 +121,10 @@ const PID_PREFIXES: ReadonlyArray<{scheme: PidScheme; prefix: string}> = [
  * `http`/`https`.
  *
  * Two modes capture how vendor software splits by where it is hosted:
- * - `host` — a SaaS host shared across institutions (Adlib, Spinque, …). Matches
+ * - `host` – a SaaS host shared across institutions (Adlib, Spinque, …). Matches
  *   the host component exactly or on a dot-boundary subdomain, so one entry
  *   covers every current and future subdomain while rejecting look-alikes.
- * - `path` — a distinctive software path under the institution’s own domain,
+ * - `path` – a distinctive software path under the institution’s own domain,
  *   the only thing that flags *self-hosted* software (e.g. Atlantis under
  *   `geheugenvanzoetermeer.nl`). Matched as a slash-bounded substring.
  */
@@ -196,8 +196,8 @@ const DEFAULT_RETRIES = 2;
  * Overall wall-clock budget for dereferencing the whole sample, independent of
  * the per-request {@link DEREFERENCE_TIMEOUT_MS}. Caps a flaky namespace’s retry
  * storm: once it elapses, in-flight fetches abort and no further retries are
- * scheduled, so the transform — which runs outside the Pipeline’s adaptive
- * timeout — cannot stall the run for minutes.
+ * scheduled, so the transform – which runs outside the Pipeline’s adaptive
+ * timeout – cannot stall the run for minutes.
  */
 const DEREFERENCE_PHASE_BUDGET_MS = 60_000;
 
@@ -221,14 +221,14 @@ export type SampleUris = (
 
 /**
  * The outcome of dereferencing a sampled URI:
- * - `resolved` — a `2xx` response that is HTML or RDF. `landingPage` is `true`
+ * - `resolved` – a `2xx` response that is HTML or RDF. `landingPage` is `true`
  *   only when it is an HTML page that self-references its own URI (a
  *   human-readable landing page for the identifier); `false` for RDF, or for
  *   HTML that does not mention the URI. A resolved URI counts toward
  *   `subject-uris-resolved` regardless of `landingPage`; the flag only feeds the
  *   (non-failing) `subject-uris-html-landing-pages` count that promotes HTML
  *   landing pages.
- * - `failed` — see {@link SubjectResolutionFailure}.
+ * - `failed` – see {@link SubjectResolutionFailure}.
  */
 export type Resolution =
   | {readonly kind: 'resolved'; readonly landingPage: boolean}
@@ -252,7 +252,7 @@ export type LookupOrg = (naan: string) => Promise<string | undefined>;
 export interface SubjectUriResolutionOptions {
   /**
    * URI prefixes to exclude as terminology sources when picking the dataset’s
-   * own subject namespace — typically the keys of `buildUriSpacesMap()`.
+   * own subject namespace – typically the keys of `buildUriSpacesMap()`.
    * Matched with `startsWith`.
    */
   terminologyPrefixes: Iterable<string>;
@@ -298,7 +298,7 @@ export interface SubjectUriResolutionOptions {
  *   tracks how many resolved to an HTML page that self-references its own URI.
  * - **durability** facts: a `subject-namespace-durable = false` DQV measurement
  *   when the chosen namespace matches the {@link NON_DURABLE_NAMESPACES}
- *   disallow list — emitted independently of sampling, so it survives an
+ *   disallow list – emitted independently of sampling, so it survives an
  *   endpoint failure.
  * - **sampling-failure** facts: a `subject-uris-sampling-failed = true` DQV
  *   measurement when the sample query throws on every attempt, so a transient
@@ -371,7 +371,7 @@ export function subjectUriResolution(
     }
 
     // Declared facts (PID scheme, issuing org) are knowable from the namespace
-    // string alone, independent of whether the sample resolves — so emit them
+    // string alone, independent of whether the sample resolves – so emit them
     // regardless of the sample, so a sample failure cannot erase them. The ARK
     // org lookup swallows its own errors, so awaiting it here is safe.
     const scheme = detectPidScheme(winner.uriSpace);
@@ -406,7 +406,7 @@ export function subjectUriResolution(
     // failure is a real defect. Both are *measurable*, so each is persisted as
     // a per-URI outcome usage. A *transient* failure survived every retry, so
     // the resolver chain (not the dataset) is at fault: drop the URI from the
-    // sample entirely rather than scoring it as broken — it gets no usage.
+    // sample entirely rather than scoring it as broken – it gets no usage.
     let resolved = 0;
     let htmlLandingPages = 0;
     const outcomes: SampleOutcome[] = [];
@@ -422,7 +422,7 @@ export function subjectUriResolution(
     });
     // The denominator counts only definitively-judged URIs; transient ones are
     // excluded, so every persisted outcome is one measurable URI. With nothing
-    // measurable — an empty sample, or every URI transiently unreachable — the
+    // measurable – an empty sample, or every URI transiently unreachable – the
     // declared facts above stand on their own, so append no misleading 0/0
     // ratio (and no failure marker: the sample query itself succeeded).
     const measurable = outcomes.length;
@@ -477,7 +477,7 @@ async function sampleOwnNamespace(
 /**
  * Resolve a URI, retrying a {@link isTransientFailure transient} failure with
  * exponential backoff up to `retries` times. Returns the final outcome: a
- * resolution, a definitive failure, or — once retries are exhausted — the last
+ * resolution, a definitive failure, or – once retries are exhausted – the last
  * transient failure. An unexpected rejection from `resolve` is treated as a
  * transient `network-error`, so a flaky check is retried rather than surfacing a
  * stray non-resolution. Stops early once `signal` (the overall phase budget)
@@ -511,8 +511,8 @@ async function resolveWithRetry(
 
 /**
  * Run the sample query, retrying a thrown attempt with the same backoff as the
- * per-URI dereference. A thrown sample is an endpoint/network failure — a slow
- * or briefly unavailable endpoint — so a single failed request should not strand
+ * per-URI dereference. A thrown sample is an endpoint/network failure – a slow
+ * or briefly unavailable endpoint – so a single failed request should not strand
  * the dataset on “never sampled”. After `retries` extra attempts the final error
  * propagates, so the caller can record the failure rather than retry forever.
  */
@@ -542,11 +542,11 @@ async function sampleUrisWithRetry(
  * minted stand-ins for blank nodes (checksum records, geometries, coverage
  * details) that the publisher’s serializer emits so an anonymous node survives a
  * round-trip. They are not identifiers the publisher promises to keep resolving,
- * and they do not dereference — so treating one as the dataset’s self-minted
+ * and they do not dereference – so treating one as the dataset’s self-minted
  * subject namespace would score every sampled URI as broken. RAZU’s `kranten`
  * mints 1.5M such nodes, more than any real namespace, so it would otherwise
- * win. The exclusion is unconditional: a skolem namespace is never a PID, so —
- * unlike the terminology exclusion below — PID-ness cannot override it.
+ * win. The exclusion is unconditional: a skolem namespace is never a PID, so –
+ * unlike the terminology exclusion below – PID-ness cannot override it.
  *
  * A NAAN registered as a Network of Terms source can also be the publisher’s own
  * persistent-identifier namespace: the Gouda Tijdmachine dataset mints its
@@ -580,7 +580,7 @@ function rankCandidates(
 }
 
 /**
- * Whether a namespace holds RDF 1.1 skolem IRIs — minted under the reserved
+ * Whether a namespace holds RDF 1.1 skolem IRIs – minted under the reserved
  * `/.well-known/genid/` path as stand-ins for blank nodes. Matched on the path,
  * host-independent and tolerant of `http`/`https`, so any publisher’s skolem
  * namespace is recognised.
@@ -672,7 +672,7 @@ function* measurementQuads(
   yield* provActivity(activity, subset, software);
   yield* outcomeUsageQuads(activity, outcomes);
 
-  // Validated facts — the sampled/resolved ratio, for any namespace, plus how
+  // Validated facts – the sampled/resolved ratio, for any namespace, plus how
   // many of the resolved URIs served an HTML landing page (a non-failing signal
   // that promotes human-readable pages without gating the ratio on them).
   const sampledMeasurement = namedNode(
@@ -740,7 +740,7 @@ function* nonDurableMeasurement(
  * The sampling-failure marker: `subject-uris-sampling-failed = true`, emitted
  * only when the sample query threw on every attempt. It lets a consumer tell an
  * *errored* sample (a transient endpoint failure this run) apart from a
- * namespace that was never sampled — otherwise indistinguishable, both lacking
+ * namespace that was never sampled – otherwise indistinguishable, both lacking
  * any `subject-uris-sampled` ratio. Carries its own PROV activity, mirroring
  * {@link nonDurableMeasurement}.
  */
@@ -966,7 +966,7 @@ async function selectSubjects(
  * combined header that also lists RDF types cannot discover a human-readable
  * landing page, because a large class of servers (Omeka-S among them) ignore
  * Accept `q`-values and serve their default RDF serialisation whenever *any* RDF
- * type is acceptable — so HTML at `q=1` still loses to RDF at `q=0.8`. Offering
+ * type is acceptable – so HTML at `q=1` still loses to RDF at `q=0.8`. Offering
  * `text/html` alone is the only way to see the page a browser would get, which
  * is exactly what the `landingPage` signal promotes.
  */
@@ -1039,7 +1039,7 @@ async function readBoundedText(response: Response): Promise<string> {
 /**
  * Map a response media type to a content type rdf-parse understands, or `null`
  * when the response is plainly non-RDF binary (so a doomed parse is skipped).
- * rdf-parse does not sniff — it needs an explicit content type — so a generic or
+ * rdf-parse does not sniff – it needs an explicit content type – so a generic or
  * mislabelled type is mapped to a best-effort serialisation rather than rejected
  * on the header alone: a JSON body is tried as JSON-LD, an XML body as RDF/XML,
  * and anything else text-ish (`text/plain`, octet-stream, no type) as Turtle
@@ -1081,7 +1081,7 @@ function rdfParseContentType(mediaType: string): string | null {
 
 /**
  * Whether `body` parses as at least one RDF quad under `contentType`. Uses
- * rdf-parse — the parser behind the project's `rdf-dereference` — so every
+ * rdf-parse – the parser behind the project's `rdf-dereference` – so every
  * serialisation it supports (the Turtle family, JSON-LD, RDF/XML) is recognised,
  * not just the Turtle family. `body` is already bounded by {@link readBoundedText}.
  * `baseIri` resolves relative IRIs (the response's final, redirected URL). A
@@ -1131,7 +1131,7 @@ function fetchWithAccept(
  * Classify a `2xx` response as RDF: confirm the body parses as RDF. rdf-parse
  * needs the content type, so a generic or mislabelled one is mapped to a
  * best-effort serialisation (see {@link rdfParseContentType}); a plainly non-RDF
- * binary type is rejected without a parse. The parse — not the header — is the
+ * binary type is rejected without a parse. The parse – not the header – is the
  * authority, so a server that only *claims* an RDF content type but serves an
  * error/HTML body does not resolve. An RDF body is never a landing page.
  */
@@ -1161,7 +1161,7 @@ async function classifyRdfResponse(
  *
  * 1. Probe `Accept: text/html`. A `2xx text/html` resolves; it is a
  *    {@link Resolution landing page} when its body advertises the original
- *    sampled URI (raw or HTML-entity-escaped) — the permanent link back to the
+ *    sampled URI (raw or HTML-entity-escaped) – the permanent link back to the
  *    user, which matters because we may have landed on a redirected URL. A `2xx`
  *    that is some other representation (a server ignoring the html-only request)
  *    is classified from the bytes already in hand as RDF, with no second probe.
