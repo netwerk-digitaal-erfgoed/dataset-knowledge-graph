@@ -172,10 +172,17 @@ const MAX_SAMPLED_NAMESPACES = 3;
 /**
  * How many times the sample size is fetched as candidates, so enough remain
  * once IIIF manifests and media are dropped. Kept small: the candidates go into
- * the exclusion query as `VALUES`, and some endpoints (KLEKSI’s) reject requests
- * over about 8 KB.
+ * the exclusion query as `VALUES`, so more of them means more requests (see
+ * {@link MAX_EXCLUSION_REQUEST_BYTES}).
  */
 const EXCLUSION_OVERSAMPLING = 3;
+
+/**
+ * Upper bound on the form-encoded size of one exclusion request. Some endpoints
+ * (KLEKSI’s) answer a request over about 8 KB with an empty 500, so the
+ * candidates are spread over as many requests as it takes to stay under it.
+ */
+const MAX_EXCLUSION_REQUEST_BYTES = 7_000;
 
 /**
  * Per-request budget for dereferencing a sampled URI and the arks.org lookup.
@@ -571,7 +578,8 @@ function rankCandidates(
     ) {
       continue;
     }
-    const entities = entitiesBySubset.get(subset) ?? 0;
+    // A missing or non-numeric count ranks last rather than upsetting the sort.
+    const entities = entitiesBySubset.get(subset) || 0;
     candidates.push({subset, uriSpace, entities});
   }
   return candidates
@@ -912,12 +920,60 @@ export async function sampleSubjects(
   );
   if (candidates.length === 0) return [];
 
-  const excluded = new Set(
-    await select(buildExclusionQuery(candidates, namedGraph)),
-  );
+  const excluded = new Set<string>();
+  // A candidate that cannot be written into a query goes unchecked and stays
+  // in the sample, rather than failing the sample for the whole namespace.
+  const checkable = candidates.filter(isSafeIri);
+  for (const batch of batchByRequestSize(checkable, namedGraph)) {
+    for (const subject of await select(
+      buildExclusionQuery(batch, namedGraph),
+    )) {
+      excluded.add(subject);
+    }
+  }
   return candidates
     .filter(candidate => !excluded.has(candidate))
     .slice(0, sampleSize);
+}
+
+/**
+ * Split the candidates over exclusion queries that each stay within
+ * {@link MAX_EXCLUSION_REQUEST_BYTES}. A single candidate too long to fit still
+ * gets a query of its own.
+ */
+function batchByRequestSize(
+  candidates: readonly string[],
+  namedGraph?: string,
+): string[][] {
+  const batches: string[][] = [];
+  let batch: string[] = [];
+  for (const candidate of candidates) {
+    if (
+      batch.length > 0 &&
+      requestSize(buildExclusionQuery([...batch, candidate], namedGraph)) >
+        MAX_EXCLUSION_REQUEST_BYTES
+    ) {
+      batches.push(batch);
+      batch = [];
+    }
+    batch.push(candidate);
+  }
+  if (batch.length > 0) batches.push(batch);
+  return batches;
+}
+
+function isSafeIri(iri: string): boolean {
+  try {
+    assertSafeIri(iri);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The size of a query as the fetcher POSTs it: form-encoded. */
+function requestSize(query: string): number {
+  return new URLSearchParams({query}).toString().length;
 }
 
 /**

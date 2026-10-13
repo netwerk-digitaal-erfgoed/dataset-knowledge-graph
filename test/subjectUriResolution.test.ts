@@ -678,6 +678,34 @@ describe('subjectUriResolution', () => {
     ]);
   });
 
+  it('ranks a namespace with a non-numeric entity count last', async () => {
+    const malformed = subset('http://example.org/malformed/', Number.NaN);
+    const smaller = subset('http://example.org/smaller/', 3);
+    const biggest = subset('http://example.org/biggest/', 5);
+    const seen: string[] = [];
+    const transform = subjectUriResolution({
+      terminologyPrefixes: [],
+      sampleUris: async uriSpace => {
+        seen.push(uriSpace);
+        return [];
+      },
+      resolve: resolveByName,
+    });
+
+    await collect(
+      transform(
+        stream([...malformed.quads, ...smaller.quads, ...biggest.quads]),
+        context,
+      ),
+    );
+
+    expect(seen).toEqual([
+      'http://example.org/biggest/',
+      'http://example.org/smaller/',
+      'http://example.org/malformed/',
+    ]);
+  });
+
   it('does not fall through when sampling fails', async () => {
     // A failed sample says nothing about whether the namespace holds only
     // media, so the failure is recorded on it rather than skipped.

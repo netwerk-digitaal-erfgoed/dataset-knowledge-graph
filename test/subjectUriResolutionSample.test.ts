@@ -120,6 +120,28 @@ describe('sampleSubjects IIIF manifest exclusion', () => {
 
     expect(await sample(turtle, 2)).toHaveLength(2);
   });
+
+  it('keeps a candidate that cannot be written into the exclusion query', async () => {
+    // A lenient endpoint may return an IRI with whitespace; it must not fail
+    // the sample for the whole namespace.
+    const unsafe = `${URI_SPACE}foo bar`;
+    const exclusionQueries: string[] = [];
+
+    const subjects = await sampleSubjects(
+      async query => {
+        if (query.includes('LIMIT')) return [`${URI_SPACE}aaa`, unsafe];
+        exclusionQueries.push(query);
+        return [];
+      },
+      URI_SPACE,
+      10,
+      '',
+    );
+
+    expect(subjects).toEqual([`${URI_SPACE}aaa`, unsafe]);
+    expect(exclusionQueries).toHaveLength(1);
+    expect(exclusionQueries[0]).not.toContain(unsafe);
+  });
 });
 
 describe('buildExclusionQuery media', () => {
@@ -197,6 +219,37 @@ describe('buildExclusionQuery media', () => {
     `;
 
     expect(await media(turtle, [`${URI_SPACE}aaa`])).toEqual([]);
+  });
+});
+
+describe('sampleSubjects exclusion request size', () => {
+  it('spreads long candidates over requests under the endpoint’s size cap', async () => {
+    // KLEKSI’s endpoint answers a request over about 8 KB with an empty 500.
+    const candidates = Array.from(
+      {length: 30},
+      (_, index) => `${URI_SPACE}${'media-file-name/'.repeat(10)}${index}.jpg`,
+    );
+    const mediaCandidate = candidates[29];
+    const exclusionQueries: string[] = [];
+
+    const subjects = await sampleSubjects(
+      async query => {
+        if (query.includes('LIMIT')) return candidates;
+        exclusionQueries.push(query);
+        return query.includes(`<${mediaCandidate}>`) ? [mediaCandidate] : [];
+      },
+      URI_SPACE,
+      30,
+      '',
+    );
+
+    expect(exclusionQueries.length).toBeGreaterThan(1);
+    for (const query of exclusionQueries) {
+      expect(
+        new URLSearchParams({query}).toString().length,
+      ).toBeLessThanOrEqual(7_000);
+    }
+    expect(subjects).toEqual(candidates.slice(0, 29));
   });
 });
 
