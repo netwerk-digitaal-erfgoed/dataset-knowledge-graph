@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.6](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.5...v3.0.6) (2026-10-13)
+
+
+### Bug Fixes
+
+* skip media namespaces in the persistent-URI check ([#519](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/519)) ([e0f80a6](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/e0f80a6750c6eda5cfdbd45661abe9d542310473))
+
 ## [3.0.5](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.4...v3.0.5) (2026-09-28)
 
 
