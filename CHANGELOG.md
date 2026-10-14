@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.7](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.6...v3.0.7) (2026-10-14)
+
+
+### Bug Fixes
+
+* sample records whose sub-resources have hash IRIs ([#535](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/535)) ([bbcecac](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/bbcecac186bce54c5fed384c55397a717cd3f6d6))
+
 ## [3.0.6](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.5...v3.0.6) (2026-10-13)
 
 
