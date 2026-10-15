@@ -36,8 +36,9 @@ QLEVER_IMAGE=adfreiburg/qlever:commit-a14e0a0
 # On macOS: brew install qlever-dev/qlever/qlever
 QLEVER_ENV=native
 
-# Remote mode (production): QLever runs in a sidecar of the pod, controlled
-# through the task agent of @lde/task-runner-http.
+# Remote mode (production only): QLever runs in a sidecar of the pod, controlled
+# through the task agent of @lde/task-runner-http. Without that sidecar, imports
+# wait six minutes for an agent and then fail, so do not use it locally.
 QLEVER_ENV=remote
 ```
 

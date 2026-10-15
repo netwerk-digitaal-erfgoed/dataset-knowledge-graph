@@ -13,6 +13,8 @@ LABEL org.opencontainers.image.source="https://github.com/netwerk-digitaal-erfgo
 RUN apk add --no-cache tini
 
 ENV NODE_ENV=production
+# The only mode this image can run: it has neither QLever nor Docker.
+ENV QLEVER_ENV=remote
 WORKDIR /app/
 COPY package*.json ./
 RUN npm ci

@@ -101,9 +101,7 @@ const {importer, server} = createQlever(
         image: config.QLEVER_IMAGE ?? '',
         containerName: 'dkg-qlever',
       }
-    : config.QLEVER_ENV === 'remote'
-      ? {...qleverOptions, mode: 'remote'}
-      : {...qleverOptions, mode: 'native'},
+    : {...qleverOptions, mode: config.QLEVER_ENV},
 );
 
 const voidStageList = await voidStages({
