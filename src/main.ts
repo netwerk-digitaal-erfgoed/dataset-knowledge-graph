@@ -90,8 +90,9 @@ const qleverOptions = {
     'default-query-timeout': config.QLEVER_QUERY_TIMEOUT,
   },
 };
-// QleverOptions is now a discriminated union: only docker mode takes an image
-// and container name (we run on the host, so no `network` needed).
+// Docker mode runs QLever in containers next to the pipeline (local runs);
+// native mode runs it from PATH (local runs on macOS); remote mode runs it in
+// the pod’s QLever sidecar, with a memory limit of its own (production).
 const {importer, server} = createQlever(
   config.QLEVER_ENV === 'docker'
     ? {
@@ -100,7 +101,9 @@ const {importer, server} = createQlever(
         image: config.QLEVER_IMAGE ?? '',
         containerName: 'dkg-qlever',
       }
-    : {...qleverOptions, mode: 'native'},
+    : config.QLEVER_ENV === 'remote'
+      ? {...qleverOptions, mode: 'remote'}
+      : {...qleverOptions, mode: 'native'},
 );
 
 const voidStageList = await voidStages({

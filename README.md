@@ -22,7 +22,8 @@ The Dataset Summaries output will be written to the `output/` directory.
 ### QLever
 
 The pipeline uses [QLever](https://github.com/ad-freiburg/qlever) to index and query
-RDF data dumps. It can run in **Docker** mode (default) or **native** mode.
+RDF data dumps. It can run in **Docker** mode (default), **native** mode, or
+**remote** mode.
 
 Set the mode via the `QLEVER_ENV` environment variable in `.env`:
 
@@ -34,14 +35,28 @@ QLEVER_IMAGE=adfreiburg/qlever:commit-a14e0a0
 # Native mode: requires qlever-index and qlever-server on PATH.
 # On macOS: brew install qlever-dev/qlever/qlever
 QLEVER_ENV=native
+
+# Remote mode (production): QLever runs in a sidecar of the pod, controlled
+# through the task agent of @lde/task-runner-http.
+QLEVER_ENV=remote
 ```
 
 Native mode is ~2x faster than Docker on macOS (see [index tuning benchmarks](docs/qlever-index-tuning.md)).
+
+Production runs in remote mode, so QLever has a memory limit of its own: a dump
+that runs QLever out of memory restarts only the sidecar and fails that one
+dataset, instead of the whole run. The image therefore contains no QLever; the
+sidecar runs the upstream QLever image with `/app/imports` mounted at the same
+path as in the pipeline container. See [@lde/task-runner-http](https://ldelements.org/reference/task-runner-http#kubernetes)
+for the pod setup. The QLever version production runs is the sidecar image in the
+[infrastructure](https://github.com/netwerk-digitaal-erfgoed/infrastructure) repository’s
+`k8s/dataset-knowledge-graph/helmrelease.yaml`; `QLEVER_IMAGE` in `.env` only applies to
+local Docker-mode runs.
 
 The embedded QLever server can be tuned via these environment variables (defaults shown):
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `QLEVER_MEMORY_MAX_SIZE` | `12G` | Maximum memory QLever uses for query processing and caching (the result cache is part of this budget). Keep it below the container memory limit (16 GiB in production): a query that would exceed it is aborted with an HTTP 500 that the pipeline catches per stage and continues, instead of the container being OOM-killed. |
+| `QLEVER_MEMORY_MAX_SIZE` | `12G` | Maximum memory QLever uses for query processing and caching (the result cache is part of this budget). Keep it below QLever’s container memory limit (the sidecar’s 22 GiB in production): a query that would exceed it is aborted with an HTTP 500 that the pipeline catches per stage and continues, instead of the container being OOM-killed. |
 | `QLEVER_QUERY_TIMEOUT` | `600s` | QLever’s per-query timeout. Keep it above `SPARQL_REQUEST_TIMEOUT_MS` so QLever only acts as a backstop. Raised from 120s, which cut off the ~2-minute analysis queries on large datasets. |
 | `SPARQL_REQUEST_TIMEOUT_MS` | `300000` | Per-request timeout (milliseconds) for SPARQL queries against endpoints, including the local QLever server. Applied as the `adaptiveTimeoutPolicy` default budget in `main.ts`; this is the effective upper bound on a single query. Covers SPARQL query requests only — not data-dump downloads or imports, which are timed out separately by the downloader. |

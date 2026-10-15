@@ -46,7 +46,7 @@ const schema = {
     },
     QLEVER_ENV: {
       type: 'string',
-      enum: ['docker', 'native'],
+      enum: ['docker', 'native', 'remote'],
       default: 'docker',
     },
     QLEVER_PORT: {
@@ -58,12 +58,12 @@ const schema = {
     },
     // QLever’s own memory ceiling for query processing and caching (the result
     // cache is part of this budget, so it bounds cache-max-size too). Kept below
-    // the container memory limit (16 GiB in production): when an analysis query
-    // over a large dataset would exceed this, QLever aborts it with an HTTP 500
-    // that the pipeline catches per stage and continues, instead of growing past
-    // the container limit and getting the whole pod OOM-killed (in native mode
-    // QLever shares the pod’s memory budget with this process, so an OOM kill
-    // would take the run down with it).
+    // QLever’s container memory limit (the sidecar’s 22 GiB in production): when
+    // an analysis query over a large dataset would exceed this, QLever aborts it
+    // with an HTTP 500 that the pipeline catches per stage and continues. It does
+    // not bound the loaded index, so a large dump can still exceed the limit; in
+    // remote mode that kills only the sidecar and fails one dataset, while in
+    // native mode QLever shares this process’s container and takes the run down.
     QLEVER_MEMORY_MAX_SIZE: {
       type: 'string',
       default: '12G',
@@ -99,7 +99,7 @@ interface Config {
   OUTPUT_VALIDITY_CACHE_DIR: string;
   SERVED_SPARQL_ENDPOINT?: string;
   REBUILD_SENTINEL_PATH: string;
-  QLEVER_ENV: 'docker' | 'native';
+  QLEVER_ENV: 'docker' | 'native' | 'remote';
   QLEVER_PORT: number;
   QLEVER_IMAGE?: string;
   QLEVER_MEMORY_MAX_SIZE: string;
