@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.7...v3.1.0) (2026-10-16)
+
+
+### Features
+
+* run QLever in a sidecar with its own memory limit ([#542](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/542)) ([b63b400](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/b63b400395e576aa95613cfe622e12680f3b1f48))
+
 ## [3.0.7](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.6...v3.0.7) (2026-10-14)
 
 
