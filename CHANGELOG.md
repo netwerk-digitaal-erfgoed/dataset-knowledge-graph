@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.2.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.1.0...v3.2.0) (2026-10-27)
+
+
+### Features
+
+* read Schema.org’s JSON-LD context as the NDE context ([#561](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/561)) ([5f8098d](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/5f8098d19c7011330e289105cf39b02328133e75))
+
 ## [3.1.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.0.7...v3.1.0) (2026-10-19)
 
 
