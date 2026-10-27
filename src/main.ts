@@ -36,6 +36,7 @@ import {ConsoleReporter} from '@lde/pipeline-console-reporter';
 import {resolve} from 'node:path';
 import type {DatasetSelector} from '@lde/pipeline';
 import {validationGraphIri} from './validationGraphIri.js';
+import {replaceSchemaOrgContext} from './schemaOrgContext.js';
 import {validityGraphIri} from './validityGraphIri.js';
 import {ValidityVerdictCollector} from './validityVerdictCollector.js';
 import {writeDistributionValidity} from './writeDistributionValidity.js';
@@ -46,8 +47,8 @@ const SCHEMA_AP_NDE_PROFILE = 'https://docs.nde.nl/schema-profile/';
 const SAMPLES_PER_CLASS = 50;
 
 // SCHEMA-AP-NDE targets schema:Organization (and schema:Person), so a dump that
-// contains nothing but its own self-description — a schema:Dataset and the
-// publisher Organization that supports it — would otherwise sample that
+// contains nothing but its own self-description – a schema:Dataset and the
+// publisher Organization that supports it – would otherwise sample that
 // publisher, find it trivially conformant (only `name` is required) and report
 // the dataset as ‘tested and passed’. But the publisher is the dataset’s own
 // administrative metadata, not collection content. We subtract any resource the
@@ -55,7 +56,7 @@ const SAMPLES_PER_CLASS = 50;
 // Organization and Person samples, so a content-less dump drops to
 // quads-validated = 0 (‘profile doesn’t apply’). The exclusion is anchored to the
 // schema:Dataset/DataCatalog node, never to the predicate alone, so per-work
-// creator Organizations — reached from CreativeWork nodes — stay in the sample
+// creator Organizations – reached from CreativeWork nodes – stay in the sample
 // and are still validated. Both http:// and https://schema.org/ forms are
 // matched because the source data may use either.
 const SELF_DESCRIPTION_PUBLISHER_EXCLUSION = `MINUS {
@@ -83,6 +84,7 @@ const SUBJECT_URI_SAMPLE_SIZE = 10;
 const uriSpaces = await buildUriSpacesMap();
 const qleverOptions = {
   dataDir: resolve('imports'),
+  replaceJsonLdContext: replaceSchemaOrgContext,
   port: config.QLEVER_PORT,
   indexName: 'data',
   serverOptions: {
@@ -175,8 +177,8 @@ const stages = [
   }),
 ];
 
-// Collect every RDF-validity verdict the pipeline emits — including for
-// distributions whose RDF failed to import, whose datasets produce no summary —
+// Collect every RDF-validity verdict the pipeline emits – including for
+// distributions whose RDF failed to import, whose datasets produce no summary –
 // so the post-run pass below can persist them. Passed alongside the console
 // reporter so both observe the same run (Pipeline fans an array out to each).
 const validityCollector = new ValidityVerdictCollector();
@@ -216,7 +218,7 @@ const writers: Writer[] = [
 ];
 
 // Per-dataset processing memory, so a run skips datasets whose source and
-// pipeline version are both unchanged — before paying the import cost. Reads
+// pipeline version are both unchanged – before paying the import cost. Reads
 // the previous run's records by querying the served (read-only) QLever, and
 // writes this run's records as n-quads files (in their own directory, scoped by
 // the provenance graph) for the served QLever's next rebuild. Disabled when
@@ -266,7 +268,7 @@ try {
 
   // Persist the RDF-validity verdicts collected during the run. A post-run pass
   // rather than a stage, so it also records distributions whose RDF failed to
-  // import — datasets that produced no summary. Best-effort: a write failure is
+  // import – datasets that produced no summary. Best-effort: a write failure is
   // logged rather than thrown, so it cannot block cache reconciliation below or
   // the rebuild sentinel.
   try {
@@ -309,7 +311,7 @@ try {
     console.error(`Cache reconciliation skipped: ${(error as Error).message}`);
   }
 } finally {
-  // Signal the serving QLever to rebuild — on success AND on partial failure —
+  // Signal the serving QLever to rebuild – on success AND on partial failure –
   // so operators always see the set that was processed this run.
   await publishRebuildSentinel(config.REBUILD_SENTINEL_PATH);
 }
