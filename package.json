@@ -41,7 +41,7 @@
     "@lde/pipeline-shacl-validator": "^0.23.1",
     "@lde/pipeline-void": "^0.39.1",
     "@lde/sparql-qlever": "^0.19.0",
-    "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^11.3.0",
+    "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^11.3.4",
     "@rdfjs/namespace": "^2.0.1",
     "@tpluscode/rdf-ns-builders": "^7.0.0",
     "env-schema": "^8.0.1",
