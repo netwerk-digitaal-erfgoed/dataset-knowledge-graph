@@ -3,8 +3,7 @@ import {DataFactory, Parser} from 'n3';
 import type {Quad} from '@rdfjs/types';
 import {Dataset} from '@lde/dataset';
 import {FileWriter} from '@lde/pipeline';
-import {rdf, xsd} from '@tpluscode/rdf-ns-builders';
-import {schema} from './namespaces.js';
+import {dcat, dcterms, rdf, xsd} from '@tpluscode/rdf-ns-builders';
 import {writeRun} from './writeRun.js';
 
 const {literal, quad} = DataFactory;
@@ -22,10 +21,10 @@ export const SELF_DESCRIPTION_GRAPH =
   'https://data.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph/description';
 
 /** Properties computed per run, so the source file must not set them. */
-const COMPUTED_PROPERTIES = [schema.dateModified, schema.version];
+const COMPUTED_PROPERTIES = [dcterms.modified, dcat.version];
 
 export interface PublishSelfDescriptionOptions {
-  /** Turtle source of the description, with exactly one `schema:Dataset`. */
+  /** Turtle source of the description, with exactly one `dcat:Dataset`. */
   sourceFile: string;
   /** Directory the n-quads file goes to, under the served index’s input. */
   outputDir: string;
@@ -38,7 +37,7 @@ export interface PublishSelfDescriptionOptions {
 /**
  * Publish the Knowledge Graph’s dataset description into
  * {@link SELF_DESCRIPTION_GRAPH}: the hand-written source plus
- * `schema:dateModified` and `schema:version`, which only a run knows.
+ * `dct:modified` and `dcat:version`, which only a run knows.
  */
 export async function publishSelfDescription(
   options: PublishSelfDescriptionOptions,
@@ -51,10 +50,10 @@ export async function publishSelfDescription(
   quads.push(
     quad(
       dataset,
-      schema.dateModified,
+      dcterms.modified,
       literal(options.dateModified.toISOString(), xsd.dateTime),
     ),
-    quad(dataset, schema.version, literal(options.version)),
+    quad(dataset, dcat.version, literal(options.version)),
   );
 
   await writeRun(
@@ -73,20 +72,20 @@ export async function publishSelfDescription(
 }
 
 function describedDataset(quads: readonly Quad[], sourceFile: string) {
-  // Keyed on the IRI, so a repeated `a schema:Dataset` counts once.
+  // Keyed on the IRI, so a repeated `a dcat:Dataset` counts once.
   const datasets = new Map(
     quads
       .filter(
         candidate =>
           candidate.predicate.equals(rdf.type) &&
-          candidate.object.equals(schema.Dataset),
+          candidate.object.equals(dcat.Dataset),
       )
       .map(candidate => [candidate.subject.value, candidate.subject]),
   );
   const [dataset] = datasets.values();
   if (datasets.size !== 1 || dataset.termType !== 'NamedNode') {
     throw new Error(
-      `${sourceFile} must describe exactly one schema:Dataset with an IRI`,
+      `${sourceFile} must describe exactly one dcat:Dataset with an IRI`,
     );
   }
 
