@@ -27,6 +27,7 @@ import {
   fileGraphPrunerDependencies,
 } from './pruneOrphanedGraphs.js';
 import {publishRebuildSentinel} from './rebuildSentinel.js';
+import {publishSelfDescription} from './selfDescription.js';
 import {buildUriSpacesMap} from './uriSpaces.js';
 import {qualityMeasurementsStage} from './qualityMeasurementsStage.js';
 import {iiifStage} from './iiifStage.js';
@@ -309,6 +310,26 @@ try {
     );
   } catch (error) {
     console.error(`Cache reconciliation skipped: ${(error as Error).message}`);
+  }
+
+  // Publish the Knowledge Graph’s own dataset description, stamped with this
+  // run’s end as schema:dateModified: every run rewrites summaries (endpoint
+  // datasets have no source fingerprint, so they are always reprocessed), and
+  // the description goes live in the same rebuild as the data it describes.
+  // Only after a completed run, so a crashed one keeps the previous date.
+  // Best-effort, like the other post-run passes, so it never blocks the rebuild.
+  try {
+    await publishSelfDescription({
+      sourceFile: resolve('dataset-description.ttl'),
+      // Outside the per-dataset caches, so cache reconciliation never prunes it.
+      outputDir: `${config.OUTPUT_DIR}/description`,
+      dateModified: new Date(),
+      version: PIPELINE_VERSION,
+    });
+  } catch (error) {
+    console.error(
+      `Publishing the dataset description skipped: ${(error as Error).message}`,
+    );
   }
 } finally {
   // Signal the serving QLever to rebuild – on success AND on partial failure –
