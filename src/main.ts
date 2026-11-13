@@ -320,7 +320,7 @@ try {
   // Best-effort, like the other post-run passes, so it never blocks the rebuild.
   try {
     await publishSelfDescription({
-      sourceFile: resolve('description/dataset-knowledge-graph.ttl'),
+      sourceFile: resolve('dataset-description.ttl'),
       // Outside the per-dataset caches, so cache reconciliation never prunes it.
       outputDir: `${config.OUTPUT_DIR}/description`,
       dateModified: new Date(),

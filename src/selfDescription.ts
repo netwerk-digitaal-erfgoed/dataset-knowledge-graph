@@ -19,7 +19,7 @@ const {literal, quad} = DataFactory;
  * which would mix its summary into its description.
  */
 export const SELF_DESCRIPTION_GRAPH =
-  'https://data.netwerkdigitaalerfgoed.nl/dkg/description';
+  'https://data.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph/description';
 
 /** Properties computed per run, so the source file must not set them. */
 const COMPUTED_PROPERTIES = [schema.dateModified, schema.version];

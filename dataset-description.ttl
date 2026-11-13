@@ -2,7 +2,7 @@
 # NDE Dataset Register.
 #
 # This file is the source; the pipeline publishes it after every run into the
-# graph <https://data.netwerkdigitaalerfgoed.nl/dkg/description>, adding
+# graph <https://data.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph/description>, adding
 # schema:dateModified (when the run ended) and schema:version (the pipeline
 # version). Do not add those two here. The registration URL
 # <https://data.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph> redirects to a

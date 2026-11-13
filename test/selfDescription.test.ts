@@ -11,7 +11,7 @@ import {
 const SCHEMA = 'https://schema.org/';
 const DATASET_IRI =
   'https://data.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph';
-const SOURCE_FILE = resolve('description/dataset-knowledge-graph.ttl');
+const SOURCE_FILE = resolve('dataset-description.ttl');
 
 let outputDir: string;
 
