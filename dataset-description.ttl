@@ -26,6 +26,9 @@
     dct:title "Dataset Knowledge Graph"@en, "Dataset Knowledge Graph"@nl ;
     dct:description """Empirical summaries of every dataset in the NDE Dataset Register that offers a readable RDF distribution. For each dataset: which classes occur and how often, which properties each class uses, datatypes and languages, outgoing links to terminology sources, subject URI spaces and whether they resolve, media and IIIF manifests, which distributions work, and a sampled SHACL validation against SCHEMA-AP-NDE. Modelled in VoID, DQV and PROV, with one named graph per dataset keyed on the dataset IRI. Rebuilt daily from the Dataset Register."""@en,
         """Empirische samenvattingen van alle datasets in het Datasetregister met een leesbare RDF-distributie. Per dataset: welke klassen voorkomen en hoe vaak, welke eigenschappen elke klasse gebruikt, datatypes en talen, uitgaande links naar terminologiebronnen, URI-ruimtes van subjecten en of die resolven, media en IIIF-manifesten, welke distributies werken, en een steekproefsgewijze SHACL-validatie tegen SCHEMA-AP-NDE. Gemodelleerd in VoID, DQV en PROV, met één named graph per dataset op de dataset-URI. Dagelijks opnieuw opgebouwd vanuit het Datasetregister."""@nl ;
+    # EuroVoc: dataset, metadata, data quality.
+    dcat:theme <http://eurovoc.europa.eu/51620>, <http://eurovoc.europa.eu/c_40f54e0c>,
+        <http://eurovoc.europa.eu/66901> ;
     dcat:landingPage <https://docs.nde.nl/services/dataset-knowledge-graph/> ;
     dct:publisher <https://netwerkdigitaalerfgoed.nl/> ;
     dct:creator <https://netwerkdigitaalerfgoed.nl/> ;
