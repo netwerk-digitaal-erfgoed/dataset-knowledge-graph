@@ -1,0 +1,61 @@
+# Dataset description of the Dataset Knowledge Graph itself, as registered in the
+# NDE Dataset Register.
+#
+# This file is the source; the pipeline publishes it after every run into the
+# graph <https://data.netwerkdigitaalerfgoed.nl/dkg/description>, adding
+# schema:dateModified (when the run ended) and schema:version (the pipeline
+# version). Do not add those two here. The registration URL
+# <https://data.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph> redirects to a
+# fixed CONSTRUCT query that returns that graph, so editing this file never
+# changes the registration URL.
+#
+# Meant as a model description for the NDE network: it fills the required and
+# the recommended properties of the Dataset Register requirements
+# (https://docs.nde.nl/requirements-datasets/), except where a property does not
+# apply (schema:temporalCoverage: the graph describes the network as it is now).
+
+@prefix schema: <https://schema.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://data.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph>
+    a schema:Dataset ;
+    schema:name "Dataset Knowledge Graph"@en, "Dataset Knowledge Graph"@nl ;
+    schema:description """Empirical summaries of every dataset in the NDE Dataset Register that offers a readable RDF distribution. For each dataset: which classes occur and how often, which properties each class uses, datatypes and languages, outgoing links to terminology sources, subject URI spaces and whether they resolve, media and IIIF manifests, which distributions work, and a sampled SHACL validation against SCHEMA-AP-NDE. Modelled in VoID, DQV and PROV, with one named graph per dataset keyed on the dataset IRI. Rebuilt daily from the Dataset Register."""@en,
+        """Empirische samenvattingen van alle datasets in het Datasetregister met een leesbare RDF-distributie. Per dataset: welke klassen voorkomen en hoe vaak, welke eigenschappen elke klasse gebruikt, datatypes en talen, uitgaande links naar terminologiebronnen, URI-ruimtes van subjecten en of die resolven, media en IIIF-manifesten, welke distributies werken, en een steekproefsgewijze SHACL-validatie tegen SCHEMA-AP-NDE. Gemodelleerd in VoID, DQV en PROV, met één named graph per dataset op de dataset-URI. Dagelijks opnieuw opgebouwd vanuit het Datasetregister."""@nl ;
+    schema:mainEntityOfPage <https://docs.nde.nl/services/dataset-knowledge-graph/> ;
+    schema:license <http://creativecommons.org/publicdomain/zero/1.0/> ;
+    schema:publisher <https://netwerkdigitaalerfgoed.nl/> ;
+    schema:creator <https://netwerkdigitaalerfgoed.nl/> ;
+    # First deployment that published the graph, then in GraphDB at
+    # https://triplestore.netwerkdigitaalerfgoed.nl/repositories/dataset-knowledge-graph.
+    schema:dateCreated "2023-12-06"^^xsd:date ;
+    schema:datePublished "2023-12-06"^^xsd:date ;
+    # The summaries are derived from the datasets in the Dataset Register; each
+    # summary links its own dataset through the graph it is stored in.
+    schema:isBasedOn <https://data.netwerkdigitaalerfgoed.nl/dataset-register> ;
+    schema:inLanguage "en", "nl" ;
+    schema:spatialCoverage <https://sws.geonames.org/2750405/> ;
+    schema:keywords "VoID", "SCHEMA-AP-NDE", "data quality"@en, "datakwaliteit"@nl, "dataset summaries"@en,
+        "datasetsamenvattingen"@nl ;
+    schema:distribution <https://data.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph#sparql> .
+
+<https://data.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph#sparql>
+    a schema:DataDownload ;
+    schema:contentUrl <https://sparql.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph> ;
+    schema:usageInfo <https://www.w3.org/TR/sparql11-protocol/> ;
+    schema:documentation <https://qlever.netwerkdigitaalerfgoed.nl/dataset-knowledge-graph> ;
+    schema:license <http://creativecommons.org/publicdomain/zero/1.0/> ;
+    # The current QLever endpoint went live on this date, replacing GraphDB.
+    schema:datePublished "2026-06-10"^^xsd:date ;
+    schema:description "SPARQL endpoint (QLever). Every summary in its own named graph; SHACL reports and provenance in separate graphs."@en,
+        "SPARQL-endpoint (QLever). Elke samenvatting in een eigen named graph; SHACL-rapporten en herkomst in aparte graphs."@nl .
+
+<https://netwerkdigitaalerfgoed.nl/>
+    a schema:Organization ;
+    schema:name "Netwerk Digitaal Erfgoed"@nl, "Dutch Digital Heritage Network"@en ;
+    schema:sameAs <http://www.wikidata.org/entity/Q100873180> ;
+    schema:contactPoint [
+        a schema:ContactPoint ;
+        schema:name "Technisch team"@nl, "Technical team"@en ;
+        schema:email "tech@netwerkdigitaalerfgoed.nl"
+    ] .

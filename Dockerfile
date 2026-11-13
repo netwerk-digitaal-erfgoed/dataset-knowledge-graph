@@ -20,6 +20,7 @@ COPY package*.json ./
 RUN npm ci
 COPY --from=build /app/build /app/build
 COPY --from=build /app/queries /app/queries
+COPY --from=build /app/description /app/description
 RUN mkdir /app/output /app/imports && \
     chown node /app/output /app/imports
 USER node

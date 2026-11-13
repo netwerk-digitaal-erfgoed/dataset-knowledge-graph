@@ -1,9 +1,9 @@
-import {randomUUID} from 'node:crypto';
 import type {Quad} from '@rdfjs/types';
 import {Dataset} from '@lde/dataset';
 import type {Writer} from '@lde/pipeline';
 import {distributionValidityQuads} from './distributionValidity.js';
 import type {CollectedValidity} from './validityVerdictCollector.js';
+import {writeRun} from './writeRun.js';
 
 export interface WriteDistributionValidityOptions {
   /** When the verdicts were produced; stamped on every measurement. */
@@ -42,30 +42,7 @@ export async function writeDistributionValidity(
     byDataset.set(key, entry);
   }
 
-  // Own run transaction: this pass runs after the pipeline, writing through a
-  // writer of its own, so it drives the `openRun → write* → flush → commit`
-  // lifecycle itself, bracketing the writes with exactly one commit or abort so
-  // a run-stateful writer is never left dangling on failure (as the pipeline’s
-  // own driver does). The selection is exactly the datasets written here.
-  const run = await writer.openRun({
-    runId: randomUUID(),
-    startedAt: new Date().toISOString(),
-    selectedSources: () => byDataset.keys(),
-  });
-  try {
-    for (const {dataset, quads} of byDataset.values()) {
-      await run.write(dataset, toAsyncIterable(quads));
-      await run.flush?.(dataset, 'success');
-    }
-    await run.commit();
-  } catch (error) {
-    await run.abort(error);
-    throw error;
-  }
+  await writeRun(writer, [...byDataset.values()]);
 
   return byDataset.size;
-}
-
-async function* toAsyncIterable(quads: readonly Quad[]): AsyncIterable<Quad> {
-  for (const quad of quads) yield quad;
 }
