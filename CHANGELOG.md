@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.2.0...v3.3.0) (2026-11-13)
+
+
+### Features
+
+* publish the Knowledge Graph’s own dataset description ([#578](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/578)) ([5699485](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/56994856c03416d28a84a8f81b63916530ba83f6))
+
 ## [3.2.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.1.0...v3.2.0) (2026-10-27)
 
 
