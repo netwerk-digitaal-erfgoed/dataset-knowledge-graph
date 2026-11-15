@@ -40,18 +40,22 @@ describe('fileGraphPrunerDependencies', () => {
   let summaryDir: string;
   let validationDir: string;
   let validityDir: string;
+  let provenanceDir: string;
   let summaryWriter: FileWriter;
   let validationWriter: FileWriter;
   let validityWriter: FileWriter;
+  let provenanceWriter: FileWriter;
 
   beforeEach(async () => {
     root = await mkdtemp(join(tmpdir(), 'file-pruner-test-'));
     summaryDir = join(root, 'nq');
     validationDir = join(root, 'validation', 'nq');
     validityDir = join(root, 'validity', 'nq');
+    provenanceDir = join(root, 'provenance');
     await mkdir(summaryDir, {recursive: true});
     await mkdir(validationDir, {recursive: true});
     await mkdir(validityDir, {recursive: true});
+    await mkdir(provenanceDir, {recursive: true});
     summaryWriter = new FileWriter({outputDir: summaryDir, format: 'n-quads'});
     validationWriter = new FileWriter({
       outputDir: validationDir,
@@ -59,6 +63,10 @@ describe('fileGraphPrunerDependencies', () => {
     });
     validityWriter = new FileWriter({
       outputDir: validityDir,
+      format: 'n-quads',
+    });
+    provenanceWriter = new FileWriter({
+      outputDir: provenanceDir,
       format: 'n-quads',
     });
     registered.iris = [];
@@ -84,6 +92,12 @@ describe('fileGraphPrunerDependencies', () => {
     );
   }
 
+  function provenancePath(iri: string): string {
+    return provenanceWriter.getOutputPath(
+      new Dataset({iri: new URL(iri), distributions: []}),
+    );
+  }
+
   async function seedDataset(iri: string): Promise<void> {
     await writeFile(summaryPath(iri), `<${iri}> a <urn:Dataset> <${iri}> .\n`);
     await writeFile(
@@ -91,6 +105,10 @@ describe('fileGraphPrunerDependencies', () => {
       `<${iri}> a <urn:Report> <${iri}> .\n`,
     );
     await writeFile(validityPath(iri), `<${iri}> a <urn:Verdict> <${iri}> .\n`);
+    await writeFile(
+      provenancePath(iri),
+      `<${iri}> a <urn:Activity> <urn:provenance> .\n`,
+    );
   }
 
   function prune() {
@@ -100,6 +118,7 @@ describe('fileGraphPrunerDependencies', () => {
         summaryDir,
         validationDir,
         validityDir,
+        provenanceDir,
       }),
     );
   }
@@ -116,14 +135,19 @@ describe('fileGraphPrunerDependencies', () => {
     expect(await exists(summaryPath(kept))).toBe(true);
     expect(await exists(validationPath(kept))).toBe(true);
     expect(await exists(validityPath(kept))).toBe(true);
+    expect(await exists(provenancePath(kept))).toBe(true);
     expect(await exists(summaryPath(orphan))).toBe(false);
     expect(await exists(validationPath(orphan))).toBe(false);
     expect(await exists(validityPath(orphan))).toBe(false);
+    // Its provenance record goes too, or the skip gate would skip the dataset
+    // as unchanged, without output, once it is registered again.
+    expect(await exists(provenancePath(orphan))).toBe(false);
     expect(result.prunedGraphs.sort()).toEqual(
       [
         summaryPath(orphan),
         validationPath(orphan),
         validityPath(orphan),
+        provenancePath(orphan),
       ].sort(),
     );
   });

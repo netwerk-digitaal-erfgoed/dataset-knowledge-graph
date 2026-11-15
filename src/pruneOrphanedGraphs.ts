@@ -13,7 +13,7 @@ import {validityGraphPrefix} from './validityGraphIri.js';
  * named graph per dataset, keyed on the dataset IRI) and its SHACL report into a
  * sibling n-quads file in a separate directory. A dataset that is removed from
  * the register or whose registration expires is simply no longer selected, so
- * its files are never rewritten and linger as “ghosts” — visible in downstream
+ * its files are never rewritten and linger as “ghosts” – visible in downstream
  * consumers once the read-only QLever rebuilds its index from these files.
  *
  * This step deletes those orphans: it asks the register for the set of dataset
@@ -31,8 +31,8 @@ export interface GraphPrunerDependencies {
   /**
    * Map a store entry to the key compared against the keep-set. Defaults to
    * {@link datasetIriForGraph} (graph-IRI space, used by the SPARQL store). The
-   * file pruner overrides it with identity because it already works — and builds
-   * its keep-set — in file-path space.
+   * file pruner overrides it with identity because it already works – and builds
+   * its keep-set – in file-path space.
    */
   keyOf?: (storeEntry: string) => string;
 }
@@ -73,7 +73,7 @@ export async function pruneOrphanedGraphs(
 ): Promise<PruneResult> {
   const registeredDatasets = await dependencies.selectRegisteredDatasets();
 
-  // Fail closed: an empty keep-set would orphan — and therefore delete — every
+  // Fail closed: an empty keep-set would orphan – and therefore delete – every
   // entry in the store, so treat it as a register outage and prune nothing.
   if (registeredDatasets.size === 0) {
     throw new Error(
@@ -135,6 +135,13 @@ export interface FileGraphPrunerOptions {
   validationDir: string;
   /** Directory holding the per-dataset RDF-validity `.nq` files. */
   validityDir: string;
+  /**
+   * Directory holding the per-dataset provenance records the skip-unchanged
+   * gate reads. A record is pruned with the dataset’s output: a record left
+   * behind would claim output that is gone, so the gate would skip the dataset
+   * for good once it is registered again.
+   */
+  provenanceDir: string;
 }
 
 /**
@@ -142,28 +149,25 @@ export interface FileGraphPrunerOptions {
  * supplies the keep-set, the cache directories supply the files to enumerate and
  * delete.
  *
- * The summary, validation and validity writers all name their file after the
- * *dataset* IRI (the graph IRI only sets each quad’s graph, not the filename), so
- * a single {@link FileWriter} reproduces the basename for every directory.
- * Reusing `getOutputPath` keeps that naming a single source of truth — the
- * keep-set paths are exactly what the pipeline wrote, including the replacement
- * character and extension.
+ * The summary, validation, validity and provenance writers all name their file
+ * after the *dataset* IRI (the graph IRI only sets each quad’s graph, not the
+ * filename), so a single {@link FileWriter} reproduces the basename for every
+ * directory. Reusing `getOutputPath` keeps that naming a single source of truth
+ * – the keep-set paths are exactly what the pipeline wrote, including the
+ * replacement character and extension.
  */
 export function fileGraphPrunerDependencies(
   options: FileGraphPrunerOptions,
 ): GraphPrunerDependencies {
-  const summaryWriter = new FileWriter({
-    outputDir: options.summaryDir,
-    format: 'n-quads',
-  });
-  const validationWriter = new FileWriter({
-    outputDir: options.validationDir,
-    format: 'n-quads',
-  });
-  const validityWriter = new FileWriter({
-    outputDir: options.validityDir,
-    format: 'n-quads',
-  });
+  const directories = [
+    options.summaryDir,
+    options.validationDir,
+    options.validityDir,
+    options.provenanceDir,
+  ];
+  const writers = directories.map(
+    outputDir => new FileWriter({outputDir, format: 'n-quads'}),
+  );
 
   const listNqFiles = async (directory: string): Promise<string[]> => {
     let entries: string[];
@@ -181,24 +185,21 @@ export function fileGraphPrunerDependencies(
 
   return {
     // The keep-set is projected into file-path space: for every registered
-    // dataset, the absolute path of both its summary and validation file. So
+    // dataset, the absolute path of its file in every directory. So
     // selectStoreGraphs and keyOf below also operate on absolute file paths.
     selectRegisteredDatasets: async () => {
       const datasets = await selectRegisteredDatasets(options.registryEndpoint);
       const keep = new Set<string>();
       for (const iri of datasets) {
         const dataset = new Dataset({iri: new URL(iri), distributions: []});
-        keep.add(summaryWriter.getOutputPath(dataset));
-        keep.add(validationWriter.getOutputPath(dataset));
-        keep.add(validityWriter.getOutputPath(dataset));
+        for (const writer of writers) {
+          keep.add(writer.getOutputPath(dataset));
+        }
       }
       return keep;
     },
-    selectStoreGraphs: async () => [
-      ...(await listNqFiles(options.summaryDir)),
-      ...(await listNqFiles(options.validationDir)),
-      ...(await listNqFiles(options.validityDir)),
-    ],
+    selectStoreGraphs: async () =>
+      (await Promise.all(directories.map(listNqFiles))).flat(),
     keyOf: filePath => filePath,
     dropGraph: filePath => rm(filePath, {force: true}),
   };
