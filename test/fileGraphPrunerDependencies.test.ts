@@ -2,7 +2,7 @@ import {describe, it, expect, vi, beforeEach, afterEach} from 'vitest';
 import {mkdtemp, mkdir, rm, writeFile, readdir, access} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {FileWriter} from '@lde/pipeline';
+import {FileLoadedSparqlProvenanceStore, FileWriter} from '@lde/pipeline';
 import {Dataset} from '@lde/dataset';
 
 // The register response is driven per test through this hoisted holder, so the
@@ -105,10 +105,18 @@ describe('fileGraphPrunerDependencies', () => {
       `<${iri}> a <urn:Report> <${iri}> .\n`,
     );
     await writeFile(validityPath(iri), `<${iri}> a <urn:Verdict> <${iri}> .\n`);
-    await writeFile(
-      provenancePath(iri),
-      `<${iri}> a <urn:Activity> <urn:provenance> .\n`,
-    );
+    // Through the store itself, so a change to its file naming fails the
+    // registered dataset’s assertions instead of silently pruning every record.
+    await new FileLoadedSparqlProvenanceStore({
+      queryEndpoint: new URL('http://example.com/served/sparql'),
+      pipelineIri: new URL('http://example.com/pipeline'),
+      outputDir: provenanceDir,
+    }).set(new URL(iri), {
+      sourceFingerprint: null,
+      pipelineVersion: '1.0.0',
+      generatedAt: '2026-11-07T00:00:00Z',
+      status: 'success',
+    });
   }
 
   function prune() {

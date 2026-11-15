@@ -10,8 +10,9 @@ import {validityGraphPrefix} from './validityGraphIri.js';
  * Reconcile the DKG output store with the Dataset Register.
  *
  * Each pipeline run writes a dataset’s summary into its own n-quads file (one
- * named graph per dataset, keyed on the dataset IRI) and its SHACL report into a
- * sibling n-quads file in a separate directory. A dataset that is removed from
+ * named graph per dataset, keyed on the dataset IRI), and its SHACL report, its
+ * RDF-validity verdicts and its provenance record into sibling n-quads files in
+ * directories of their own. A dataset that is removed from
  * the register or whose registration expires is simply no longer selected, so
  * its files are never rewritten and linger as “ghosts” – visible in downstream
  * consumers once the read-only QLever rebuilds its index from these files.
@@ -137,9 +138,11 @@ export interface FileGraphPrunerOptions {
   validityDir: string;
   /**
    * Directory holding the per-dataset provenance records the skip-unchanged
-   * gate reads. A record is pruned with the dataset’s output: a record left
-   * behind would claim output that is gone, so the gate would skip the dataset
-   * for good once it is registered again.
+   * gate reads, once the served QLever has indexed them. A record is pruned
+   * with the dataset’s output: a record left behind would claim output that is
+   * gone, so the gate would skip the dataset without a summary until its source
+   * or the pipeline version changes. A pruned record stops counting only after
+   * the next index rebuild.
    */
   provenanceDir: string;
 }
