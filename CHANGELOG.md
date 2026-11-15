@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.3.0...v3.3.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* prune a dataset’s provenance record with its output ([#580](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/580)) ([b6befe5](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/b6befe5d8939a66d4b4583872da457f13c78d618))
+
 ## [3.3.0](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.2.0...v3.3.0) (2026-11-13)
 
 
