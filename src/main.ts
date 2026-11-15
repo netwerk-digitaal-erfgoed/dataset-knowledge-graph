@@ -299,6 +299,7 @@ try {
         summaryDir: config.OUTPUT_CACHE_DIR,
         validationDir: config.OUTPUT_VALIDATION_CACHE_DIR,
         validityDir: config.OUTPUT_VALIDITY_CACHE_DIR,
+        provenanceDir: config.OUTPUT_PROVENANCE_CACHE_DIR,
       }),
     );
     console.log(
