@@ -1,5 +1,5 @@
 import type {Dataset, Distribution} from '@lde/dataset';
-import type {ProgressReporter} from '@lde/pipeline';
+import type {PipelineEvent, Reporter} from '@lde/pipeline';
 import type {ValidityVerdict} from '@lde/distribution-health';
 
 /** A validity verdict paired with the dataset and distribution it describes. */
@@ -10,16 +10,11 @@ export interface CollectedValidity {
 }
 
 /**
- * A {@link ProgressReporter} that records every RDF-validity verdict the
- * pipeline emits, so a post-run pass can turn them into `def.nde.nl` quads —
- * including for datasets whose distribution failed to import and therefore
- * produced no summary (the `distributionValidated` callback fires for those
- * too, which is why routing the verdict here works where a pipeline stage
- * would not).
- *
- * The callback carries no dataset, so we attribute each verdict to the dataset
- * whose processing is current, tracked via `datasetStart`. This assumes the
- * pipeline processes datasets sequentially — true today.
+ * A {@link Reporter} that records every RDF-validity verdict the pipeline
+ * emits, so a post-run pass can turn them into `def.nde.nl` quads – including
+ * for datasets whose distribution failed to import and therefore produced no
+ * summary (the `distributionValidated` event fires for those too, which is why
+ * routing the verdict here works where a pipeline stage would not).
  *
  * The pipeline can report a distribution’s validity more than once: a shallow
  * verdict from the probe (a small RDF body parses) followed by the authoritative
@@ -29,30 +24,16 @@ export interface CollectedValidity {
  * keeps the deep verdict; a distribution that is only probed (never imported)
  * keeps its shallow one.
  */
-export class ValidityVerdictCollector implements ProgressReporter {
+export class ValidityVerdictCollector implements Reporter {
   private readonly collected = new Map<string, CollectedValidity>();
-  private currentDataset?: Dataset;
 
-  datasetStart(dataset: Dataset): void {
-    this.currentDataset = dataset;
-  }
-
-  distributionValidated(
-    distribution: Distribution,
-    verdict: ValidityVerdict,
-  ): void {
-    // A verdict with no dataset in scope cannot be attributed, so drop it. In
-    // practice datasetStart always precedes distributionValidated, so this
-    // guards only against a future change to the processing order.
-    if (this.currentDataset === undefined) return;
+  onEvent(event: PipelineEvent): void {
+    if (event.type !== 'distributionValidated') return;
+    const {dataset, distribution, verdict} = event;
     // Key on (dataset, distribution); a newline cannot occur in either IRI, so
     // it is a safe separator. A later (deeper) verdict overwrites an earlier one.
-    const key = `${this.currentDataset.iri.toString()}\n${distribution.accessUrl.toString()}`;
-    this.collected.set(key, {
-      dataset: this.currentDataset,
-      distribution,
-      verdict,
-    });
+    const key = `${dataset.iri.toString()}\n${distribution.accessUrl.toString()}`;
+    this.collected.set(key, {dataset, distribution, verdict});
   }
 
   /**

@@ -56,7 +56,9 @@ export const MANIFEST_VALIDATION_FAILURE_REASONS: Record<
 > = {
   timeout: true,
   'network-error': true,
+  'refused-url': true,
   'http-error': true,
+  'too-large': true,
   'invalid-json': true,
   'binary-content': true,
   'not-a-manifest': true,

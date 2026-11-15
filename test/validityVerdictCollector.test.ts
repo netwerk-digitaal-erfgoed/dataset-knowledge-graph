@@ -1,6 +1,7 @@
 import {describe, it, expect} from 'vitest';
 import {Dataset, Distribution} from '@lde/dataset';
 import type {ValidityVerdict} from '@lde/distribution-health';
+import type {PipelineEvent} from '@lde/pipeline';
 import {ValidityVerdictCollector} from '../src/validityVerdictCollector.js';
 
 const datasetA = new Dataset({
@@ -13,6 +14,26 @@ const datasetB = new Dataset({
 });
 
 const distribution = (url: string) => new Distribution(new URL(url));
+
+const envelope = {
+  defaultLevel: 'info',
+  timestamp: new Date(),
+  runId: 'run',
+} as const;
+
+function validated(
+  dataset: Dataset,
+  url: string,
+  verdict: ValidityVerdict,
+): PipelineEvent {
+  return {
+    ...envelope,
+    type: 'distributionValidated',
+    dataset,
+    distribution: distribution(url),
+    verdict,
+  };
+}
 
 const validVerdict: ValidityVerdict = {
   valid: true,
@@ -28,18 +49,12 @@ const invalidVerdict: ValidityVerdict = {
 };
 
 describe('ValidityVerdictCollector', () => {
-  it('attributes each verdict to the dataset whose processing is current', () => {
+  it('attributes each verdict to the dataset its event names', () => {
     const collector = new ValidityVerdictCollector();
 
-    collector.datasetStart(datasetA);
-    collector.distributionValidated(
-      distribution('http://a.example/d1'),
-      validVerdict,
-    );
-    collector.datasetStart(datasetB);
-    collector.distributionValidated(
-      distribution('http://b.example/d1'),
-      invalidVerdict,
+    collector.onEvent(validated(datasetA, 'http://a.example/d1', validVerdict));
+    collector.onEvent(
+      validated(datasetB, 'http://b.example/d1', invalidVerdict),
     );
 
     expect(collector.verdicts()).toEqual([
@@ -59,14 +74,9 @@ describe('ValidityVerdictCollector', () => {
   it('collects multiple distributions under the same dataset', () => {
     const collector = new ValidityVerdictCollector();
 
-    collector.datasetStart(datasetA);
-    collector.distributionValidated(
-      distribution('http://a.example/d1'),
-      validVerdict,
-    );
-    collector.distributionValidated(
-      distribution('http://a.example/d2'),
-      invalidVerdict,
+    collector.onEvent(validated(datasetA, 'http://a.example/d1', validVerdict));
+    collector.onEvent(
+      validated(datasetA, 'http://a.example/d2', invalidVerdict),
     );
 
     expect(collector.verdicts()).toHaveLength(2);
@@ -87,15 +97,8 @@ describe('ValidityVerdictCollector', () => {
       depth: 'deep',
     };
 
-    collector.datasetStart(datasetA);
-    collector.distributionValidated(
-      distribution('http://a.example/d1'),
-      shallowValid,
-    );
-    collector.distributionValidated(
-      distribution('http://a.example/d1'),
-      deepInvalid,
-    );
+    collector.onEvent(validated(datasetA, 'http://a.example/d1', shallowValid));
+    collector.onEvent(validated(datasetA, 'http://a.example/d1', deepInvalid));
 
     // One entry for the distribution, carrying the later (deep) verdict.
     expect(collector.verdicts()).toEqual([
@@ -111,12 +114,10 @@ describe('ValidityVerdictCollector', () => {
     const collector = new ValidityVerdictCollector();
 
     // No stage runs for a dataset whose only distribution fails to import, but
-    // datasetStart and distributionValidated still fire — that is exactly why
-    // the verdict is routed here rather than emitted from a stage.
-    collector.datasetStart(datasetA);
-    collector.distributionValidated(
-      distribution('http://a.example/broken'),
-      invalidVerdict,
+    // distributionValidated still fires – that is exactly why the verdict is
+    // routed here rather than emitted from a stage.
+    collector.onEvent(
+      validated(datasetA, 'http://a.example/broken', invalidVerdict),
     );
 
     expect(collector.verdicts()).toEqual([
@@ -128,13 +129,10 @@ describe('ValidityVerdictCollector', () => {
     ]);
   });
 
-  it('ignores a verdict that arrives before any dataset has started', () => {
+  it('ignores every other event', () => {
     const collector = new ValidityVerdictCollector();
 
-    collector.distributionValidated(
-      distribution('http://orphan.example/d'),
-      validVerdict,
-    );
+    collector.onEvent({...envelope, type: 'datasetStart', dataset: datasetA});
 
     expect(collector.verdicts()).toEqual([]);
   });
