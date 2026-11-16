@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.2](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.3.1...v3.3.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **deps:** upgrade [@lde](https://github.com/lde) packages ([#584](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/issues/584)) ([9fcdbcf](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/commit/9fcdbcf3adf935de4e837ccab99516b44e5e94f2))
+
 ## [3.3.1](https://github.com/netwerk-digitaal-erfgoed/dataset-knowledge-graph/compare/v3.3.0...v3.3.1) (2026-11-15)
 
 
