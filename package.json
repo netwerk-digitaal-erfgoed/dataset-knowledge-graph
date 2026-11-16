@@ -39,7 +39,7 @@
     "@lde/pipeline-console-reporter": "^0.41.2",
     "@lde/pipeline-shacl-sampler": "^0.24.2",
     "@lde/pipeline-shacl-validator": "^0.33.2",
-    "@lde/pipeline-void": "^0.49.3",
+    "@lde/pipeline-void": "^0.49.4",
     "@lde/sparql-qlever": "^0.23.0",
     "@netwerk-digitaal-erfgoed/network-of-terms-catalog": "^11.4.1",
     "@rdfjs/namespace": "^2.0.1",
